@@ -1,0 +1,346 @@
+@startuml US010_DomainModel
+title Domain Model — AISafe
+
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor<<AggregateRoot>> #D0C8F8
+    BorderColor<<AggregateRoot>> #534AB7
+    FontColor<<AggregateRoot>> #26215C
+
+    BackgroundColor<<Entity>> #C2EAD8
+    BorderColor<<Entity>> #0F6E56
+    FontColor<<Entity>> #04342C
+
+    BackgroundColor<<ValueObject>> #FAE8C0
+    BorderColor<<ValueObject>> #854F0B
+    FontColor<<ValueObject>> #412402
+}
+
+skinparam package {
+    BackgroundColor #F8F8F8
+    BorderColor #AAAAAA
+    FontStyle bold
+}
+
+' ─────────────────────────────────────────
+' AGGREGATE: User
+' ─────────────────────────────────────────
+package "«aggregate» User" {
+    class User <<AggregateRoot>> {
+        + email : Email
+        + name : String
+        + phoneNumber : String
+    }
+    class SecurityClearance <<ValueObject>> {
+        + expiryDate : LocalDate
+        + isActive(today) : boolean
+    }
+    class SkillsAssessment <<ValueObject>> {
+        + assessmentDate : LocalDate
+        + isExpired() : boolean
+    }
+    User "1" *-- "1" SecurityClearance
+    User "1" *-- "0..*" SkillsAssessment
+}
+
+' ─────────────────────────────────────────
+' AGGREGATE: Role
+' ─────────────────────────────────────────
+package "«aggregate» Role" {
+    class Role <<AggregateRoot>> {
+        + name : String
+    }
+}
+
+User "0..*" --> "1" Role : has role
+
+' ─────────────────────────────────────────
+' AGGREGATE: Manufacturer
+' ─────────────────────────────────────────
+package "«aggregate» Manufacturer" {
+    class Manufacturer <<AggregateRoot>> {
+        + name : String
+        + country : String
+    }
+}
+
+' ─────────────────────────────────────────
+' AGGREGATE: Engine model
+' ─────────────────────────────────────────
+package "«aggregate» Engine model" {
+    class EngineModel <<AggregateRoot>> {
+        + name : String
+        + motorizationType : String
+        + tsfc : double
+    }
+    class ThrustSpec <<ValueObject>> {
+        + seaLevelThrust : double
+        + cruiseThrust : double
+    }
+    EngineModel "1" *-- "1" ThrustSpec
+}
+
+EngineModel "0..*" --> "1" Manufacturer : made by
+
+' ─────────────────────────────────────────
+' AGGREGATE: Aircraft model
+' ─────────────────────────────────────────
+package "«aggregate» Aircraft model" {
+    class AircraftModel <<AggregateRoot>> {
+        + modelId : String
+        + type : String
+    }
+    class FlightCharacteristics <<ValueObject>> {
+        + mtow : double
+        + mzfw : double
+        + maxFuelCapacity : double
+        + serviceCeiling : double
+        + cruiseSpeed : double
+        + wingArea : double
+        + cl : double
+        + cd : double
+    }
+    class CertifiedEngineRef <<ValueObject>> {
+        + engineModelId : String
+    }
+    AircraftModel "1" *-- "1" FlightCharacteristics
+    AircraftModel "1" *-- "1..*" CertifiedEngineRef
+}
+
+AircraftModel "0..*" --> "1" Manufacturer : made by
+CertifiedEngineRef "0..*" ..> "1" EngineModel : refs
+
+' ─────────────────────────────────────────
+' AGGREGATE: Aircraft
+' ─────────────────────────────────────────
+package "«aggregate» Aircraft" {
+    class Aircraft <<AggregateRoot>> {
+        + registration : String
+    }
+    class CabinConfiguration <<ValueObject>> {
+        + seatsPerClass : Map
+        + crewSize : int
+    }
+    class OperationalStatus <<ValueObject>> {
+        + status : enum {ACTIVE, DECOMMISSIONED}
+    }
+    Aircraft "1" *-- "1" CabinConfiguration
+    Aircraft "1" *-- "1" OperationalStatus
+}
+
+Aircraft "0..*" --> "1" AircraftModel : instance of
+
+' ─────────────────────────────────────────
+' AGGREGATE: Air transport company
+' ─────────────────────────────────────────
+package "«aggregate» Air transport company" {
+    class AirTransportCompany <<AggregateRoot>> {
+        + name : String
+    }
+    class CompanyCode <<ValueObject>> {
+        + iata : String
+        + icao : String
+    }
+    class ATCC <<Entity>> {
+        + email : String
+        + name : String
+        + position : String
+        + active : boolean
+    }
+    AirTransportCompany "1" *-- "1" CompanyCode
+    AirTransportCompany "1" *-- "0..*" ATCC
+}
+
+AirTransportCompany "1" --> "0..*" Aircraft : owns (fleet)
+
+' ─────────────────────────────────────────
+' AGGREGATE: Air control area
+' ─────────────────────────────────────────
+package "«aggregate» Air control area" {
+    class AirControlArea <<AggregateRoot>> {
+        + name : String
+    }
+    class AreaCode <<ValueObject>> {
+        + code : String
+    }
+    class GeographicBoundary <<ValueObject>> {
+        + polygon : List<Coordinates>
+    }
+    AirControlArea "1" *-- "1" AreaCode
+    AirControlArea "1" *-- "1" GeographicBoundary
+}
+
+' ─────────────────────────────────────────
+' AGGREGATE: Airport
+' ─────────────────────────────────────────
+package "«aggregate» Airport" {
+    class Airport <<AggregateRoot>> {
+        + name : String
+        + town : String
+        + country : String
+        + altitude : double
+    }
+    class AirportCode <<ValueObject>> {
+        + iata : String
+        + icao : String
+    }
+    class Coordinates <<ValueObject>> {
+        + latitude : double
+        + longitude : double
+    }
+    Airport "1" *-- "1" AirportCode
+    Airport "1" *-- "1" Coordinates
+}
+
+Airport "0..*" --> "1" AirControlArea : belongs to
+
+' ─────────────────────────────────────────
+' AGGREGATE: Flight route
+' ─────────────────────────────────────────
+package "«aggregate» Flight route" {
+    class FlightRoute <<AggregateRoot>> {
+        + active : boolean
+    }
+    class RouteName <<ValueObject>> {
+        + name : String
+    }
+    FlightRoute "1" *-- "1" RouteName
+}
+
+FlightRoute "0..*" --> "1" Airport : origin
+FlightRoute "0..*" --> "1" Airport : destination
+FlightRoute "0..*" --> "1" AirTransportCompany : owned by
+
+' ─────────────────────────────────────────
+' AGGREGATE: Flight
+' ─────────────────────────────────────────
+package "«aggregate» Flight" {
+    class Flight <<AggregateRoot>> {
+        + type : enum {REGULAR, CHARTER}
+    }
+    class FlightDesignator <<ValueObject>> {
+        + airlineCode : String
+        + number : int
+        + suffix : Character
+    }
+    class FlightSchedule <<ValueObject>> {
+        + departureDateTime : LocalDateTime
+        + scheduledArrival : LocalDateTime
+    }
+    Flight "1" *-- "1" FlightDesignator
+    Flight "1" *-- "1" FlightSchedule
+}
+
+Flight "0..*" --> "1" FlightRoute : instance of
+Flight "0..*" --> "1" Aircraft : assigned to
+Flight "0..*" --> "1" User : piloted by
+
+' ─────────────────────────────────────────
+' AGGREGATE: Flight plan
+' ─────────────────────────────────────────
+package "«aggregate» Flight plan" {
+    class FlightPlan <<AggregateRoot>> {
+        + status : enum {DRAFT, VALIDATED}
+    }
+    class DslSource <<ValueObject>> {
+        + rawText : String
+    }
+    class FlightLeg <<Entity>> {
+        + fuelQuantity : double
+    }
+    class Segment <<Entity>> {
+        + width : double
+    }
+    class NodeJunction <<Entity>> {
+    }
+    class WindCondition <<ValueObject>> {
+        + directionAngle : double
+        + speedMs : double
+    }
+    class AltitudeSlot <<ValueObject>> {
+        + minAltitude : double
+        + maxAltitude : double
+        + width : double
+    }
+    class CoordinatesVO <<ValueObject>> {
+        + latitude : double
+        + longitude : double
+    }
+
+    FlightPlan "1" *-- "1" DslSource
+    FlightPlan "1" *-- "1..*" FlightLeg
+    FlightLeg "1" *-- "1..*" Segment
+    Segment "1" *-- "1" WindCondition
+    Segment "1" *-- "1..*" AltitudeSlot
+    Segment "1" *-- "2" CoordinatesVO
+    FlightLeg "1" --> "1..*" NodeJunction : connected by
+}
+
+FlightPlan "0..*" --> "1" Flight : plans
+FlightLeg "0..*" --> "1" Airport : departure
+FlightLeg "0..*" --> "1" Airport : arrival
+
+' ─────────────────────────────────────────
+' AGGREGATE: Weather data
+' ─────────────────────────────────────────
+package "«aggregate» Weather data" {
+    class WeatherData <<AggregateRoot>> {
+        + date : LocalDate
+    }
+    class WeatherCondition <<ValueObject>> {
+        + temperature : double
+        + pressure : double
+        + windSpeed : double
+        + windDirection : double
+    }
+    WeatherData "1" *-- "1" WeatherCondition
+}
+
+WeatherData "0..*" --> "1" AirControlArea : for area
+
+' ─────────────────────────────────────────
+' AGGREGATE: Simulation
+' ─────────────────────────────────────────
+package "«aggregate» Simulation" {
+    class Simulation <<AggregateRoot>> {
+        + status : enum {RUNNING, COMPLETED, FAILED}
+    }
+    class SimulationParameters <<ValueObject>> {
+        + timeRangeStart : LocalDateTime
+        + timeRangeEnd : LocalDateTime
+        + safetyThreshold : double
+    }
+    class SimulationReport <<Entity>> {
+        + result : enum {PASS, FAIL}
+        + totalFlights : int
+    }
+    class SafetyViolation <<Entity>> {
+        + timestamp : LocalDateTime
+    }
+    class VelocityVector <<ValueObject>> {
+        + vx : double
+        + vy : double
+        + vz : double
+    }
+    Simulation "1" *-- "1" SimulationParameters
+    Simulation "1" *-- "1" SimulationReport
+    SimulationReport "1" *-- "0..*" SafetyViolation
+    SafetyViolation "1" *-- "1" VelocityVector
+}
+
+Simulation "1" --> "1..*" FlightPlan : simulates
+Simulation "0..*" --> "1" AirControlArea : in area
+
+' ─────────────────────────────────────────
+' LEGEND
+' ─────────────────────────────────────────
+legend right
+  |= Color |= Stereotype |= Meaning |
+  |<#D0C8F8> | <<AggregateRoot>> | Aggregate root (Entity with global identity) |
+  |<#C2EAD8> | <<Entity>>        | Entity inside aggregate (local identity)      |
+  |<#FAE8C0> | <<ValueObject>>   | Value object (no identity, immutable)         |
+  |         | *--               | Composition (part of aggregate)               |
+  |         | -->               | Association / reference between aggregates     |
+endlegend
+
+@enduml
