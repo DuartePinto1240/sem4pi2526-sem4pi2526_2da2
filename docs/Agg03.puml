@@ -1,0 +1,29 @@
+@startuml US011_Agg03_Manufacturer
+title Agg 3 · Manufacturer\nInvariant: name must be unique
+
+actor "BackofficeOp" as Op
+participant "ManufacturerRepo" as Repo
+participant "Manufacturer [root]" as Mfr
+
+Op -> Repo : registerManufacturer(name, country)
+activate Repo
+
+Repo -> Mfr : existsByName(name)?
+activate Mfr
+Mfr --> Repo : false
+deactivate Mfr
+
+Repo -> Mfr : new Manufacturer(name, country)
+activate Mfr
+Mfr --> Repo : saved
+deactivate Mfr
+
+Repo --> Op : ManufacturerRegistered event
+deactivate Repo
+
+note right of Repo
+  Invariant:
+  nome único no catálogo
+end note
+
+@enduml

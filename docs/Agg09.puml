@@ -1,0 +1,36 @@
+@startuml US011_Agg09_Flight
+title Agg 9 · Flight\nInvariant: designator unique; aircraft must be active
+
+actor Pilot
+participant "Flight [root]" as Flight
+participant "FlightRepo" as Repo
+participant "Aircraft" as Aircraft
+
+Pilot -> Flight : createFlight(designator, routeId, aircraftId)
+activate Flight
+
+Flight -> Repo : existsByDesignator(designator)?
+activate Repo
+Repo --> Flight : false → ok
+deactivate Repo
+
+Flight -> Aircraft : isActive()
+activate Aircraft
+Aircraft --> Flight : false (decommissioned)
+deactivate Aircraft
+
+alt [aircraft decommissioned]
+    Flight --> Pilot : throw AircraftNotActiveException
+else [aircraft active AND designator unique]
+    Flight --> Pilot : FlightCreated event
+end
+
+deactivate Flight
+
+note right of Flight
+  Invariant:
+  designador único
+  aeronave ativa
+end note
+
+@enduml

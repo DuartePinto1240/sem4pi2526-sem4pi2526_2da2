@@ -1,0 +1,35 @@
+@startuml US011_Agg11_WeatherData
+title Agg 11 · Weather data\nInvariant: one record per area+date; positive numeric values
+
+actor "WeatherPerson" as WP
+participant "WeatherData [root]" as WD
+participant "WeatherCondition [VO]" as WC
+
+WP -> WD : registerWeatherData(areaId, date, condition)
+activate WD
+
+WD -> WC : WeatherCondition.validate()
+activate WC
+WC --> WD : pressure = -1 → invalid
+deactivate WC
+
+alt [any numeric value <= 0]
+    WD --> WP : throw InvalidWeatherValueException
+end
+
+WD -> WC : existsFor(areaId, date)?
+activate WC
+WC --> WD : false → create
+deactivate WC
+
+WD --> WP : WeatherDataRegistered event
+
+deactivate WD
+
+note right of WD
+  Invariant:
+  1 registo por área + data
+  valores numéricos positivos
+end note
+
+@enduml

@@ -1,0 +1,29 @@
+@startuml US011_Agg02_Role
+title Agg 2 · Role\nInvariant: role name must be unique
+
+actor Admin
+participant "RoleRepository" as Repo
+participant "Role [root]" as Role
+
+Admin -> Repo : createRole("Pilot")
+activate Repo
+
+Repo -> Role : existsByName("Pilot")?
+activate Role
+Role --> Repo : true
+deactivate Role
+
+alt [name exists]
+    Repo --> Admin : throw DuplicateRoleException
+else [name available]
+    Repo --> Admin : RoleCreated event
+end
+
+deactivate Repo
+
+note right of Repo
+  Invariant:
+  Nome de role único
+end note
+
+@enduml

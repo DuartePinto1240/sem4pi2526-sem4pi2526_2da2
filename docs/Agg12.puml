@@ -1,0 +1,34 @@
+@startuml US011_Agg12_AirControlArea
+title Agg 12 · Air control area\nInvariant: unique code; valid geographic boundary
+
+actor "BackofficeOp" as Op
+participant "AirControlArea [root]" as ACA
+participant "GeographicBoundary [VO]" as GB
+
+Op -> ACA : registerArea(code, boundary)
+activate ACA
+
+ACA -> GB : GeographicBoundary.validate()
+activate GB
+GB --> ACA : polygon empty → invalid
+deactivate GB
+
+alt [boundary invalid OR code not unique]
+    ACA --> Op : throw InvalidAreaException
+else [boundary valid AND code unique]
+    ACA -> GB : areaCodeUnique(code)?
+    activate GB
+    GB --> ACA : true → area created
+    deactivate GB
+    ACA --> Op : AreaRegistered event
+end
+
+deactivate ACA
+
+note right of ACA
+  Invariant:
+  código único
+  fronteira geográfica válida
+end note
+
+@enduml

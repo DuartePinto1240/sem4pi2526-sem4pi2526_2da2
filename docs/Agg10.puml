@@ -1,0 +1,42 @@
+@startuml US011_Agg10_FlightPlan
+title Agg 10 · Flight plan\nInvariant: leg sequence coherence; fuel > 0; pilot from same company
+
+actor Pilot
+participant "FlightPlan [root]" as FP
+participant "FlightLeg [E]" as Leg
+participant "Segment [E]" as Seg
+
+Pilot -> FP : addLeg(leg2: departure=LIS, arrival=OPO)
+activate FP
+
+FP -> Leg : getLastLeg().arrival
+activate Leg
+Leg --> FP : FAO (Faro)
+deactivate Leg
+
+alt [leg2.departure ≠ prev leg arrival → FAO ≠ LIS]
+    FP --> Pilot : throw LegSequenceException
+end
+
+FP -> Leg : validateFuel(qty)
+activate Leg
+Leg --> FP : fuel qty = -100 → invalid
+deactivate Leg
+
+FP -> Seg : Segment(start, end, slots, wind)
+activate Seg
+Seg --> FP : start = end → invalid
+deactivate Seg
+
+FP --> Pilot : [ok] FlightPlanDraft event
+
+deactivate FP
+
+note right of FP
+  Invariant:
+  sequência de legs coerente
+  fuel > 0
+  start ≠ end em segmentos
+end note
+
+@enduml

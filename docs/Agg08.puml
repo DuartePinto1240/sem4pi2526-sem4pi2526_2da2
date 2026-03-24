@@ -1,0 +1,30 @@
+@startuml US011_Agg08_FlightRoute
+title Agg 8 · Flight route\nInvariant: unique name; no deletion if future flights exist
+
+actor ATCC
+participant "FlightRoute [root]" as Route
+participant "FlightRepository" as Repo
+
+ATCC -> Route : deactivateRoute(fromDate)
+activate Route
+
+Route -> Repo : hasFutureFlights(routeId, fromDate)?
+activate Repo
+Repo --> Route : true
+deactivate Repo
+
+alt [future flights exist]
+    Route --> ATCC : throw RouteHasActiveFlightsException
+else [no future flights]
+    Route --> ATCC : RouteDeactivated event
+end
+
+deactivate Route
+
+note right of Route
+  Invariant:
+  sem voos futuros
+  para desativar
+end note
+
+@enduml

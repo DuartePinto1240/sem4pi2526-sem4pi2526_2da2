@@ -1,0 +1,33 @@
+@startuml US011_Agg07_AirTransportCompany
+title Agg 7 · Air transport company\nInvariant: ATCC email unique; disabled cannot act
+
+actor "BackofficeOp" as Op
+participant "AirTransportCompany [root]" as ATC
+participant "ATCC [E]" as ATCC
+
+Op -> ATC : addCollaborator(email, name, position)
+activate ATC
+
+ATC -> ATCC : existsByEmail(email)?
+activate ATCC
+ATCC --> ATC : false
+deactivate ATCC
+
+ATC -> ATCC : new ATCC(email, name, position)
+activate ATCC
+
+alt [email already exists]
+    ATC --> Op : throw DuplicateCollaboratorException
+else [email unique]
+    ATC --> Op : CollaboratorAdded event
+end
+
+deactivate ATCC
+deactivate ATC
+
+note right of ATC
+  Invariant:
+  email de colaborador único
+end note
+
+@enduml

@@ -1,0 +1,30 @@
+@startuml US011_Agg04_EngineModel
+title Agg 4 · Engine model\nInvariant: thrust spec must be complete and TSFC > 0
+
+actor "BackofficeOp" as Op
+participant "EngineModel [root]" as EM
+participant "ThrustSpec [VO]" as TS
+
+Op -> EM : createEngineModel(type, tsfc, thrustSpec)
+activate EM
+
+EM -> TS : ThrustSpec(seaLevel, cruise)
+activate TS
+TS --> EM : validate() → cruise = 0 invalid
+deactivate TS
+
+alt [thrustSpec invalid OR tsfc <= 0]
+    EM --> Op : throw InvalidEngineSpecException
+else [valid spec]
+    EM --> Op : EngineModelCreated event
+end
+
+deactivate EM
+
+note right of EM
+  Invariant:
+  TSFC > 0
+  thrust spec completa
+end note
+
+@enduml

@@ -1,0 +1,36 @@
+@startuml US011_Agg13_Airport
+title Agg 13 · Airport\nInvariant: IATA/ICAO globally unique; coordinates valid; one area
+
+actor "BackofficeOp" as Op
+participant "Airport [root]" as Airport
+participant "AirportCode [VO]" as Code
+participant "Repo" as Repo
+
+Op -> Airport : createAirport(iata, icao, coords, areaId)
+activate Airport
+
+Airport -> Code : AirportCode.validate(iata, icao)
+activate Code
+Code --> Airport : iata = "ABCD" → must be 3 letters
+deactivate Code
+
+alt [code format invalid OR not unique]
+    Airport --> Op : throw InvalidAirportCodeException
+end
+
+Airport -> Repo : existsByIataOrIcao()?
+activate Repo
+Repo --> Airport : false → save
+deactivate Repo
+
+Airport --> Op : AirportCreated event
+
+deactivate Airport
+
+note right of Airport
+  Invariant:
+  IATA/ICAO globalmente únicos
+  formato correto
+end note
+
+@enduml

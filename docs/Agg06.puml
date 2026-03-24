@@ -1,0 +1,34 @@
+@startuml US011_Agg06_Aircraft
+title Agg 6 · Aircraft\nInvariant: seats <= model capacity; active status to fly
+
+actor ATCC
+participant "Aircraft [root]" as Aircraft
+participant "CabinConfiguration [VO]" as Cabin
+
+ATCC -> Aircraft : addToFleet(registration, cabinConfig)
+activate Aircraft
+
+Aircraft -> Cabin : totalSeats()
+activate Cabin
+Cabin --> Aircraft : 560
+deactivate Cabin
+
+Aircraft -> Cabin : modelCapacity()
+activate Cabin
+Cabin --> Aircraft : 550
+deactivate Cabin
+
+alt [totalSeats > modelCapacity]
+    Aircraft --> ATCC : throw SeatsExceedCapacityException
+else [seats within capacity]
+    Aircraft --> ATCC : AircraftRegistered event
+end
+
+deactivate Aircraft
+
+note right of Aircraft
+  Invariant:
+  seats <= capacidade do modelo
+end note
+
+@enduml

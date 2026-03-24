@@ -1,0 +1,30 @@
+@startuml US011_Agg01_User
+title Agg 1 · User\nInvariant: clearance must be active to enable user
+
+actor Admin
+participant "User [root]" as User
+participant "SecurityClearance [VO]" as SC
+
+Admin -> User : enableUser(userId)
+activate User
+
+User -> SC : isActive(today)
+activate SC
+SC --> User : false (expired)
+deactivate SC
+
+alt [clearance expired]
+    User --> Admin : throw ClearanceExpiredException
+else [clearance active]
+    User --> Admin : UserEnabled event
+end
+
+deactivate User
+
+note right of SC
+  Invariant:
+  User só é ativado se
+  clearance estiver ativa
+end note
+
+@enduml
