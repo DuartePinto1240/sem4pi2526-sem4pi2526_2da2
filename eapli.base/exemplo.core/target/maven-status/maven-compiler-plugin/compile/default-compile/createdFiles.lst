@@ -23,8 +23,8 @@ eapli/exemplo/utentemanagement/application/AcceptRefuseSignupRequestControllerTx
 eapli/exemplo/utentemanagement/domain/events/SignupAcceptedEvent.class
 eapli/exemplo/utentemanagement/repositories/SignupRequestRepository.class
 eapli/exemplo/utentemanagement/domain/SignupRequest.class
-eapli/exemplo/utentemanagement/application/AcceptRefuseSignupFactory.class
 eapli/exemplo/myutente/application/MyUtenteService.class
+eapli/exemplo/utentemanagement/application/AcceptRefuseSignupFactory.class
 eapli/exemplo/usermanagement/application/eventhandlers/SignupAcceptedWatchDog.class
 eapli/exemplo/utentemanagement/application/UtenteService.class
 eapli/exemplo/utentemanagement/repositories/UtenteRepository.class
