@@ -10,7 +10,8 @@ activate WD
 
 WD -> WC : WeatherCondition.validate()
 activate WC
-WC --> WD : pressure = -1 → invalid
+WC --> WD : pressure/windPressure < 0 → invalid
+note over WC: Domain validation failed.
 deactivate WC
 
 alt [any numeric value <= 0]
@@ -28,8 +29,8 @@ deactivate WD
 
 note right of WD
   Invariant:
-  1 registo por área + data
-  valores numéricos positivos
+  1 record per area + date
+  positive numeric values
 end note
 
 @enduml
