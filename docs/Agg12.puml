@@ -27,8 +27,8 @@ deactivate ACA
 
 note right of ACA
   Invariant:
-  código único
-  fronteira geográfica válida
+  unique code
+  valid geographic boundary
 end note
 
 @enduml
