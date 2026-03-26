@@ -1,5 +1,5 @@
-@startuml US010_DomainModel_Final
-title Domain Model — AISafe (Final Version)
+@startuml US010_DomainModel
+title Domain Model
 
 skinparam linetype ortho
 skinparam class {
@@ -37,11 +37,9 @@ package "User" {
 
     User "1" *-- "1" SecurityClearance
     User "1" *-- "0..*" SkillsAssessment
-    User "0..*" --> "1" Role
+    User "0..*" --> "1" Role : role (AggregateRoot)
 }
 
-' ─────────────────────────────
-' MANUFACTURER
 ' ─────────────────────────────
 package "Manufacturer" {
     class Manufacturer <<AggregateRoot>> {
@@ -50,8 +48,6 @@ package "Manufacturer" {
     }
 }
 
-' ─────────────────────────────
-' ENGINE MODEL
 ' ─────────────────────────────
 package "Engine Model" {
     class EngineModel <<AggregateRoot>> {
@@ -66,11 +62,10 @@ package "Engine Model" {
     }
 
     EngineModel "1" *-- "1" ThrustSpec
-    EngineModel "0..*" --> "1" Manufacturer
 }
 
-' ─────────────────────────────
-' AIRCRAFT MODEL
+EngineModel "0..*" --> "Manufacturer.Manufacturer" : made by (AggregateRoot)
+
 ' ─────────────────────────────
 package "Aircraft Model" {
     class AircraftModel <<AggregateRoot>> {
@@ -90,12 +85,11 @@ package "Aircraft Model" {
     }
 
     AircraftModel "1" *-- "1" FlightCharacteristics
-    AircraftModel "1" --> "1..*" EngineModel : certified
-    AircraftModel "0..*" --> "1" Manufacturer
 }
 
-' ─────────────────────────────
-' AIRCRAFT
+AircraftModel "1" --> "Engine Model.EngineModel" : certified (AggregateRoot)
+AircraftModel "0..*" --> "Manufacturer.Manufacturer" : made by (AggregateRoot)
+
 ' ─────────────────────────────
 package "Aircraft" {
     class Aircraft <<AggregateRoot>> {
@@ -113,11 +107,10 @@ package "Aircraft" {
 
     Aircraft "1" *-- "1" CabinConfiguration
     Aircraft "1" *-- "1" OperationalStatus
-    Aircraft "0..*" --> "1" AircraftModel
 }
 
-' ─────────────────────────────
-' AIR TRANSPORT COMPANY
+"Aircraft.Aircraft" "0..*" --> "Aircraft Model.AircraftModel" : based on (AggregateRoot)
+
 ' ─────────────────────────────
 package "Air Transport Company" {
     class AirTransportCompany <<AggregateRoot>> {
@@ -136,19 +129,16 @@ package "Air Transport Company" {
         + active : boolean
     }
 
-    class Pilot <<Entity>> {
-    }
+    class Pilot <<Entity>> {}
 
     AirTransportCompany "1" *-- "1" CompanyCode
     AirTransportCompany "1" *-- "0..*" ATCC
     AirTransportCompany "1" *-- "0..*" Pilot
-    AirTransportCompany "1" --> "0..*" Aircraft
 }
 
-Pilot --> User
+AirTransportCompany "1" --> "Aircraft.Aircraft" : owns (AggregateRoot)
+Pilot --> "User.User" : identity
 
-' ─────────────────────────────
-' AIR CONTROL AREA
 ' ─────────────────────────────
 package "Air Control Area" {
     class AirControlArea <<AggregateRoot>> {
@@ -167,8 +157,6 @@ package "Air Control Area" {
     AirControlArea "1" *-- "1" GeographicBoundary
 }
 
-' ─────────────────────────────
-' AIRPORT
 ' ─────────────────────────────
 package "Airport" {
     class Airport <<AggregateRoot>> {
@@ -192,10 +180,8 @@ package "Airport" {
     Airport "1" *-- "1" Coordinates
 }
 
-Airport --> AirControlArea
+"Airport.Airport" --> "Air Control Area.AirControlArea" : located in (AggregateRoot)
 
-' ─────────────────────────────
-' FLIGHT ROUTE
 ' ─────────────────────────────
 package "Flight Route" {
     class FlightRoute <<AggregateRoot>> {
@@ -210,12 +196,10 @@ package "Flight Route" {
     FlightRoute "1" *-- "1" RouteCode
 }
 
-FlightRoute --> Airport : origin
-FlightRoute --> Airport : destination
-FlightRoute --> AirTransportCompany
+FlightRoute --> "Airport.Airport" : origin (AggregateRoot)
+FlightRoute --> "Airport.Airport" : destination (AggregateRoot)
+FlightRoute --> "Air Transport Company.AirTransportCompany" : operated by (AggregateRoot)
 
-' ─────────────────────────────
-' FLIGHT
 ' ─────────────────────────────
 package "Flight" {
     class Flight <<AggregateRoot>> {
@@ -237,15 +221,14 @@ package "Flight" {
     Flight "1" *-- "1" FlightSchedule
 }
 
-Flight --> FlightRoute
-Flight --> Aircraft
-Flight --> Pilot
+FlightRoute "1" --> "Flight.Flight" : has
+Flight.Flight --> "Aircraft.Aircraft" : assigned (AggregateRoot)
+Flight.Flight --> Pilot : performed by
 
-' ─────────────────────────────
-' FLIGHT PLAN
 ' ─────────────────────────────
 package "Flight Plan" {
     class FlightPlan <<AggregateRoot>> {
+        + id : String
         + status : enum
     }
 
@@ -261,8 +244,7 @@ package "Flight Plan" {
         + width : double
     }
 
-    class NodeJunction <<ValueObject>> {
-    }
+    class NodeJunction <<ValueObject>> {}
 
     class CoordinatesVO <<ValueObject>> {
         + latitude : double
@@ -284,8 +266,6 @@ package "Flight Plan" {
     FlightPlan "1" *-- "1..*" FlightLeg
 
     FlightLeg "1" *-- "1..*" Segment
-    FlightLeg --> Airport : departure
-    FlightLeg --> Airport : arrival
 
     Segment "1" --> "1" NodeJunction : start
     Segment "1" --> "1" NodeJunction : end
@@ -294,10 +274,11 @@ package "Flight Plan" {
     Segment "1" *-- "2" CoordinatesVO
 }
 
-FlightPlan --> Flight
+FlightLeg --> "Airport.Airport" : departure (AggregateRoot)
+FlightLeg --> "Airport.Airport" : arrival (AggregateRoot)
 
-' ─────────────────────────────
-' WEATHER
+"Flight.Flight" "1" --> "Flight Plan.FlightPlan" : has (AggregateRoot)
+
 ' ─────────────────────────────
 package "Weather" {
     class WeatherData <<AggregateRoot>> {
@@ -314,10 +295,8 @@ package "Weather" {
     WeatherData "1" *-- "1" WeatherCondition
 }
 
-WeatherData --> AirControlArea
+WeatherData --> "Air Control Area.AirControlArea" : applies to (AggregateRoot)
 
-' ─────────────────────────────
-' SIMULATION
 ' ─────────────────────────────
 package "Simulation" {
     class Simulation <<AggregateRoot>> {
@@ -351,9 +330,7 @@ package "Simulation" {
     SafetyViolation "1" *-- "1" VelocityVector
 }
 
-Simulation --> FlightPlan
-Simulation --> AirControlArea
-EngineModel "0..*" --> "1" Manufacturer : made by
-AircraftModel "0..*" --> "1" Manufacturer : made by
+Simulation.Simulation --> "Flight Plan.FlightPlan" : uses (AggregateRoot)
+Simulation.Simulation --> "Air Control Area.AirControlArea" : scoped to (AggregateRoot)
 
 @enduml
