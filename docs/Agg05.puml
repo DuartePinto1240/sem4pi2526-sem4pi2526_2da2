@@ -1,5 +1,5 @@
 @startuml US011_Agg06_Aircraft
-title Agg 6 · Aircraft\nInvariant: seats <= model capacity; active status to fly
+title Agg 5 · Aircraft\nInvariant: seats <= model capacity; active status to fly
 
 actor ATCC
 participant "Aircraft [root]" as Aircraft

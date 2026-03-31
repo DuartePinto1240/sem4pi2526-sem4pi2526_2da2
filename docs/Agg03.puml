@@ -1,5 +1,5 @@
 @startuml US011_Agg04_EngineModel
-title Agg 4 · Engine model\nInvariant: thrust spec must be complete and TSFC > 0
+title Agg 3 · Engine model\nInvariant: thrust spec must be complete and TSFC > 0
 
 actor "BackofficeOp" as Op
 participant "EngineModel [root]" as EM

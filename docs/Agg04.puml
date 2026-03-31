@@ -1,5 +1,5 @@
 @startuml US011_Agg05_AircraftModel
-title Agg 5 · Aircraft model\nInvariant: compatible engine; no duplicates; min 1 engine
+title Agg 4 · Aircraft model\nInvariant: compatible engine; no duplicates; min 1 engine
 
 actor "BackofficeOp" as Op
 participant "AircraftModel [root]" as AM
