@@ -31,13 +31,11 @@ package "User" {
         + assessmentDate : LocalDate
     }
 
-    class Role <<AggregateRoot>> {
-        + name : String
-    }
+
 
     User "1" *-- "1" SecurityClearance
     User "1" *-- "0..*" SkillsAssessment
-    User "0..*" --> "1" Role
+
 }
 
 ' ─────────────────────────────
@@ -223,10 +221,9 @@ package "Flight" {
     Flight "1" *-- "1" FlightSchedule
 }
 
-Flight --> Aircraft
-Flight --> Pilot
+Flight.Flight --> Aircraft.Aircraft
+Flight.Flight --> "Air Transport Company.AirTransportCompany"
 
-Flight "1" --> "0..*" FlightPlan : has
 
 ' ─────────────────────────────
 package "Flight Plan" {
@@ -261,6 +258,7 @@ package "Flight Plan" {
 
     FlightPlan "1" *-- "1" DslSource
     FlightPlan "1" *-- "1..*" Segment
+    Flight.Flight "1" --> "0..*" FlightPlan : has
 
     Segment "1" *-- "1" WindCondition
     Segment "1" *-- "1..*" AltitudeSlot
@@ -321,7 +319,7 @@ package "Simulation" {
     SafetyViolation "1" *-- "1" VelocityVector
 }
 
-Simulation --> FlightPlan
-Simulation --> "Air Control Area.AirControlArea"
+Simulation.Simulation --> FlightPlan
+Simulation.Simulation --> "Air Control Area.AirControlArea"
 
 @enduml
