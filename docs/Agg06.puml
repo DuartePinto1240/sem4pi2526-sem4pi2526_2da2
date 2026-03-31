@@ -1,34 +1,33 @@
-@startuml US011_Agg06_Aircraft
-title Agg 6 · Aircraft\nInvariant: seats <= model capacity; active status to fly
+@startuml US011_Agg07_AirTransportCompany
+title Agg 7 · Air transport company\nInvariant: ATCC email unique; disabled cannot act
 
-actor ATCC
-participant "Aircraft [root]" as Aircraft
-participant "CabinConfiguration [VO]" as Cabin
+actor "BackofficeOp" as Op
+participant "AirTransportCompany [root]" as ATC
+participant "ATCC [E]" as ATCC
 
-ATCC -> Aircraft : addToFleet(registration, cabinConfig)
-activate Aircraft
+Op -> ATC : addCollaborator(email, name, position)
+activate ATC
 
-Aircraft -> Cabin : totalSeats()
-activate Cabin
-Cabin --> Aircraft : 560
-deactivate Cabin
+ATC -> ATCC : existsByEmail(email)?
+activate ATCC
+ATCC --> ATC : false
+deactivate ATCC
 
-Aircraft -> Cabin : modelCapacity()
-activate Cabin
-Cabin --> Aircraft : 550
-deactivate Cabin
+ATC -> ATCC : new ATCC(email, name, position)
+activate ATCC
 
-alt [totalSeats > modelCapacity]
-    Aircraft --> ATCC : throw SeatsExceedCapacityException
-else [seats within capacity]
-    Aircraft --> ATCC : AircraftRegistered event
+alt [email already exists]
+    ATC --> Op : throw DuplicateCollaboratorException
+else [email unique]
+    ATC --> Op : CollaboratorAdded event
 end
 
-deactivate Aircraft
+deactivate ATCC
+deactivate ATC
 
-note right of Aircraft
+note right of ATC
   Invariant:
-  seats <= capacidade do modelo
+  email de colaborador único
 end note
 
 @enduml

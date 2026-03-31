@@ -1,30 +1,36 @@
-@startuml US011_Agg04_EngineModel
-title Agg 4 · Engine model\nInvariant: thrust spec must be complete and TSFC > 0
+@startuml US011_Agg05_AircraftModel
+title Agg 5 · Aircraft model\nInvariant: compatible engine; no duplicates; min 1 engine
 
 actor "BackofficeOp" as Op
-participant "EngineModel [root]" as EM
-participant "ThrustSpec [VO]" as TS
+participant "AircraftModel [root]" as AM
+participant "CertifiedEngineRef [VO]" as Ref
 
-Op -> EM : createEngineModel(type, tsfc, thrustSpec)
-activate EM
+Op -> AM : addCertifiedEngine(engineModelId)
+activate AM
 
-EM -> TS : ThrustSpec(seaLevel, cruise)
-activate TS
-TS --> EM : validate() → cruise = 0 invalid
-deactivate TS
+AM -> Ref : alreadyCertified(engineModelId)?
+activate Ref
+Ref --> AM : true
+deactivate Ref
 
-alt [thrustSpec invalid OR tsfc <= 0]
-    EM --> Op : throw InvalidEngineSpecException
-else [valid spec]
-    EM --> Op : EngineModelCreated event
+alt [already certified]
+    AM --> Op : throw DuplicateEngineException
 end
 
-deactivate EM
+AM -> Ref : isTypeCompatible(engineType)?
+activate Ref
+Ref --> AM : true → add ref
+deactivate Ref
 
-note right of EM
+AM --> Op : EngineAdded event
+
+deactivate AM
+
+note right of AM
   Invariant:
-  TSFC > 0
-  thrust spec completa
+  sem duplicados
+  tipo compatível
+  mínimo 1 engine
 end note
 
 @enduml

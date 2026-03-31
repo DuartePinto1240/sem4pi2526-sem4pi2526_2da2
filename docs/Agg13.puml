@@ -1,36 +1,47 @@
-@startuml US011_Agg13_Airport
-title Agg 13 · Airport\nInvariant: IATA/ICAO globally unique; coordinates valid; one area
+@startuml US011_Agg_Simulation
+title Agg · Simulation\nInvariant: >= 1 flight plan; time step must complete before advancing
 
-actor "BackofficeOp" as Op
-participant "Airport [root]" as Airport
-participant "AirportCode [VO]" as Code
-participant "Repo" as Repo
+actor "FlightControlOp" as FCO
+participant "Simulation [root]" as Sim
+participant "SafetyViolation [E]" as SV
+participant "SimReport [E]" as SR
 
-Op -> Airport : createAirport(iata, icao, coords, areaId)
-activate Airport
+FCO -> Sim : startSimulation(flightPlanIds, params)
+activate Sim
 
-Airport -> Code : AirportCode.validate(iata, icao)
-activate Code
-Code --> Airport : iata = "ABCD" → must be 3 letters
-deactivate Code
+Sim --> FCO : flightPlans.size = 0 → invalid
 
-alt [code format invalid OR not unique]
-    Airport --> Op : throw InvalidAirportCodeException
+alt [no flight plans]
+    Sim --> FCO : throw EmptySimulationException
 end
 
-Airport -> Repo : existsByIataOrIcao()?
-activate Repo
-Repo --> Airport : false → save
-deactivate Repo
+loop [per time step]
+    Sim -> SV : advanceStep(positions)
+    activate SV
+    SV --> Sim : violation detected
+    deactivate SV
 
-Airport --> Op : AirportCreated event
+    Sim -> SV : new SafetyViolation(ts, pos, vel)
+    activate SV
 
-deactivate Airport
+    SV -> SR : logViolation(v)
+    activate SR
+    SR --> Sim : all flights updated → step done
+    deactivate SR
+    deactivate SV
+end
 
-note right of Airport
+Sim -> SR : generateReport(pass/fail)
+activate SR
+SR --> FCO : SimulationCompleted event
+deactivate SR
+
+deactivate Sim
+
+note right of Sim
   Invariant:
-  IATA/ICAO globalmente únicos
-  formato correto
+  >= 1 flight plan
+  sincronização de time step
 end note
 
 @enduml

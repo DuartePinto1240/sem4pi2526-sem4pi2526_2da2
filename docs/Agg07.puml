@@ -1,33 +1,30 @@
-@startuml US011_Agg07_AirTransportCompany
-title Agg 7 · Air transport company\nInvariant: ATCC email unique; disabled cannot act
+@startuml US011_Agg08_FlightRoute
+title Agg 8 · Flight route\nInvariant: unique name; no deletion if future flights exist
 
-actor "BackofficeOp" as Op
-participant "AirTransportCompany [root]" as ATC
-participant "ATCC [E]" as ATCC
+actor ATCC
+participant "FlightRoute [root]" as Route
+participant "FlightRepository" as Repo
 
-Op -> ATC : addCollaborator(email, name, position)
-activate ATC
+ATCC -> Route : deactivateRoute(fromDate)
+activate Route
 
-ATC -> ATCC : existsByEmail(email)?
-activate ATCC
-ATCC --> ATC : false
-deactivate ATCC
+Route -> Repo : hasFutureFlights(routeId, fromDate)?
+activate Repo
+Repo --> Route : true
+deactivate Repo
 
-ATC -> ATCC : new ATCC(email, name, position)
-activate ATCC
-
-alt [email already exists]
-    ATC --> Op : throw DuplicateCollaboratorException
-else [email unique]
-    ATC --> Op : CollaboratorAdded event
+alt [future flights exist]
+    Route --> ATCC : throw RouteHasActiveFlightsException
+else [no future flights]
+    Route --> ATCC : RouteDeactivated event
 end
 
-deactivate ATCC
-deactivate ATC
+deactivate Route
 
-note right of ATC
+note right of Route
   Invariant:
-  email de colaborador único
+  sem voos futuros
+  para desativar
 end note
 
 @enduml

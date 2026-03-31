@@ -1,36 +1,42 @@
-@startuml US011_Agg09_Flight
-title Agg 9 · Flight\nInvariant: designator unique; aircraft must be active
+@startuml US011_Agg10_FlightPlan
+title Agg 10 · Flight plan\nInvariant: leg sequence coherence; fuel > 0; pilot from same company
 
 actor Pilot
-participant "Flight [root]" as Flight
-participant "FlightRepo" as Repo
-participant "Aircraft" as Aircraft
+participant "FlightPlan [root]" as FP
+participant "FlightLeg [E]" as Leg
+participant "Segment [E]" as Seg
 
-Pilot -> Flight : createFlight(designator, routeId, aircraftId)
-activate Flight
+Pilot -> FP : addLeg(leg2: departure=LIS, arrival=OPO)
+activate FP
 
-Flight -> Repo : existsByDesignator(designator)?
-activate Repo
-Repo --> Flight : false → ok
-deactivate Repo
+FP -> Leg : getLastLeg().arrival
+activate Leg
+Leg --> FP : FAO (Faro)
+deactivate Leg
 
-Flight -> Aircraft : isActive()
-activate Aircraft
-Aircraft --> Flight : false (decommissioned)
-deactivate Aircraft
-
-alt [aircraft decommissioned]
-    Flight --> Pilot : throw AircraftNotActiveException
-else [aircraft active AND designator unique]
-    Flight --> Pilot : FlightCreated event
+alt [leg2.departure ≠ prev leg arrival → FAO ≠ LIS]
+    FP --> Pilot : throw LegSequenceException
 end
 
-deactivate Flight
+FP -> Leg : validateFuel(qty)
+activate Leg
+Leg --> FP : fuel qty = -100 → invalid
+deactivate Leg
 
-note right of Flight
+FP -> Seg : Segment(start, end, slots, wind)
+activate Seg
+Seg --> FP : start = end → invalid
+deactivate Seg
+
+FP --> Pilot : [ok] FlightPlanDraft event
+
+deactivate FP
+
+note right of FP
   Invariant:
-  designador único
-  aeronave ativa
+  sequência de legs coerente
+  fuel > 0
+  start ≠ end em segmentos
 end note
 
 @enduml

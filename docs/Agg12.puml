@@ -1,34 +1,36 @@
-@startuml US011_Agg12_AirControlArea
-title Agg 12 · Air control area\nInvariant: unique code; valid geographic boundary
+@startuml US011_Agg13_Airport
+title Agg 13 · Airport\nInvariant: IATA/ICAO globally unique; coordinates valid; one area
 
 actor "BackofficeOp" as Op
-participant "AirControlArea [root]" as ACA
-participant "GeographicBoundary [VO]" as GB
+participant "Airport [root]" as Airport
+participant "AirportCode [VO]" as Code
+participant "Repo" as Repo
 
-Op -> ACA : registerArea(code, boundary)
-activate ACA
+Op -> Airport : createAirport(iata, icao, coords, areaId)
+activate Airport
 
-ACA -> GB : GeographicBoundary.validate()
-activate GB
-GB --> ACA : polygon empty → invalid
-deactivate GB
+Airport -> Code : AirportCode.validate(iata, icao)
+activate Code
+Code --> Airport : iata = "ABCD" → must be 3 letters
+deactivate Code
 
-alt [boundary invalid OR code not unique]
-    ACA --> Op : throw InvalidAreaException
-else [boundary valid AND code unique]
-    ACA -> GB : areaCodeUnique(code)?
-    activate GB
-    GB --> ACA : true → area created
-    deactivate GB
-    ACA --> Op : AreaRegistered event
+alt [code format invalid OR not unique]
+    Airport --> Op : throw InvalidAirportCodeException
 end
 
-deactivate ACA
+Airport -> Repo : existsByIataOrIcao()?
+activate Repo
+Repo --> Airport : false → save
+deactivate Repo
 
-note right of ACA
+Airport --> Op : AirportCreated event
+
+deactivate Airport
+
+note right of Airport
   Invariant:
-  código único
-  fronteira geográfica válida
+  IATA/ICAO globalmente únicos
+  formato correto
 end note
 
 @enduml
