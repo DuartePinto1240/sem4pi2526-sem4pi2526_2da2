@@ -9,12 +9,6 @@ descriptive attributes, not entities with a lifecycle of their own. `Role` is ke
 because it is referenced globally and managed independently (it could be assigned to many
 users).
 
-### Role
-`Role` is a globally referenced configuration entity. It is managed independently because
-the same role can be assigned to many users. Keeping it as its own aggregate avoids coupling
-the user lifecycle to role management, and allows new roles to be introduced without
-modifying the `User` aggregate.
-
 ### Manufacturer
 A simple reference entity. It has no sub-objects with identity of their own; it is
 referenced by `EngineModel` and `AircraftModel` but does not control them. Keeping it as a
