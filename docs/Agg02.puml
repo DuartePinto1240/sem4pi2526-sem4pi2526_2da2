@@ -1,5 +1,5 @@
-@startuml US011_Agg03_Manufacturer
-title Agg 3 · Manufacturer\nInvariant: name must be unique
+@startuml US011_Agg02_Manufacturer
+title Agg 2 · Manufacturer\nInvariant: name must be unique
 
 actor "BackofficeOp" as Op
 participant "ManufacturerRepo" as Repo

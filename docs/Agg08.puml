@@ -1,5 +1,5 @@
-@startuml US011_Agg09_Flight
-title Agg 9 · Flight\nInvariant: designator unique; aircraft must be active
+@startuml US011_Agg08_Flight
+title Agg 8 · Flight\nInvariant: designator unique; aircraft must be active
 
 actor Pilot
 participant "Flight [root]" as Flight

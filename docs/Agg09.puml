@@ -1,5 +1,5 @@
-@startuml US011_Agg10_FlightPlan
-title Agg 10 · Flight plan\nInvariant: leg sequence coherence; fuel > 0; pilot from same company
+@startuml US011_Agg9_FlightPlan
+title Agg 9 · Flight plan\nInvariant: leg sequence coherence; fuel > 0; pilot from same company
 
 actor Pilot
 participant "FlightPlan [root]" as FP
@@ -34,9 +34,9 @@ deactivate FP
 
 note right of FP
   Invariant:
-  sequência de legs coerente
+  coherent leg sequence
   fuel > 0
-  start ≠ end em segmentos
+  start ≠ end in segments
 end note
 
 @enduml

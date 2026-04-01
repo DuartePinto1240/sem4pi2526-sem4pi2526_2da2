@@ -1,5 +1,5 @@
-@startuml US011_Agg12_AirControlArea
-title Agg 12 · Air control area\nInvariant: unique code; valid geographic boundary
+@startuml US011_Agg11_AirControlArea
+title Agg 11 · Air control area\nInvariant: unique code; valid geographic boundary
 
 actor "BackofficeOp" as Op
 participant "AirControlArea [root]" as ACA

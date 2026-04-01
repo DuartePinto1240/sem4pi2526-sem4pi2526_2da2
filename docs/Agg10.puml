@@ -1,5 +1,5 @@
-@startuml US011_Agg11_WeatherData
-title Agg 11 · Weather data\nInvariant: one record per area+date; positive numeric values
+@startuml US011_Agg10_WeatherData
+title Agg 10 · Weather data\nInvariant: one record per area+date; positive numeric values
 
 actor "WeatherPerson" as WP
 participant "WeatherData [root]" as WD
@@ -10,7 +10,7 @@ activate WD
 
 WD -> WC : WeatherCondition.validate()
 activate WC
-WC --> WD : pressure/windPressure < 0 → invalid
+WC --> WD : pressure/windPressure = -1 → invalid
 note over WC: Domain validation failed.
 deactivate WC
 

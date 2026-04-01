@@ -1,5 +1,5 @@
-@startuml US011_Agg07_AirTransportCompany
-title Agg 7 · Air transport company\nInvariant: ATCC email unique; disabled cannot act
+@startuml US011_Agg06_AirTransportCompany
+title Agg 6 · Air transport company\nInvariant: ATCC email unique; disabled cannot act
 
 actor "BackofficeOp" as Op
 participant "AirTransportCompany [root]" as ATC
