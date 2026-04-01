@@ -1,30 +1,36 @@
-@startuml US011_Agg08_FlightRoute
-title Agg 8 · Flight route\nInvariant: unique name; no deletion if future flights exist
+@startuml US011_Agg09_Flight
+title Agg 9 · Flight\nInvariant: designator unique; aircraft must be active
 
-actor ATCC
-participant "FlightRoute [root]" as Route
-participant "FlightRepository" as Repo
+actor Pilot
+participant "Flight [root]" as Flight
+participant "FlightRepo" as Repo
+participant "Aircraft" as Aircraft
 
-ATCC -> Route : deactivateRoute(fromDate)
-activate Route
+Pilot -> Flight : createFlight(designator, routeId, aircraftId)
+activate Flight
 
-Route -> Repo : hasFutureFlights(routeId, fromDate)?
+Flight -> Repo : existsByDesignator(designator)?
 activate Repo
-Repo --> Route : true
+Repo --> Flight : false → ok
 deactivate Repo
 
-alt [future flights exist]
-    Route --> ATCC : throw RouteHasActiveFlightsException
-else [no future flights]
-    Route --> ATCC : RouteDeactivated event
+Flight -> Aircraft : isActive()
+activate Aircraft
+Aircraft --> Flight : false (decommissioned)
+deactivate Aircraft
+
+alt [aircraft decommissioned]
+    Flight --> Pilot : throw AircraftNotActiveException
+else [aircraft active AND designator unique]
+    Flight --> Pilot : FlightCreated event
 end
 
-deactivate Route
+deactivate Flight
 
-note right of Route
+note right of Flight
   Invariant:
-  sem voos futuros
-  para desativar
+  designador único
+  aeronave ativa
 end note
 
 @enduml

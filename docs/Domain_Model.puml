@@ -1,5 +1,5 @@
 @startuml US010_DomainModel
-title Domain Model
+title Domain Model (Corrected)
 
 skinparam linetype ortho
 skinparam class {
@@ -31,13 +31,11 @@ package "User" {
         + assessmentDate : LocalDate
     }
 
-    class Role <<AggregateRoot>> {
-        + name : String
-    }
+
 
     User "1" *-- "1" SecurityClearance
     User "1" *-- "0..*" SkillsAssessment
-    User "0..*" --> "1" Role : role (AggregateRoot)
+
 }
 
 ' ─────────────────────────────
@@ -64,7 +62,7 @@ package "Engine Model" {
     EngineModel "1" *-- "1" ThrustSpec
 }
 
-EngineModel "0..*" --> "Manufacturer.Manufacturer" : made by (AggregateRoot)
+EngineModel "0..*" --> "Manufacturer.Manufacturer" : made by
 
 ' ─────────────────────────────
 package "Aircraft Model" {
@@ -87,8 +85,8 @@ package "Aircraft Model" {
     AircraftModel "1" *-- "1" FlightCharacteristics
 }
 
-AircraftModel "1" --> "Engine Model.EngineModel" : certified (AggregateRoot)
-AircraftModel "0..*" --> "Manufacturer.Manufacturer" : made by (AggregateRoot)
+AircraftModel "1" --> "Engine Model.EngineModel" : certified
+AircraftModel "0..*" --> "Manufacturer.Manufacturer" : made by
 
 ' ─────────────────────────────
 package "Aircraft" {
@@ -109,7 +107,7 @@ package "Aircraft" {
     Aircraft "1" *-- "1" OperationalStatus
 }
 
-"Aircraft.Aircraft" "0..*" --> "Aircraft Model.AircraftModel" : based on (AggregateRoot)
+"Aircraft.Aircraft" "0..*" --> "Aircraft Model.AircraftModel" : based on
 
 ' ─────────────────────────────
 package "Air Transport Company" {
@@ -136,8 +134,8 @@ package "Air Transport Company" {
     AirTransportCompany "1" *-- "0..*" Pilot
 }
 
-AirTransportCompany "1" --> "Aircraft.Aircraft" : owns (AggregateRoot)
-Pilot --> "User.User" : identity
+AirTransportCompany "1" --> "Aircraft.Aircraft" : owns
+Pilot --> "User.User"
 
 ' ─────────────────────────────
 package "Air Control Area" {
@@ -180,7 +178,7 @@ package "Airport" {
     Airport "1" *-- "1" Coordinates
 }
 
-"Airport.Airport" --> "Air Control Area.AirControlArea" : located in (AggregateRoot)
+"Airport.Airport" --> "Air Control Area.AirControlArea"
 
 ' ─────────────────────────────
 package "Flight Route" {
@@ -196,9 +194,11 @@ package "Flight Route" {
     FlightRoute "1" *-- "1" RouteCode
 }
 
-FlightRoute --> "Airport.Airport" : origin (AggregateRoot)
-FlightRoute --> "Airport.Airport" : destination (AggregateRoot)
-FlightRoute --> "Air Transport Company.AirTransportCompany" : operated by (AggregateRoot)
+FlightRoute --> "Airport.Airport" : origin
+FlightRoute --> "Airport.Airport" : destination
+FlightRoute --> "Air Transport Company.AirTransportCompany"
+
+FlightRoute "1" --> "0..*" Flight : has
 
 ' ─────────────────────────────
 package "Flight" {
@@ -221,9 +221,9 @@ package "Flight" {
     Flight "1" *-- "1" FlightSchedule
 }
 
-FlightRoute "1" --> "Flight.Flight" : has
-Flight.Flight --> "Aircraft.Aircraft" : assigned (AggregateRoot)
-Flight.Flight --> Pilot : performed by
+Flight.Flight --> Aircraft.Aircraft
+Flight.Flight --> "Air Transport Company.AirTransportCompany"
+
 
 ' ─────────────────────────────
 package "Flight Plan" {
@@ -236,15 +236,9 @@ package "Flight Plan" {
         + rawText : String
     }
 
-    class FlightLeg <<Entity>> {
-        + fuelQuantity : double
-    }
-
     class Segment <<Entity>> {
         + width : double
     }
-
-    class NodeJunction <<ValueObject>> {}
 
     class CoordinatesVO <<ValueObject>> {
         + latitude : double
@@ -263,21 +257,16 @@ package "Flight Plan" {
     }
 
     FlightPlan "1" *-- "1" DslSource
-    FlightPlan "1" *-- "1..*" FlightLeg
+    FlightPlan "1" *-- "1..*" Segment
+    Flight.Flight "1" --> "0..*" FlightPlan : has
 
-    FlightLeg "1" *-- "1..*" Segment
-
-    Segment "1" --> "1" NodeJunction : start
-    Segment "1" --> "1" NodeJunction : end
     Segment "1" *-- "1" WindCondition
     Segment "1" *-- "1..*" AltitudeSlot
     Segment "1" *-- "2" CoordinatesVO
 }
 
-FlightLeg --> "Airport.Airport" : departure (AggregateRoot)
-FlightLeg --> "Airport.Airport" : arrival (AggregateRoot)
-
-"Flight.Flight" "1" --> "Flight Plan.FlightPlan" : has (AggregateRoot)
+FlightPlan --> Flight
+Segment --> "Airport.Airport" : optional reference
 
 ' ─────────────────────────────
 package "Weather" {
@@ -295,7 +284,7 @@ package "Weather" {
     WeatherData "1" *-- "1" WeatherCondition
 }
 
-WeatherData --> "Air Control Area.AirControlArea" : applies to (AggregateRoot)
+WeatherData --> "Air Control Area.AirControlArea"
 
 ' ─────────────────────────────
 package "Simulation" {
@@ -330,7 +319,7 @@ package "Simulation" {
     SafetyViolation "1" *-- "1" VelocityVector
 }
 
-Simulation.Simulation --> "Flight Plan.FlightPlan" : uses (AggregateRoot)
-Simulation.Simulation --> "Air Control Area.AirControlArea" : scoped to (AggregateRoot)
+Simulation.Simulation --> FlightPlan
+Simulation.Simulation --> "Air Control Area.AirControlArea"
 
 @enduml

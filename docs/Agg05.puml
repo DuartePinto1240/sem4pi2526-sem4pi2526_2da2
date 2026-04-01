@@ -1,36 +1,34 @@
-@startuml US011_Agg05_AircraftModel
-title Agg 5 · Aircraft model\nInvariant: compatible engine; no duplicates; min 1 engine
+@startuml US011_Agg06_Aircraft
+title Agg 5 · Aircraft\nInvariant: seats <= model capacity; active status to fly
 
-actor "BackofficeOp" as Op
-participant "AircraftModel [root]" as AM
-participant "CertifiedEngineRef [VO]" as Ref
+actor ATCC
+participant "Aircraft [root]" as Aircraft
+participant "CabinConfiguration [VO]" as Cabin
 
-Op -> AM : addCertifiedEngine(engineModelId)
-activate AM
+ATCC -> Aircraft : addToFleet(registration, cabinConfig)
+activate Aircraft
 
-AM -> Ref : alreadyCertified(engineModelId)?
-activate Ref
-Ref --> AM : true
-deactivate Ref
+Aircraft -> Cabin : totalSeats()
+activate Cabin
+Cabin --> Aircraft : 560
+deactivate Cabin
 
-alt [already certified]
-    AM --> Op : throw DuplicateEngineException
+Aircraft -> Cabin : modelCapacity()
+activate Cabin
+Cabin --> Aircraft : 550
+deactivate Cabin
+
+alt [totalSeats > modelCapacity]
+    Aircraft --> ATCC : throw SeatsExceedCapacityException
+else [seats within capacity]
+    Aircraft --> ATCC : AircraftRegistered event
 end
 
-AM -> Ref : isTypeCompatible(engineType)?
-activate Ref
-Ref --> AM : true → add ref
-deactivate Ref
+deactivate Aircraft
 
-AM --> Op : EngineAdded event
-
-deactivate AM
-
-note right of AM
+note right of Aircraft
   Invariant:
-  sem duplicados
-  tipo compatível
-  mínimo 1 engine
+  seats <= capacidade do modelo
 end note
 
 @enduml

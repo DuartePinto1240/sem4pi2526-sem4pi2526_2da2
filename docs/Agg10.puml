@@ -1,42 +1,36 @@
-@startuml US011_Agg10_FlightPlan
-title Agg 10 · Flight plan\nInvariant: leg sequence coherence; fuel > 0; pilot from same company
+@startuml US011_Agg11_WeatherData
+title Agg 11 · Weather data\nInvariant: one record per area+date; positive numeric values
 
-actor Pilot
-participant "FlightPlan [root]" as FP
-participant "FlightLeg [E]" as Leg
-participant "Segment [E]" as Seg
+actor "WeatherPerson" as WP
+participant "WeatherData [root]" as WD
+participant "WeatherCondition [VO]" as WC
 
-Pilot -> FP : addLeg(leg2: departure=LIS, arrival=OPO)
-activate FP
+WP -> WD : registerWeatherData(areaId, date, condition)
+activate WD
 
-FP -> Leg : getLastLeg().arrival
-activate Leg
-Leg --> FP : FAO (Faro)
-deactivate Leg
+WD -> WC : WeatherCondition.validate()
+activate WC
+WC --> WD : pressure/windPressure < 0 → invalid
+note over WC: Domain validation failed.
+deactivate WC
 
-alt [leg2.departure ≠ prev leg arrival → FAO ≠ LIS]
-    FP --> Pilot : throw LegSequenceException
+alt [any numeric value <= 0]
+    WD --> WP : throw InvalidWeatherValueException
 end
 
-FP -> Leg : validateFuel(qty)
-activate Leg
-Leg --> FP : fuel qty = -100 → invalid
-deactivate Leg
+WD -> WC : existsFor(areaId, date)?
+activate WC
+WC --> WD : false → create
+deactivate WC
 
-FP -> Seg : Segment(start, end, slots, wind)
-activate Seg
-Seg --> FP : start = end → invalid
-deactivate Seg
+WD --> WP : WeatherDataRegistered event
 
-FP --> Pilot : [ok] FlightPlanDraft event
+deactivate WD
 
-deactivate FP
-
-note right of FP
+note right of WD
   Invariant:
-  sequência de legs coerente
-  fuel > 0
-  start ≠ end em segmentos
+  1 record per area + date
+  positive numeric values
 end note
 
 @enduml

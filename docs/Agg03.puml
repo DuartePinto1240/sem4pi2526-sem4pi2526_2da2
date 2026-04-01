@@ -1,29 +1,30 @@
-@startuml US011_Agg03_Manufacturer
-title Agg 3 · Manufacturer\nInvariant: name must be unique
+@startuml US011_Agg04_EngineModel
+title Agg 3 · Engine model\nInvariant: thrust spec must be complete and TSFC > 0
 
 actor "BackofficeOp" as Op
-participant "ManufacturerRepo" as Repo
-participant "Manufacturer [root]" as Mfr
+participant "EngineModel [root]" as EM
+participant "ThrustSpec [VO]" as TS
 
-Op -> Repo : registerManufacturer(name, country)
-activate Repo
+Op -> EM : createEngineModel(type, tsfc, thrustSpec)
+activate EM
 
-Repo -> Mfr : existsByName(name)?
-activate Mfr
-Mfr --> Repo : false
-deactivate Mfr
+EM -> TS : ThrustSpec(seaLevel, cruise)
+activate TS
+TS --> EM : validate() → cruise = 0 invalid
+deactivate TS
 
-Repo -> Mfr : new Manufacturer(name, country)
-activate Mfr
-Mfr --> Repo : saved
-deactivate Mfr
+alt [thrustSpec invalid OR tsfc <= 0]
+    EM --> Op : throw InvalidEngineSpecException
+else [valid spec]
+    EM --> Op : EngineModelCreated event
+end
 
-Repo --> Op : ManufacturerRegistered event
-deactivate Repo
+deactivate EM
 
-note right of Repo
+note right of EM
   Invariant:
-  nome único no catálogo
+  TSFC > 0
+  thrust spec completa
 end note
 
 @enduml

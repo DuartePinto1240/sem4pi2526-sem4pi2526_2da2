@@ -1,36 +1,34 @@
-@startuml US011_Agg11_WeatherData
-title Agg 11 · Weather data\nInvariant: one record per area+date; positive numeric values
+@startuml US011_Agg12_AirControlArea
+title Agg 12 · Air control area\nInvariant: unique code; valid geographic boundary
 
-actor "WeatherPerson" as WP
-participant "WeatherData [root]" as WD
-participant "WeatherCondition [VO]" as WC
+actor "BackofficeOp" as Op
+participant "AirControlArea [root]" as ACA
+participant "GeographicBoundary [VO]" as GB
 
-WP -> WD : registerWeatherData(areaId, date, condition)
-activate WD
+Op -> ACA : registerArea(code, boundary)
+activate ACA
 
-WD -> WC : WeatherCondition.validate()
-activate WC
-WC --> WD : pressure/windPressure < 0 → invalid
-note over WC: Domain validation failed.
-deactivate WC
+ACA -> GB : GeographicBoundary.validate()
+activate GB
+GB --> ACA : polygon empty → invalid
+deactivate GB
 
-alt [any numeric value <= 0]
-    WD --> WP : throw InvalidWeatherValueException
+alt [boundary invalid OR code not unique]
+    ACA --> Op : throw InvalidAreaException
+else [boundary valid AND code unique]
+    ACA -> GB : areaCodeUnique(code)?
+    activate GB
+    GB --> ACA : true → area created
+    deactivate GB
+    ACA --> Op : AreaRegistered event
 end
 
-WD -> WC : existsFor(areaId, date)?
-activate WC
-WC --> WD : false → create
-deactivate WC
+deactivate ACA
 
-WD --> WP : WeatherDataRegistered event
-
-deactivate WD
-
-note right of WD
+note right of ACA
   Invariant:
-  1 record per area + date
-  positive numeric values
+  unique code
+  valid geographic boundary
 end note
 
 @enduml

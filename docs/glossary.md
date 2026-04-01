@@ -13,6 +13,7 @@
 | **Area code** | **Código de área** | Unique identifier of an air control area. Immutable value object. |
 | **ATCC** | **Colaborador de companhia aérea** | Air Transport Company Collaborator. System user belonging to an air transport company, responsible for managing fleet, routes, and pilots. Entity managed within the Air transport company aggregate. |
 | **Backoffice operator** | **Operador de backoffice** | System user responsible for feeding the system with base data: areas, airports, aircraft models, engine models, companies, etc. |
+| **Bootstrap** | **Bootstrap** | Process by which the system is pre-loaded with essential initial data (e.g. users, airports, areas, aircraft models) without manual input through the UI. Several user stories require bootstrappable behaviour. |
 | **Cabin configuration** | **Configuração de cabine** | Value object describing the number of seats per class and crew size of an aircraft. Replaced entirely when updated. |
 | **Certified engine ref** | **Referência de motor certificado** | Value object representing a reference to an engine model certified for use in a specific aircraft model. Stored as a typed reference list within the aircraft model aggregate. |
 | **Company code** | **Código de companhia** | Value object encapsulating the IATA and ICAO codes of an air transport company. Immutable; has no lifecycle of its own. |
@@ -20,19 +21,22 @@
 | **DSL source** | **Fonte DSL** | Value object storing the raw text of the DSL file that originated a flight plan. Immutable after import. |
 | **Engine model** | **Modelo de motor** | Certified engine model for use in aircraft. Characterized by motorization type, thrust specification, and thrust specific fuel consumption (TSFC). Aggregate root. |
 | **Flight** | **Voo** | Instance of a flight route with a specific date and time. Identified by a unique flight designator. References a route, aircraft, and pilot. Aggregate root. |
+| **Flight characteristics** | **Características de voo** | Value object grouping the immutable physical parameters of an aircraft model: Cl, Cd, MTOW, MZFW, wing area, cruise speed, and service ceiling. Has no independent lifecycle. |
 | **Flight control operator (FCO)** | **Operador de controlo de voo** | System user belonging to a flight control entity. Tests flight plans and runs air control simulations. |
 | **Flight designator** | **Designador de voo** | Value object representing the unique code of a flight, composed of the airline code, numeric flight number, and optional operational suffix (format: `xxn(n)(n)(n)(a)`). Encapsulates the format rule. |
 | **Flight DSL** | **DSL de voo** | Domain-specific language for formally describing flight plans. Defined by an ANTLR grammar with lexer and parser rules. Imported from external tools. |
-| **Flight characteristics** | **Características de voo** | Value object grouping the immutable physical parameters of an aircraft model: Cl, Cd, MTOW, MZFW, wing area, cruise speed, and service ceiling. Has no independent lifecycle. |
 | **Flight leg** | **Leg de voo** | Non-stop segment within a flight plan between two airports. Entity inside the flight plan aggregate. Contains departure information, arrival information, and fuel quantity. Has identity based on its sequence order within the plan. |
 | **Flight log entry** | **Entrada de log de voo** | Record of a single simulation step for a specific flight: position, timestamp, and step number. Stored in a separate file per flight by the flight logging server. |
 | **Flight logging server** | **Servidor de logging de voos** | UDP server that receives position updates from flight processes at each simulation step. Includes an HTTP server with an AJAX-updated status page. |
 | **Flight plan** | **Plano de voo** | Detailed plan for a flight, including aircraft, fuel load, pilot, and route. Initial status is "draft" until validated. Can be created from a DSL file. Aggregate root; the most complex aggregate in the domain. |
 | **Flight route** | **Rota de voo** | Route between two airports, defined by an air transport company. Unique name composed of the company's initials followed by up to 4 digits (e.g., TP123). Aggregate root. |
 | **Flight schedule** | **Horário de voo** | Value object containing the planned departure and arrival date/time of a flight. Replaceable without affecting flight identity. |
+| **Flight type** | **Tipo de voo** | Classification of a flight as either regular or charter. A regular flight operates on scheduled days of the week; a charter flight operates on a specific date. Flights of different types on the same route are treated as distinct flights with distinct designators. |
+| **Fuel load** | **Carga de combustível** | The quantity of fuel on board an aircraft at the start of a flight leg, expressed in litres or kilograms. Must be strictly positive and sufficient to meet the safety regulations of the destination air control area. |
 | **Geographic boundary** | **Fronteira geográfica** | Value object describing the geographic polygon delimiting an air control area. Must be non-empty and valid. |
 | **Manufacturer** | **Fabricante** | Manufacturer of aircraft or engines. Stores name and country. Referenced by aircraft and engine models. Aggregate root. |
 | **Monthly report** | **Relatório mensal** | Statistical report generated by a flight control operator. Serves as the foundation for other future report types, ensuring consistent structure and branding. |
+| **Motorization type** | **Tipo de motorização** | Classification of an engine model according to its propulsion technology: turboprop, turbofan, turbojet, ramjet, electric propeller, etc. Determines compatibility between an engine model and an aircraft model. |
 | **Node / junction** | **Nó / junção** | Connection point between two or more segments, allowing an aircraft to transition between contiguous segments. Entity within the flight plan aggregate; identity based on coordinates. |
 | **Operational status** | **Estado operacional** | Value object representing the operational state of an aircraft (active or decommissioned). Enum-like type with no identity of its own. |
 | **Pilot** | **Piloto** | System user belonging to an air transport company, certified to pilot one or more aircraft models. Creates and manages flight plans. |
