@@ -31,13 +31,12 @@ package "User" {
         + assessmentDate : LocalDate
     }
 
-
-
     User "1" *-- "1" SecurityClearance
     User "1" *-- "0..*" SkillsAssessment
-
 }
 
+' ─────────────────────────────
+' MANUFACTURER
 ' ─────────────────────────────
 package "Manufacturer" {
     class Manufacturer <<AggregateRoot>> {
@@ -46,6 +45,8 @@ package "Manufacturer" {
     }
 }
 
+' ─────────────────────────────
+' ENGINE MODEL
 ' ─────────────────────────────
 package "Engine Model" {
     class EngineModel <<AggregateRoot>> {
@@ -64,6 +65,8 @@ package "Engine Model" {
 
 EngineModel "0..*" --> "Manufacturer.Manufacturer" : made by
 
+' ─────────────────────────────
+' AIRCRAFT MODEL
 ' ─────────────────────────────
 package "Aircraft Model" {
     class AircraftModel <<AggregateRoot>> {
@@ -89,6 +92,8 @@ AircraftModel "1" --> "Engine Model.EngineModel" : certified
 AircraftModel "0..*" --> "Manufacturer.Manufacturer" : made by
 
 ' ─────────────────────────────
+' AIRCRAFT
+' ─────────────────────────────
 package "Aircraft" {
     class Aircraft <<AggregateRoot>> {
         + registration : String
@@ -100,7 +105,7 @@ package "Aircraft" {
     }
 
     class OperationalStatus <<ValueObject>> {
-        + status : enum
+        + status : enum {ACTIVE, DECOMMISSIONED}
     }
 
     Aircraft "1" *-- "1" CabinConfiguration
@@ -109,6 +114,8 @@ package "Aircraft" {
 
 "Aircraft.Aircraft" "0..*" --> "Aircraft Model.AircraftModel" : based on
 
+' ─────────────────────────────
+' AIR TRANSPORT COMPANY
 ' ─────────────────────────────
 package "Air Transport Company" {
     class AirTransportCompany <<AggregateRoot>> {
@@ -138,6 +145,8 @@ AirTransportCompany "1" --> "Aircraft.Aircraft" : owns
 Pilot --> "User.User"
 
 ' ─────────────────────────────
+' AIR CONTROL AREA
+' ─────────────────────────────
 package "Air Control Area" {
     class AirControlArea <<AggregateRoot>> {
         + name : String
@@ -148,13 +157,18 @@ package "Air Control Area" {
     }
 
     class GeographicBoundary <<ValueObject>> {
-        + polygon : List
+        + minLatitude : double
+        + maxLatitude : double
+        + minLongitude : double
+        + maxLongitude : double
     }
 
     AirControlArea "1" *-- "1" AreaCode
     AirControlArea "1" *-- "1" GeographicBoundary
 }
 
+' ─────────────────────────────
+' AIRPORT
 ' ─────────────────────────────
 package "Airport" {
     class Airport <<AggregateRoot>> {
@@ -178,12 +192,15 @@ package "Airport" {
     Airport "1" *-- "1" Coordinates
 }
 
-"Airport.Airport" --> "Air Control Area.AirControlArea"
+"Airport.Airport" "0..*" --> "Air Control Area.AirControlArea" : belongs to
 
+' ─────────────────────────────
+' FLIGHT ROUTE
 ' ─────────────────────────────
 package "Flight Route" {
     class FlightRoute <<AggregateRoot>> {
         + active : boolean
+        + type : enum {REGULAR, CHARTER}
     }
 
     class RouteCode <<ValueObject>> {
@@ -196,14 +213,14 @@ package "Flight Route" {
 
 FlightRoute --> "Airport.Airport" : origin
 FlightRoute --> "Airport.Airport" : destination
-FlightRoute --> "Air Transport Company.AirTransportCompany"
+FlightRoute --> "Air Transport Company.AirTransportCompany" : owned by
 
-FlightRoute "1" --> "0..*" Flight : has
-
+' ─────────────────────────────
+' FLIGHT
 ' ─────────────────────────────
 package "Flight" {
     class Flight <<AggregateRoot>> {
-        + type : enum
+        + type : enum {REGULAR, CHARTER}
     }
 
     class FlightDesignator <<ValueObject>> {
@@ -217,19 +234,32 @@ package "Flight" {
         + scheduledArrival : LocalDateTime
     }
 
+    class RecurringScheduleEntry <<ValueObject>> {
+        + dayOfWeek : DayOfWeek
+        + departureTime : LocalTime
+    }
+
     Flight "1" *-- "1" FlightDesignator
-    Flight "1" *-- "1" FlightSchedule
+    Flight "1" *-- "0..1" FlightSchedule
+    Flight "1" *-- "0..*" RecurringScheduleEntry
 }
 
-Flight.Flight --> Aircraft.Aircraft
-Flight.Flight --> "Air Transport Company.AirTransportCompany"
+note on link
+  FlightSchedule used for CHARTER flights.\n
+  RecurringScheduleEntry used for REGULAR flights.
+end note
 
+"Flight.Flight" "0..*" --> "Flight Route.FlightRoute" : instance of
+"Flight.Flight" "0..*" --> "Aircraft.Aircraft" : assigned to
+"Flight.Flight" "0..*" --> "Air Transport Company.Pilot" : piloted by
 
 ' ─────────────────────────────
+' FLIGHT PLAN
+' ─────────────────────────────
 package "Flight Plan" {
-    class FlightPlan <<AggregateRoot>> {
-        + id : String
-        + status : enum
+    class FlightPlan <<ValueObject>> {
+        + status : enum {DRAFT, VALIDATED}
+        + fuelLoad : double
     }
 
     class DslSource <<ValueObject>> {
@@ -258,16 +288,17 @@ package "Flight Plan" {
 
     FlightPlan "1" *-- "1" DslSource
     FlightPlan "1" *-- "1..*" Segment
-    Flight.Flight "1" --> "0..*" FlightPlan : has
 
     Segment "1" *-- "1" WindCondition
     Segment "1" *-- "1..*" AltitudeSlot
     Segment "1" *-- "2" CoordinatesVO
 }
 
-FlightPlan --> Flight
+"Flight.Flight" "1" *-- "0..*" FlightPlan : has
 Segment --> "Airport.Airport" : optional reference
 
+' ─────────────────────────────
+' WEATHER
 ' ─────────────────────────────
 package "Weather" {
     class WeatherData <<AggregateRoot>> {
@@ -284,12 +315,14 @@ package "Weather" {
     WeatherData "1" *-- "1" WeatherCondition
 }
 
-WeatherData --> "Air Control Area.AirControlArea"
+WeatherData --> "Air Control Area.AirControlArea" : for area
 
+' ─────────────────────────────
+' SIMULATION
 ' ─────────────────────────────
 package "Simulation" {
     class Simulation <<AggregateRoot>> {
-        + status : enum
+        + status : enum {RUNNING, COMPLETED, FAILED}
     }
 
     class SimulationParameters <<ValueObject>> {
@@ -299,7 +332,7 @@ package "Simulation" {
     }
 
     class SimulationReport <<Entity>> {
-        + result : enum
+        + result : enum {PASS, FAIL}
         + totalFlights : int
     }
 
@@ -319,7 +352,7 @@ package "Simulation" {
     SafetyViolation "1" *-- "1" VelocityVector
 }
 
-Simulation.Simulation --> FlightPlan
-Simulation.Simulation --> "Air Control Area.AirControlArea"
+Simulation.Simulation --> "Flight Plan.FlightPlan" : simulates
+Simulation.Simulation --> "Air Control Area.AirControlArea" : in area
 
 @enduml
