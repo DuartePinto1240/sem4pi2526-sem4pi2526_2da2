@@ -106,18 +106,6 @@ expired.
 
 ---
 
-## Aggregate: Role
-
-**Invariant:** A role name must be unique across the system.
-
-### Acceptance Criteria
-- The system rejects the creation of a role with a name that already exists.
-- Role names are case-insensitive for uniqueness checks.
-- A role can be referenced by multiple users without being duplicated.
-- The system returns a meaningful error message when a duplicate role name is submitted.
-
----
-
 ## Aggregate: Manufacturer
 
 **Invariant:** A manufacturer name must be unique across the system.
