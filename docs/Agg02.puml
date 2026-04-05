@@ -21,9 +21,5 @@ deactivate Mfr
 Repo --> Op : ManufacturerRegistered event
 deactivate Repo
 
-note right of Repo
-  Invariant:
-  nome único no catálogo
-end note
 
 @enduml

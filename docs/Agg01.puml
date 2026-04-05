@@ -21,10 +21,5 @@ end
 
 deactivate User
 
-note right of SC
-  Invariant:
-  User só é ativado se
-  clearance estiver ativa
-end note
 
 @enduml
