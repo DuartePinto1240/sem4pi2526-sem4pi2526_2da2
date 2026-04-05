@@ -257,7 +257,8 @@ end note
 ' FLIGHT PLAN
 ' ─────────────────────────────
 package "Flight Plan" {
-    class FlightPlan <<ValueObject>> {
+    class FlightPlan <<AggregateRoot>> {
+        + id : String
         + status : enum {DRAFT, VALIDATED}
         + fuelLoad : double
     }
