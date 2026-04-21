@@ -1,0 +1,27 @@
+@startuml
+left to right direction
+
+actor "User" as U
+
+rectangle "System Authorization Module" {
+  usecase "Login" as UC_Login
+  usecase "Logout" as UC_Logout
+  usecase "Authenticate Credentials" as UC_Auth
+  usecase "Load User Roles" as UC_Roles
+  usecase "Access Feature" as UC_Feature
+  usecase "Authorize Role" as UC_Access
+}
+
+U --> UC_Login
+U --> UC_Logout
+U --> UC_Feature
+
+UC_Login ..> UC_Auth : <<include>>
+UC_Login ..> UC_Roles : <<include>>
+UC_Feature ..> UC_Access : <<include>>
+
+note bottom of UC_Access
+  Verified by
+  AuthorizationService
+end note
+@enduml

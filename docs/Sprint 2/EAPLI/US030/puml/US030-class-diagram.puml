@@ -1,0 +1,43 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+  class LoginUI <<boundary>> {
+    +doShow()
+  }
+}
+
+package "Application" {
+  class LoginController <<control>> {
+    +login(username, password): boolean
+  }
+}
+
+package "Infrastructure.Authz" {
+  class AuthzRegistry <<registry>> {
+    {static} +authenticationService(): AuthenticationService
+  }
+  interface AuthenticationService <<service>> {
+    +authenticate(username, password): Optional<UserSession>
+  }
+  class UserSession <<session>> {
+    -authenticatedUser: SystemUser
+    +authenticatedUser(): SystemUser
+  }
+}
+
+package "Domain" {
+  class SystemUser <<aggregate root>> {
+    -username: Username
+    -password: Password
+    -roles: RoleSet
+    +isActive(): boolean
+  }
+}
+
+LoginUI ..> LoginController
+LoginController ..> AuthzRegistry
+AuthzRegistry ..> AuthenticationService
+AuthenticationService ..> UserSession
+AuthenticationService ..> SystemUser
+@enduml

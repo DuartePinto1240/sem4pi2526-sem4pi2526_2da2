@@ -1,0 +1,31 @@
+@startuml
+actor User
+participant LoginUI as UI <<boundary>>
+participant LoginController as CTRL <<control>>
+participant AuthzRegistry as REG <<registry>>
+participant AuthenticationService as AUTH <<service>>
+participant "session:UserSession" as SESS <<session>>
+
+User -> UI : doShow()
+UI -> User : asks for username and password
+User -> UI : provides credentials
+UI -> CTRL : login(user, pass)
+
+CTRL -> REG : authenticationService()
+REG --> CTRL : authService
+
+CTRL -> AUTH : authenticate(user, pass)
+activate AUTH
+AUTH -> AUTH : checkCredentials(user, pass)
+AUTH -> SESS : create(user)
+AUTH --> CTRL : Optional<UserSession>
+deactivate AUTH
+
+alt session is present
+    CTRL --> UI : true
+    UI --> User : show main menu
+else session is empty
+    CTRL --> UI : false
+    UI --> User : show error message
+end
+@enduml
