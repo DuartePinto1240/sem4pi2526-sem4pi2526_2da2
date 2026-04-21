@@ -1,0 +1,43 @@
+@startuml
+title Domain Model Excerpt - US031 (User Registration)
+
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor<<AggregateRoot>> #D0C8F8
+    BorderColor<<AggregateRoot>> #534AB7
+    BackgroundColor<<ValueObject>> #FAE8C0
+    BorderColor<<ValueObject>> #854F0B
+}
+
+package "User Management Aggregate" {
+    class User <<AggregateRoot>> {
+        + email : Email
+        + name : String
+        + phoneNumber : String
+    }
+
+    class SecurityClearance <<ValueObject>> {
+        + expiryDate : LocalDate
+    }
+
+    class SkillsAssessment <<ValueObject>> {
+        + assessmentDate : LocalDate
+    }
+
+    class Role <<ValueObject>> {
+        + name : String
+    }
+
+    User "1" *-- "1" SecurityClearance
+    User "1" *-- "0..*" SkillsAssessment
+    User "1" *-- "1..*" Role
+}
+
+note right of User
+  Invariants:
+  - Email must be unique and valid
+  - Name and Phone cannot be empty
+  - Must have at least one Role
+end note
+
+@enduml

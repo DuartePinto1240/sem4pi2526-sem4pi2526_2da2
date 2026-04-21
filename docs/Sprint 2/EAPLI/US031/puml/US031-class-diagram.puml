@@ -1,0 +1,51 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Application" {
+  class AddUserController <<control>> {
+    +addUser(email, password, first, last, roles)
+  }
+  class UserManagementService <<service>> {
+    +registerNewUser(email, password, first, last, roles)
+  }
+}
+
+package "Domain" {
+  class SystemUser <<aggregate root>> {
+    -username: Username
+    -password: Password
+    -name: Name
+    -email: EmailAddress
+    -phone: PhoneNumber
+    -roles: RoleSet
+  }
+  class SystemUserBuilder <<builder>> {
+    -policy: PasswordPolicy
+    -encoder: PasswordEncoder
+    +withData(email, password, first, last, roles)
+    +build(): SystemUser
+  }
+  class EmailAddress <<value object>> {
+    -address: String
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<registry>> {
+    +repositories(): RepositoryFactory
+  }
+  interface RepositoryFactory <<factory>> {
+    +users(): SystemUserRepository
+  }
+  interface SystemUserRepository <<repository>> {
+    +save(user)
+  }
+}
+
+AddUserController ..> UserManagementService
+UserManagementService ..> SystemUserBuilder
+UserManagementService ..> PersistenceContext
+PersistenceContext ..> RepositoryFactory
+RepositoryFactory ..> SystemUserRepository
+SystemUser *-- EmailAddress
+@enduml

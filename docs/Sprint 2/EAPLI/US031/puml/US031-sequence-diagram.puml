@@ -1,0 +1,37 @@
+@startuml
+actor Administrator
+participant AddUserUI as UI <<boundary>>
+participant AddUserController as CTRL <<control>>
+participant UserManagementService as SVC <<service>>
+participant "builder:SystemUserBuilder" as BLDR <<builder>>
+participant "user:SystemUser" as USER <<domain>>
+participant PersistenceContext as PCON <<registry>>
+participant RepositoryFactory as FACT <<factory>>
+participant SystemUserRepository as REPO <<repository>>
+
+Administrator -> UI : doShow()
+UI -> Administrator : requests user data
+Administrator -> UI : inputs data (email, pass, name, roles)
+UI -> CTRL : addUser(email, pass, name, roles)
+
+CTRL -> SVC : registerNewUser(email, pass, name, roles)
+activate SVC
+SVC -> BLDR : create(policy, encoder)
+SVC -> BLDR : withData(email, pass, name, roles)
+SVC -> BLDR : build()
+activate BLDR
+BLDR -> USER : create(email, password, name, roles)
+BLDR --> SVC : user
+deactivate BLDR
+
+SVC -> PCON : repositories()
+PCON --> SVC : factory
+SVC -> FACT : users()
+FACT --> SVC : repo
+SVC -> REPO : save(user)
+SVC --> CTRL : user
+deactivate SVC
+
+CTRL --> UI : success
+UI --> Administrator : informs success
+@enduml
