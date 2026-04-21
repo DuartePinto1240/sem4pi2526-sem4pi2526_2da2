@@ -1,0 +1,26 @@
+@startuml
+actor Administrator
+participant DeactivateUserUI as UI <<boundary>>
+participant DeactivateUserController as CTRL <<control>>
+participant UserManagementService as SVC <<service>>
+participant "user:SystemUser" as USER <<domain>>
+participant SystemUserRepository as REPO <<repository>>
+
+Administrator -> UI : selects user from list
+UI -> CTRL : deactivateUser(user)
+CTRL -> SVC : deactivateUser(user)
+activate SVC
+
+SVC -> USER : deactivate(CurrentCalendar.now())
+activate USER
+USER -> USER : this.active = false
+USER -> USER : this.deactivatedAt = now
+deactivate USER
+
+SVC -> REPO : save(user)
+SVC --> CTRL : user
+deactivate SVC
+
+CTRL --> UI : user
+UI --> Administrator : confirms status change
+@enduml

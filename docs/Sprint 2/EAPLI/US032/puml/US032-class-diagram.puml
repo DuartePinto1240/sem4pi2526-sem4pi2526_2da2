@@ -1,0 +1,21 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class DeactivateUserController <<control>> {
+  +allUsers(): Iterable<SystemUser>
+  +deactivateUser(user): SystemUser
+}
+class UserManagementService <<service>> {
+  +deactivateUser(user): SystemUser
+}
+class SystemUser <<aggregate root>> {
+  -active: boolean
+  -deactivatedAt: Calendar
+  +deactivate(now)
+  +isActive(): boolean
+}
+
+DeactivateUserController ..> UserManagementService
+UserManagementService ..> SystemUser
+UserManagementService ..> PersistenceContext
+@enduml
