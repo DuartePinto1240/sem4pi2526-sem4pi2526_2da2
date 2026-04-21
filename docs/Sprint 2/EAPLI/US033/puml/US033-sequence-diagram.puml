@@ -1,0 +1,30 @@
+@startuml
+actor Administrator
+participant ListUsersUI as UI <<boundary>>
+participant ListUsersController as CTRL <<control>>
+participant UserManagementService as SVC <<service>>
+participant SystemUserRepository as REPO <<repository>>
+participant "user:SystemUser" as USER <<domain>>
+participant SystemUserDTO as DTO
+
+Administrator -> UI : doShow()
+UI -> CTRL : allUsers()
+CTRL -> SVC : allUsers()
+activate SVC
+
+SVC -> REPO : findAll()
+REPO --> SVC : usersList
+
+loop for each user in usersList
+    SVC -> USER : toDTO()
+    activate USER
+    USER -> DTO : create(email, name, role, status)
+    USER --> SVC : dto
+    deactivate USER
+end
+
+SVC --> CTRL : listDTO
+deactivate SVC
+CTRL --> UI : listDTO
+UI --> Administrator : displays user table
+@enduml

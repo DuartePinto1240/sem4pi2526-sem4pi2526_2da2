@@ -1,0 +1,23 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class ListUsersController <<control>> {
+  +allUsers(): Iterable<SystemUserDTO>
+}
+class UserManagementService <<service>> {
+  +allUsers(): Iterable<SystemUserDTO>
+}
+class SystemUserDTO <<dto>> {
+  +email: String
+  +fullName: String
+  +roles: String
+  +status: String
+}
+class SystemUser <<aggregate root>> {
+  +toDTO(): SystemUserDTO
+}
+
+ListUsersController ..> UserManagementService
+UserManagementService ..> SystemUserRepository
+UserManagementService ..> SystemUserDTO
+@enduml
