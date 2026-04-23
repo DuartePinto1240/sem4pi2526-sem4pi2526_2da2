@@ -1,0 +1,34 @@
+@startuml
+left to right direction
+
+actor "Weather Person" as WP
+
+rectangle "Weather Service Module" {
+  usecase "Register Weather Data" as UC_Register
+  usecase "Authenticate & Authorize" as UC_Auth
+  usecase "Validate Weather Data" as UC_Validate
+  usecase "Select Air Control Area" as UC_SelectArea
+  usecase "Persist Weather Data" as UC_Persist
+}
+
+WP --> UC_Register
+
+UC_Register ..> UC_Auth : <<include>>
+UC_Register ..> UC_SelectArea : <<include>>
+UC_Register ..> UC_Validate : <<include>>
+UC_Register ..> UC_Persist : <<include>>
+
+note bottom of UC_Auth
+  Enforced by
+  AuthorizationService
+  Role: WEATHER_PERSON
+end note
+
+note bottom of UC_Validate
+  Wind speed >= 0
+  Wind direction in [0, 360[
+  Valid calendar date/time
+  Area must exist
+end note
+
+@enduml
