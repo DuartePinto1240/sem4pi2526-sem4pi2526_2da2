@@ -1,0 +1,102 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+  class AddAircraftToFleetUI <<boundary>> {
+    +doShow()
+    +headline(): String
+  }
+}
+
+package "Application" {
+  class AddAircraftToFleetController <<control>> {
+    +addAircraft(registration, country, seatsPerClass, crewSize, modelId): Aircraft
+  }
+}
+
+package "Infrastructure.Authz" {
+  class AuthzRegistry <<registry>> {
+    {static} +authorizationService(): AuthorizationService
+  }
+  interface AuthorizationService <<service>> {
+    +ensureAuthenticatedUserHasAnyOf(roles): void
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<registry>> {
+    {static} +repositories(): RepositoryFactory
+  }
+  interface RepositoryFactory <<factory>> {
+    +aircrafts(): AircraftRepository
+    +aircraftModels(): AircraftModelRepository
+  }
+  class JpaAircraftRepository <<repository>> {
+    +existsByRegistration(registration): boolean
+    +findByCompany(companyCode): Iterable
+    +save(aircraft): Aircraft
+  }
+  class JpaAircraftModelRepository <<repository>> {
+    +findById(modelId): Optional<AircraftModel>
+  }
+}
+
+package "Domain" {
+  interface AircraftRepository <<repository>> {
+    +existsByRegistration(registration): boolean
+    +findByCompany(companyCode): Iterable
+    +save(aircraft): Aircraft
+  }
+  interface AircraftModelRepository <<repository>> {
+    +findById(modelId): Optional<AircraftModel>
+  }
+  class Aircraft <<aggregate root>> {
+    -registration: String
+    -countryOfRegistration: String
+    -aircraftModelId: String
+    -companyCode: CompanyCode
+    +identity(): String
+    +registration(): String
+    +operationalStatus(): OperationalStatus
+    +sameAs(other): boolean
+  }
+  class CabinConfiguration <<value object>> {
+    -seatsPerClass: Map<String, Integer>
+    -crewSize: int
+    +totalSeats(): int
+    +crewSize(): int
+    +equals(o): boolean
+  }
+  class OperationalStatus <<value object>> {
+    -status: Status
+    +isActive(): boolean
+    +decommission(): OperationalStatus
+    +equals(o): boolean
+  }
+  class AircraftModel <<aggregate root>> {
+    -modelId: String
+    -maxCapacity: int
+    +identity(): String
+    +maxCapacity(): int
+  }
+
+  Aircraft "1" *-- "1" CabinConfiguration
+  Aircraft "1" *-- "1" OperationalStatus
+  JpaAircraftRepository ..|> AircraftRepository
+  JpaAircraftModelRepository ..|> AircraftModelRepository
+}
+
+AddAircraftToFleetUI ..> AddAircraftToFleetController
+AddAircraftToFleetController ..> AuthzRegistry
+AddAircraftToFleetController ..> PersistenceContext
+PersistenceContext ..> RepositoryFactory
+RepositoryFactory ..> AircraftRepository
+RepositoryFactory ..> AircraftModelRepository
+AddAircraftToFleetController ..> AircraftRepository
+AddAircraftToFleetController ..> AircraftModelRepository
+AddAircraftToFleetController ..> Aircraft
+AddAircraftToFleetController ..> CabinConfiguration
+AddAircraftToFleetController ..> OperationalStatus
+AircraftModelRepository ..> AircraftModel
+
+@enduml

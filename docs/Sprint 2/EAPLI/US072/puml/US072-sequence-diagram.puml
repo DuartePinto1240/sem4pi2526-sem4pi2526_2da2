@@ -1,0 +1,56 @@
+@startuml
+actor "ATCC" as ATCC
+participant ListCompanyFleetUI as UI <<boundary>>
+participant ListCompanyFleetController as CTRL <<control>>
+participant AuthzRegistry as REG <<registry>>
+participant AuthorizationService as AUTHZ <<service>>
+participant "session:UserSession" as SESS <<session>>
+participant PersistenceContext as PC <<registry>>
+participant AircraftRepository as REPO <<repository>>
+participant "aircraft:Aircraft" as A <<aggregate root>>
+
+ATCC -> UI : doShow()
+UI -> CTRL : listFleet()
+
+CTRL -> REG : authorizationService()
+REG --> CTRL : authzService
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(ATCC)
+activate AUTHZ
+AUTHZ --> CTRL : ok
+deactivate AUTHZ
+
+CTRL -> AUTHZ : session()
+activate AUTHZ
+AUTHZ --> CTRL : userSession
+deactivate AUTHZ
+
+CTRL -> SESS : authenticatedUser()
+activate SESS
+SESS --> CTRL : currentUser
+deactivate SESS
+
+CTRL -> CTRL : companyCode = currentUser.companyCode()
+
+CTRL -> PC : repositories()
+PC --> CTRL : repositoryFactory
+
+CTRL -> REPO : findByCompany(companyCode)
+activate REPO
+REPO --> CTRL : aircraftList
+deactivate REPO
+
+CTRL --> UI : aircraftList
+
+alt fleet has aircraft
+    loop for each aircraft in aircraftList
+        UI -> A : registration()
+        A --> UI : registration
+        UI -> A : operationalStatus()
+        A --> UI : status
+    end
+    UI --> ATCC : display formatted aircraft list
+else fleet is empty
+    UI --> ATCC : show message "No aircraft registered in your fleet"
+end
+@enduml
