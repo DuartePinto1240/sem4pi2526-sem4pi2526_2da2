@@ -83,4 +83,5 @@ public interface RepositoryFactory {
      */
     SignupRequestRepository signupRequests();
 
+    TransactionalContext transactionalContext();
 }

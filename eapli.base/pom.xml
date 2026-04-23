@@ -108,7 +108,7 @@
 	<dependencyManagement>
 		<dependencies></dependencies>
 	</dependencyManagement>
-	<!-- Nexus repository for EAPLI framwork -->
+	<!-- Nexus repositories for EAPLI framwork -->
 	<repositories>
 		<repository>
 			<id>jitpack.io</id>
@@ -117,14 +117,6 @@
 	</repositories>
 	<build>
 		<plugins>
-			<!--
-			<plugin>
-				<groupId>org.pitest</groupId>
-				<artifactId>pitest-maven</artifactId>
-				<version>1.6.7</version>
-			</plugin>
-			-->
-			<!-- dependency version helper -->
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>versions-maven-plugin</artifactId>
@@ -168,13 +160,10 @@
 				<version>3.13.0</version>
 				<configuration>
 					<release>17</release>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-							<version>1.18.30</version>
-						</path>
-					</annotationProcessorPaths>
+					<compilerArgs>
+						<arg>-proc:none</arg>
+						<arg>-Xlint:none</arg>
+					</compilerArgs>
 				</configuration>
 			</plugin>
 			<!-- dependency version -->

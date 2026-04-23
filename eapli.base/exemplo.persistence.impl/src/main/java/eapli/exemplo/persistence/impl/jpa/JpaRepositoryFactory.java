@@ -27,12 +27,18 @@ import eapli.framework.domain.repositories.TransactionalContext;
 import eapli.framework.infrastructure.authz.domain.repositories.UserRepository;
 import eapli.framework.infrastructure.authz.repositories.impl.jpa.JpaAutoTxUserRepository;
 import eapli.framework.infrastructure.repositories.impl.jpa.JpaAutoTxRepository;
+import eapli.framework.infrastructure.repositories.impl.jpa.JpaTransactionalContext;
 
 /**
  *
  * Created by nuno on 21/03/16.
  */
 public class JpaRepositoryFactory implements RepositoryFactory {
+
+    @Override
+    public TransactionalContext transactionalContext() {
+        return new JpaTransactionalContext(PersistenceSettings.PERSISTENCE_UNIT_NAME);
+    }
 
     @Override
     public UserRepository users(final TransactionalContext autoTx) {

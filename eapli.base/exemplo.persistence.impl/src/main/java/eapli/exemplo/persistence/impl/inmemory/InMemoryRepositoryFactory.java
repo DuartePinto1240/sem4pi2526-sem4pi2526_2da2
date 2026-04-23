@@ -33,7 +33,7 @@ import eapli.framework.infrastructure.authz.repositories.impl.inmemory.InMemoryU
  *
  * Created by nuno on 20/03/16.
  */
-public class InMemoryRepositoryFactory implements RepositoryFactory {
+public abstract class InMemoryRepositoryFactory implements RepositoryFactory {
 
 	@Override
 	public UserRepository users(final TransactionalContext tx) {
@@ -77,6 +77,11 @@ public class InMemoryRepositoryFactory implements RepositoryFactory {
 	public TransactionalContext newTransactionalContext() {
 		// in memory does not support transactions...
 		return null;
+	}
+
+	@Override
+	public TransactionalContext transactionalContext() {
+		return null; // Repositórios em memória geralmente não precisam de contexto transacional real
 	}
 
 }
