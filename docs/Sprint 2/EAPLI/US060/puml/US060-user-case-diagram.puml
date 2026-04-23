@@ -1,0 +1,43 @@
+@startuml
+left to right direction
+
+actor "Backoffice Operator" as BO
+
+rectangle "Backoffice Configuration Module" {
+  usecase "Register Air Transport Company" as UC_Register
+  usecase "Validate Authorization" as UC_Authz
+  usecase "Validate IATA Code" as UC_IATA
+  usecase "Validate ICAO Code" as UC_ICAO
+  usecase "Check IATA Uniqueness" as UC_UniqueIATA
+  usecase "Check ICAO Uniqueness" as UC_UniqueICAO
+  usecase "Persist Company" as UC_Persist
+  usecase "Bootstrap Companies" as UC_Bootstrap
+}
+
+BO --> UC_Register
+BO --> UC_Bootstrap
+
+UC_Register ..> UC_Authz : <<include>>
+UC_Register ..> UC_IATA : <<include>>
+UC_Register ..> UC_ICAO : <<include>>
+UC_IATA ..> UC_UniqueIATA : <<include>>
+UC_ICAO ..> UC_UniqueICAO : <<include>>
+UC_Register ..> UC_Persist : <<include>>
+UC_Bootstrap ..> UC_Register : <<include>>
+
+note bottom of UC_Authz
+  Verified by
+  AuthorizationService
+  Role: BACKOFFICE_OPERATOR
+end note
+
+note bottom of UC_IATA
+  Must be exactly
+  2 uppercase letters
+end note
+
+note bottom of UC_ICAO
+  Must be 2 to 3
+  uppercase letters
+end note
+@enduml

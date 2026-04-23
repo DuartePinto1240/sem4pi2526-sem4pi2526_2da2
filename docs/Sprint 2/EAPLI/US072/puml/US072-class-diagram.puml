@@ -1,0 +1,86 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+  class ListCompanyFleetUI <<boundary>> {
+    +doShow()
+    +headline(): String
+  }
+}
+
+package "Application" {
+  class ListCompanyFleetController <<control>> {
+    +listFleet(): Iterable<Aircraft>
+  }
+}
+
+package "Infrastructure.Authz" {
+  class AuthzRegistry <<registry>> {
+    {static} +authorizationService(): AuthorizationService
+  }
+  interface AuthorizationService <<service>> {
+    +ensureAuthenticatedUserHasAnyOf(roles): void
+    +session(): Optional<UserSession>
+  }
+  class UserSession <<session>> {
+    +authenticatedUser(): SystemUser
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<registry>> {
+    {static} +repositories(): RepositoryFactory
+  }
+  interface RepositoryFactory <<factory>> {
+    +aircrafts(): AircraftRepository
+  }
+  class JpaAircraftRepository <<repository>> {
+    +findByCompany(companyCode): Iterable<Aircraft>
+  }
+}
+
+package "Domain" {
+  interface AircraftRepository <<repository>> {
+    +findByCompany(companyCode): Iterable<Aircraft>
+    +existsByRegistration(registration): boolean
+    +save(aircraft): Aircraft
+  }
+  class Aircraft <<aggregate root>> {
+    -registration: String
+    -countryOfRegistration: String
+    -aircraftModelId: String
+    -companyCode: CompanyCode
+    +identity(): String
+    +registration(): String
+    +operationalStatus(): OperationalStatus
+    +sameAs(other): boolean
+  }
+  class CabinConfiguration <<value object>> {
+    -seatsPerClass: Map<String, Integer>
+    -crewSize: int
+    +totalSeats(): int
+    +crewSize(): int
+    +equals(o): boolean
+  }
+  class OperationalStatus <<value object>> {
+    -status: Status
+    +isActive(): boolean
+    +equals(o): boolean
+  }
+
+  Aircraft "1" *-- "1" CabinConfiguration
+  Aircraft "1" *-- "1" OperationalStatus
+  JpaAircraftRepository ..|> AircraftRepository
+}
+
+ListCompanyFleetUI ..> ListCompanyFleetController
+ListCompanyFleetController ..> AuthzRegistry
+AuthzRegistry ..> AuthorizationService
+AuthorizationService ..> UserSession
+ListCompanyFleetController ..> PersistenceContext
+PersistenceContext ..> RepositoryFactory
+RepositoryFactory ..> AircraftRepository
+ListCompanyFleetController ..> AircraftRepository
+AircraftRepository ..> Aircraft
+
+@enduml

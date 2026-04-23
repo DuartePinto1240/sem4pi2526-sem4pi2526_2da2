@@ -1,0 +1,55 @@
+@startuml
+actor "Weather Person" as WP
+participant RegisterWeatherDataUI as UI <<boundary>>
+participant RegisterWeatherDataController as CTRL <<control>>
+participant AuthorizationService as AUTHZ <<service>>
+participant RegisterWeatherDataService as SVC <<service>>
+participant AirControlAreaRepository as AREA_REPO <<repository>>
+participant WeatherDataFactory as FACTORY <<factory>>
+participant WeatherDataRepository as REPO <<repository>>
+participant "wd:WeatherData" as WD <<entity>>
+
+WP -> UI : doShow()
+UI -> WP : requests area code, date/time,\nwind direction, wind speed
+
+WP -> UI : provides data
+
+UI -> CTRL : registerWeatherData(areaCode, dateTime, windDir, windSpeed)
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(WEATHER_PERSON)
+activate AUTHZ
+AUTHZ --> CTRL : ok (or throws UnauthorizedException)
+deactivate AUTHZ
+
+CTRL -> SVC : registerWeatherData(areaCode, dateTime, windDir, windSpeed)
+activate SVC
+
+SVC -> AREA_REPO : ofIdentity(areaCode)
+activate AREA_REPO
+AREA_REPO --> SVC : Optional<AirControlArea>
+deactivate AREA_REPO
+
+alt area not found
+  SVC --> CTRL : throws IllegalArgumentException
+  CTRL --> UI : error
+  UI --> WP : "Air control area does not exist"
+else area found
+  SVC -> FACTORY : create(areaCode, dateTime, windDir, windSpeed)
+  activate FACTORY
+  FACTORY -> WD ** : new WeatherData(areaCode,\n ObservationDateTime, WindCondition)
+  FACTORY --> SVC : wd
+  deactivate FACTORY
+
+  SVC -> REPO : save(wd)
+  activate REPO
+  REPO --> SVC : wd (persisted)
+  deactivate REPO
+
+  SVC --> CTRL : wd
+  deactivate SVC
+
+  CTRL --> UI : success
+  UI --> WP : "Weather data registered successfully"
+end
+
+@enduml

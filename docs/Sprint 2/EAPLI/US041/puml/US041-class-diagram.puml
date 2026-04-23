@@ -1,0 +1,98 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI Layer" {
+  class RegisterWeatherDataUI <<boundary>> {
+    + doShow() : void
+  }
+}
+
+package "Application Layer" {
+  class RegisterWeatherDataController <<control>> {
+    - authorizationService : AuthorizationService
+    - registerWeatherDataService : RegisterWeatherDataService
+    + RegisterWeatherDataController(authz, svc)
+    + registerWeatherData(areaCode : String,\n dateTime : LocalDateTime,\n windDirection : double,\n windSpeed : double) : WeatherDataDTO
+  }
+
+  class RegisterWeatherDataService <<service>> {
+    - airControlAreaRepository : AirControlAreaRepository
+    - weatherDataRepository : WeatherDataRepository
+    - weatherDataFactory : WeatherDataFactory
+    + RegisterWeatherDataService(areaRepo, wdRepo, factory)
+    + registerWeatherData(areaCode : AirControlAreaCode,\n dateTime : ObservationDateTime,\n wind : WindCondition) : WeatherData
+  }
+}
+
+package "Domain Layer" {
+  class WeatherData <<entity>> <<AggregateRoot>> {
+    - id : WeatherDataId
+    - areaCode : AirControlAreaCode
+    - observationDateTime : ObservationDateTime
+    - windCondition : WindCondition
+    + WeatherData(areaCode, dateTime, wind)
+    + areaCode() : AirControlAreaCode
+    + observationDateTime() : ObservationDateTime
+    + windCondition() : WindCondition
+  }
+
+  class WeatherDataFactory <<factory>> {
+    + create(areaCode : String,\n dateTime : LocalDateTime,\n windDir : double,\n windSpeed : double) : WeatherData
+  }
+
+  class WindCondition <<ValueObject>> {
+    - directionDegrees : double
+    - speedMetersPerSecond : double
+    + WindCondition(direction : double, speed : double)
+    + directionDegrees() : double
+    + speedMetersPerSecond() : double
+  }
+
+  class ObservationDateTime <<ValueObject>> {
+    - value : LocalDateTime
+    + ObservationDateTime(value : LocalDateTime)
+    + value() : LocalDateTime
+  }
+
+  class AirControlAreaCode <<ValueObject>> {
+    - code : String
+    + AirControlAreaCode(code : String)
+    + code() : String
+  }
+
+  interface WeatherDataRepository <<Repository>> {
+    + save(wd : WeatherData) : WeatherData
+    + findByAreaAndDate(areaCode : AirControlAreaCode,\n date : LocalDate) : Iterable<WeatherData>
+    + ofIdentity(id : WeatherDataId) : Optional<WeatherData>
+  }
+
+  interface AirControlAreaRepository <<Repository>> {
+    + ofIdentity(code : AirControlAreaCode) : Optional<AirControlArea>
+  }
+}
+
+package "Infrastructure Layer" {
+  class JpaWeatherDataRepository <<infrastructure>> {
+    + save(wd : WeatherData) : WeatherData
+    + findByAreaAndDate(...) : Iterable<WeatherData>
+    + ofIdentity(id : WeatherDataId) : Optional<WeatherData>
+  }
+}
+
+RegisterWeatherDataUI --> RegisterWeatherDataController
+RegisterWeatherDataController --> RegisterWeatherDataService
+RegisterWeatherDataController --> AuthorizationService
+
+RegisterWeatherDataService --> WeatherDataFactory
+RegisterWeatherDataService --> WeatherDataRepository
+RegisterWeatherDataService --> AirControlAreaRepository
+
+WeatherDataFactory ..> WeatherData : <<creates>>
+
+WeatherData *-- WindCondition
+WeatherData *-- ObservationDateTime
+WeatherData *-- AirControlAreaCode
+
+JpaWeatherDataRepository ..|> WeatherDataRepository
+
+@enduml
