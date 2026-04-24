@@ -1,0 +1,54 @@
+@startuml US050-sequence-diagram
+actor "Backoffice Operator" as BO
+participant RegisterAirControlAreaUI as UI <<boundary>>
+participant RegisterAirControlAreaController as CTRL <<control>>
+participant AuthorizationService as AUTHZ <<service>>
+participant RegisterAirControlAreaService as SVC <<service>>
+participant AirControlAreaRepository as REPO <<repository>>
+participant AirControlAreaFactory as FACTORY <<factory>>
+participant "area:AirControlArea" as AREA <<entity>>
+
+BO -> UI : doShow()
+UI -> BO : requests area code, name\nand boundary coordinates
+
+BO -> UI : provides data
+
+UI -> CTRL : registerAirControlArea(code, name, coordinates)
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(BACKOFFICE_OPERATOR)
+activate AUTHZ
+AUTHZ --> CTRL : ok (or throws UnauthorizedException)
+deactivate AUTHZ
+
+CTRL -> SVC : registerAirControlArea(code, name, boundary)
+activate SVC
+
+SVC -> REPO : ofIdentity(AirControlAreaCode(code))
+activate REPO
+REPO --> SVC : Optional<AirControlArea>
+deactivate REPO
+
+alt area code already exists
+  SVC --> CTRL : throws IllegalStateException
+  CTRL --> UI : error
+  UI --> BO : "Area code already exists"
+else area code is unique
+  SVC -> FACTORY : create(code, name, boundary)
+  activate FACTORY
+  FACTORY -> AREA ** : new AirControlArea(AirControlAreaCode,\n AreaName, GeographicBoundary)
+  FACTORY --> SVC : area
+  deactivate FACTORY
+
+  SVC -> REPO : save(area)
+  activate REPO
+  REPO --> SVC : area (persisted)
+  deactivate REPO
+
+  SVC --> CTRL : area
+  deactivate SVC
+
+  CTRL --> UI : success
+  UI --> BO : "Air control area registered successfully"
+end
+
+@enduml
