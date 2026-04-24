@@ -1,0 +1,80 @@
+@startuml US052-sequence-diagram
+actor "Backoffice Operator" as BO
+participant CreateAirportUI as UI <<boundary>>
+participant CreateAirportController as CTRL <<control>>
+participant AuthorizationService as AUTHZ <<service>>
+participant CreateAirportService as SVC <<service>>
+participant AirControlAreaRepository as AREA_REPO <<repository>>
+participant AirportRepository as REPO <<repository>>
+participant AirportFactory as FACTORY <<factory>>
+participant "airport:Airport" as AIRPORT <<entity>>
+
+BO -> UI : doShow()
+UI -> BO : requests ICAO code, IATA code, name,\ntown, country, coordinates,\nelevation, area code
+
+BO -> UI : provides data
+
+UI -> CTRL : createAirport(icao, iata, name, town,\n country, lat, lon, elevation, areaCode)
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(BACKOFFICE_OPERATOR)
+activate AUTHZ
+AUTHZ --> CTRL : ok (or throws UnauthorizedException)
+deactivate AUTHZ
+
+CTRL -> SVC : createAirport(icao, iata, name, town,\n country, coordinates, elevation, areaCode)
+activate SVC
+
+SVC -> AREA_REPO : ofIdentity(AirControlAreaCode(areaCode))
+activate AREA_REPO
+AREA_REPO --> SVC : Optional<AirControlArea>
+deactivate AREA_REPO
+
+alt area not found
+  SVC --> CTRL : throws IllegalArgumentException
+  CTRL --> UI : error
+  UI --> BO : "Air control area does not exist"
+else area found
+
+  SVC -> REPO : ofIdentity(ICAOCode(icao))
+  activate REPO
+  REPO --> SVC : Optional<Airport>
+  deactivate REPO
+
+  alt ICAO already exists
+    SVC --> CTRL : throws IllegalStateException
+    CTRL --> UI : error
+    UI --> BO : "ICAO code already in use"
+  else ICAO is unique
+
+    SVC -> REPO : existsByIATACode(IATACode(iata))
+    activate REPO
+    REPO --> SVC : boolean
+    deactivate REPO
+
+    alt IATA already exists
+      SVC --> CTRL : throws IllegalStateException
+      CTRL --> UI : error
+      UI --> BO : "IATA code already in use"
+    else IATA is unique
+
+      SVC -> FACTORY : create(icao, iata, name, town,\n country, coordinates, elevation, areaCode)
+      activate FACTORY
+      FACTORY -> AIRPORT ** : new Airport(ICAOCode, IATACode,\n AirportName, town, country,\n AirportCoordinates, Elevation,\n AirControlAreaCode)
+      FACTORY --> SVC : airport
+      deactivate FACTORY
+
+      SVC -> REPO : save(airport)
+      activate REPO
+      REPO --> SVC : airport (persisted)
+      deactivate REPO
+
+      SVC --> CTRL : airport
+      deactivate SVC
+
+      CTRL --> UI : success
+      UI --> BO : "Airport registered successfully"
+    end
+  end
+end
+
+@enduml

@@ -1,0 +1,138 @@
+@startuml US052-class-diagram
+skinparam classAttributeIconSize 0
+
+package "UI Layer" {
+  class CreateAirportUI <<boundary>> {
+    + doShow() : void
+  }
+}
+
+package "Application Layer" {
+  class CreateAirportController <<control>> {
+    - authorizationService : AuthorizationService
+    - createAirportService : CreateAirportService
+    + CreateAirportController(authz, svc)
+    + createAirport(icao : String, iata : String,\n name : String, town : String,\n country : String, lat : double,\n lon : double, elevation : int,\n areaCode : String) : AirportDTO
+  }
+
+  class CreateAirportService <<service>> {
+    - airportRepository : AirportRepository
+    - airControlAreaRepository : AirControlAreaRepository
+    - airportFactory : AirportFactory
+    + CreateAirportService(airportRepo, areaRepo, factory)
+    + createAirport(icao : ICAOCode, iata : IATACode,\n name : AirportName, town : String,\n country : String,\n coordinates : AirportCoordinates,\n elevation : Elevation,\n areaCode : AirControlAreaCode) : Airport
+  }
+}
+
+package "Domain Layer" {
+  class Airport <<entity>> <<AggregateRoot>> {
+    - icaoCode : ICAOCode
+    - iataCode : IATACode
+    - name : AirportName
+    - town : String
+    - country : String
+    - coordinates : AirportCoordinates
+    - elevation : Elevation
+    - areaCode : AirControlAreaCode
+    + Airport(icao, iata, name, town,\n country, coordinates,\n elevation, areaCode)
+    + identity() : ICAOCode
+    + iataCode() : IATACode
+    + name() : AirportName
+    + coordinates() : AirportCoordinates
+    + elevation() : Elevation
+    + areaCode() : AirControlAreaCode
+  }
+
+  class AirportFactory <<factory>> {
+    + create(icao : ICAOCode, iata : IATACode,\n name : AirportName, town : String,\n country : String,\n coordinates : AirportCoordinates,\n elevation : Elevation,\n areaCode : AirControlAreaCode) : Airport
+  }
+
+  class ICAOCode <<ValueObject>> <<EmbeddedId>> {
+    - code : String
+    + ICAOCode(code : String)
+    + code() : String
+  }
+
+  class IATACode <<ValueObject>> {
+    - code : String
+    + IATACode(code : String)
+    + code() : String
+  }
+
+  class AirportName <<ValueObject>> {
+    - name : String
+    + AirportName(name : String)
+    + name() : String
+  }
+
+  class AirportCoordinates <<ValueObject>> {
+    - latitude : double
+    - longitude : double
+    + AirportCoordinates(latitude : double, longitude : double)
+    + latitude() : double
+    + longitude() : double
+  }
+
+  class Elevation <<ValueObject>> {
+    - meters : int
+    + Elevation(meters : int)
+    + meters() : int
+  }
+
+  class AirControlAreaCode <<ValueObject>> {
+    - code : String
+    + AirControlAreaCode(code : String)
+    + code() : String
+  }
+
+  interface AirportRepository <<Repository>> {
+    + save(airport : Airport) : Airport
+    + ofIdentity(icao : ICAOCode) : Optional<Airport>
+    + containsOfIdentity(icao : ICAOCode) : boolean
+    + existsByIATACode(iata : IATACode) : boolean
+    + findAll() : Iterable<Airport>
+  }
+
+  interface AirControlAreaRepository <<Repository>> {
+    + ofIdentity(code : AirControlAreaCode) : Optional<AirControlArea>
+  }
+}
+
+package "Infrastructure Layer" {
+  class JpaAirportRepository <<infrastructure>> {
+    + save(airport : Airport) : Airport
+    + ofIdentity(icao : ICAOCode) : Optional<Airport>
+    + containsOfIdentity(icao : ICAOCode) : boolean
+    + existsByIATACode(iata : IATACode) : boolean
+    + findAll() : Iterable<Airport>
+  }
+}
+
+package "Bootstrap" {
+  class MasterDataBootstrap <<bootstrap>> {
+    + execute() : void
+  }
+}
+
+CreateAirportUI --> CreateAirportController
+CreateAirportController --> CreateAirportService
+CreateAirportController --> AuthorizationService
+
+CreateAirportService --> AirportFactory
+CreateAirportService --> AirportRepository
+CreateAirportService --> AirControlAreaRepository
+
+AirportFactory ..> Airport : <<creates>>
+
+Airport *-- ICAOCode
+Airport *-- IATACode
+Airport *-- AirportName
+Airport *-- AirportCoordinates
+Airport *-- Elevation
+Airport *-- AirControlAreaCode
+
+JpaAirportRepository ..|> AirportRepository
+
+MasterDataBootstrap --> CreateAirportService : <<uses>>
+
+@enduml
