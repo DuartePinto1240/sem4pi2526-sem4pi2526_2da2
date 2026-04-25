@@ -1,14 +1,14 @@
 package bootstrapper;
 
-import controller.RegisterUserController;
-import eapli.framework.actions.Action;
-import java.util.Calendar;
-import java.util.HashSet;
-
+/**
+ * Ponto de entrada do processo de bootstrap do sistema AlSafe.
+ * Inicializa os dados base necessários para o funcionamento do sistema.
+ */
 public class Bootstrap {
 
     public void execute() {
-
+        System.out.println(">> A inicializar dados de bootstrap...");
         new UserBootstrapper().execute();
+        System.out.println(">> Bootstrap concluído.");
     }
 }

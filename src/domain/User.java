@@ -1,14 +1,14 @@
 package domain;
 
 import eapli.framework.domain.model.AggregateRoot;
-import eapli.framework.infrastructure.authz.domain.model.Role;
 import jakarta.persistence.*;
 
-import java.util.Calendar;
-import java.util.HashSet;
-import java.util.Set;
-
+/**
+ * Entidade agregada User.
+ * Representa um utilizador do sistema AlSafe (US031, US032, US033).
+ */
 @Entity
+@Table(name = "ALSAFE_USER")
 public final class User implements AggregateRoot<EmailAddress> {
 
     @EmbeddedId
@@ -17,30 +17,68 @@ public final class User implements AggregateRoot<EmailAddress> {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    private String password;
+
+    @Column(nullable = false, unique = true)
+    private String staffNumber;
+
+    @Column(nullable = false)
     private String phoneNumber;
 
+    @Column(nullable = false)
     private boolean active;
 
-    @ElementCollection
-    private Set<Role> roles = new HashSet<>();
+    @Column(nullable = false)
+    private boolean admin;
 
-    protected User() { /* JPA */ }
-
-    private Calendar securityClearanceExpiry; // Garante que este campo existe
-
-    public User(final EmailAddress email, final String name, final String phoneNumber,
-                final Set<Role> roles, final Calendar expiry) { // <--- Adiciona o 5º aqui
-        this.email = email;
-        this.name = name;
-        this.phoneNumber = phoneNumber;
-        this.roles = roles;
-        this.securityClearanceExpiry = expiry; // <--- Guarda o valor
-        this.active = true;
+    protected User() {
+        // Para o JPA
     }
 
+    /**
+     * Construtor principal — US031.
+     */
+    public User(EmailAddress email, String name, String phoneNumber,
+                String password, String staffNumber) {
+        if (email == null || name == null || password == null
+                || staffNumber == null || phoneNumber == null) {
+            throw new IllegalArgumentException("Todos os campos são obrigatórios.");
+        }
+        if (name.isBlank()) throw new IllegalArgumentException("O nome não pode estar vazio.");
+        if (password.length() < 4) throw new IllegalArgumentException("A password deve ter pelo menos 4 caracteres.");
+        if (staffNumber.isBlank()) throw new IllegalArgumentException("O número de staff não pode estar vazio.");
+
+        this.email       = email;
+        this.name        = name;
+        this.phoneNumber = phoneNumber;
+        this.password    = password;
+        this.staffNumber = staffNumber;
+        this.active      = true;
+        this.admin       = false;
+    }
+
+    /** Promove este utilizador a administrador (usado no bootstrap). */
+    public void makeAdmin() {
+        this.admin = true;
+    }
+
+    /** US032 - Desativa a conta. */
     public void deactivate() { this.active = false; }
-    public void activate() { this.active = true; }
+
+    /** US032 - Ativa a conta. */
+    public void activate()   { this.active = true; }
+
     public boolean isActive() { return this.active; }
+    public boolean isAdmin()  { return this.admin; }
+
+    public boolean checkPassword(String password) {
+        return this.password != null && this.password.equals(password);
+    }
+
+    public String getName()        { return name; }
+    public String getPhoneNumber() { return phoneNumber; }
+    public String getStaffNumber() { return staffNumber; }
 
     @Override
     public boolean sameAs(Object other) {
@@ -50,4 +88,11 @@ public final class User implements AggregateRoot<EmailAddress> {
 
     @Override
     public EmailAddress identity() { return this.email; }
+
+    @Override
+    public String toString() {
+        return String.format("%-20s | %-25s | %-12s | %-10s | %s",
+                name, email.toString(), staffNumber, phoneNumber,
+                active ? "ATIVO" : "INATIVO");
+    }
 }
