@@ -5,18 +5,12 @@ import domain.User;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 import ui.ListUsersUI;
+import ui.RegisterAirTransportCompanyUI;
 import ui.RegisterUserUI;
 import ui.ToggleUserUI;
 
 import java.util.Optional;
 
-/**
- * Menu principal do sistema AlSafe.
- *
- * Antes do login: só mostra Login e Sair.
- * Após login como Admin: mostra todas as opções de gestão (US031, US032, US033).
- * Após login como utilizador normal: mostra apenas as opções do seu perfil.
- */
 public class MainMenu extends AbstractUI {
 
     private final LoginController loginController = new LoginController();
@@ -35,23 +29,17 @@ public class MainMenu extends AbstractUI {
         return false;
     }
 
-    // ---------------------------------------------------------------
-    // Menu
-    // ---------------------------------------------------------------
-
     private void printMenu() {
         System.out.println("\n╔══════════════════════════════════════╗");
         System.out.println("║        AlSafe - Menu Principal       ║");
         System.out.println("╠══════════════════════════════════════╣");
 
         if (currentUser == null) {
-            // Sem sessão iniciada: login e registo disponíveis
             System.out.println("║  1. Login                            ║");
             System.out.println("║  2. Registar utilizador              ║");
             System.out.println("║  0. Sair                             ║");
 
         } else if (currentUser.isAdmin()) {
-            // Admin autenticado
             System.out.printf("║ Logado: %-29s║%n", currentUser.getName());
             System.out.printf("║ Perfil: %-29s║%n", "ADMINISTRADOR");
             System.out.println("╠══════════════════════════════════════╣");
@@ -59,11 +47,13 @@ public class MainMenu extends AbstractUI {
             System.out.println("║  1. Ativar/Desativar user            ║");
             System.out.println("║  2. Listar utilizadores              ║");
             System.out.println("╠══════════════════════════════════════╣");
+            System.out.println("║  [Gestão de Companhias]              ║");
+            System.out.println("║  3. Registar companhia aérea (US060) ║");
+            System.out.println("╠══════════════════════════════════════╣");
             System.out.println("║  9. Logout                           ║");
             System.out.println("║  0. Sair                             ║");
 
         } else {
-            // Utilizador normal autenticado
             System.out.printf("║ Logado: %-29s║%n", currentUser.getName());
             System.out.printf("║ Perfil: %-29s║%n", "Utilizador");
             System.out.println("╠══════════════════════════════════════╣");
@@ -77,17 +67,18 @@ public class MainMenu extends AbstractUI {
     private void handleOption(int option) {
         if (currentUser == null) {
             switch (option) {
-                case 1: doLogin();               break;
+                case 1: doLogin();                   break;
                 case 2: new RegisterUserUI().show(); break;
-                case 0: doExit();                break;
+                case 0: doExit();                    break;
                 default: System.out.println(">> Opção inválida. Tente novamente.");
             }
         } else if (currentUser.isAdmin()) {
             switch (option) {
-                case 1: new ToggleUserUI().show();   break;
-                case 2: new ListUsersUI().show();    break;
-                case 9: doLogout();              break;
-                case 0: doExit();                break;
+                case 1: new ToggleUserUI().show();                    break;
+                case 2: new ListUsersUI().show();                     break;
+                case 3: new RegisterAirTransportCompanyUI().show();   break;
+                case 9: doLogout();                                   break;
+                case 0: doExit();                                     break;
                 default: System.out.println(">> Opção inválida. Tente novamente.");
             }
         } else {
@@ -98,10 +89,6 @@ public class MainMenu extends AbstractUI {
             }
         }
     }
-
-    // ---------------------------------------------------------------
-    // Ações
-    // ---------------------------------------------------------------
 
     private void doLogin() {
         System.out.println("\n--- Login ---");

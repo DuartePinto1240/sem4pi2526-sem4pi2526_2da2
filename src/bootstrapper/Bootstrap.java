@@ -9,6 +9,7 @@ public class Bootstrap {
     public void execute() {
         System.out.println(">> A inicializar dados de bootstrap...");
         new UserBootstrapper().execute();
+        new AirTransportCompanyBootstrapper().execute();
         System.out.println(">> Bootstrap concluído.");
     }
 }

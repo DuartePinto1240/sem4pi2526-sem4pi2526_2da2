@@ -7,11 +7,12 @@ import eapli.framework.presentation.console.AbstractUI;
 
 public class RegisterAirTransportCompanyUI extends AbstractUI {
 
-    private final RegisterAirTransportCompanyController ctrl =
-            new RegisterAirTransportCompanyController();
-
     @Override
     protected boolean doShow() {
+        // instancia o controller AQUI dentro, após o login
+        final RegisterAirTransportCompanyController ctrl =
+                new RegisterAirTransportCompanyController();
+
         System.out.println("\n--- Register Air Transport Company ---");
 
         final String name = Console.readLine("Company name:");

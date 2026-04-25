@@ -5,20 +5,21 @@ import eapli.framework.actions.Action;
 
 public class AirTransportCompanyBootstrapper implements Action {
 
-    private final RegisterAirTransportCompanyController ctrl =
-            new RegisterAirTransportCompanyController();
-
     @Override
     public boolean execute() {
-        register("TAP Air Portugal", "TP", "TAP");
-        register("Ryanair", "FR", "RYR");
-        register("EasyJet", "U2", "EZY");
-        register("Lufthansa", "LH", "DLH");
-        register("Air France", "AF", "AFR");
+        final RegisterAirTransportCompanyController ctrl =
+                new RegisterAirTransportCompanyController();
+
+        register(ctrl, "TAP Air Portugal", "TP", "TAP");
+        register(ctrl, "Ryanair", "FR", "RYR");
+        register(ctrl, "EasyJet", "U2", "EZY");
+        register(ctrl, "Lufthansa", "LH", "DLH");
+        register(ctrl, "Air France", "AF", "AFR");
         return true;
     }
 
-    private void register(final String name,
+    private void register(final RegisterAirTransportCompanyController ctrl,
+                          final String name,
                           final String iata,
                           final String icao) {
         try {
