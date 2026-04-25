@@ -1,0 +1,47 @@
+@startuml US071-use-case-diagram
+left to right direction
+
+actor "Air Transport Company\nCollaborator" as ATCC
+
+rectangle "Air Companies Configuration Module" {
+  usecase "Decommission Aircraft" as UC_Decommission
+  usecase "Authenticate & Authorize" as UC_Auth
+  usecase "Verify Aircraft Ownership" as UC_Ownership
+  usecase "Check Pending Flights" as UC_PendingCheck
+  usecase "Apply Decommission Status" as UC_Status
+  usecase "Persist Aircraft" as UC_Persist
+}
+
+ATCC --> UC_Decommission
+
+UC_Decommission ..> UC_Auth : <<include>>
+UC_Decommission ..> UC_Ownership : <<include>>
+UC_Decommission ..> UC_PendingCheck : <<include>>
+UC_Decommission ..> UC_Status : <<include>>
+UC_Decommission ..> UC_Persist : <<include>>
+
+note bottom of UC_Auth
+  Enforced by
+  AuthorizationService
+  Role: AIR_TRANSPORT_COMPANY_COLLABORATOR
+end note
+
+note bottom of UC_Ownership
+  Aircraft must belong
+  to the collaborator's
+  own company
+end note
+
+note bottom of UC_PendingCheck
+  No pending (non-terminal)
+  flight plans may exist
+  for the aircraft
+end note
+
+note bottom of UC_Status
+  OperationalStatus
+  set to DECOMMISSIONED
+  (irreversible transition)
+end note
+
+@enduml

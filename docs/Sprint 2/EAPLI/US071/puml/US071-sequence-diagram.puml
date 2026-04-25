@@ -1,0 +1,78 @@
+@startuml US071-sequence-diagram
+actor "Air Transport Company\nCollaborator" as ATCC
+participant DecommissionAircraftUI as UI <<boundary>>
+participant DecommissionAircraftController as CTRL <<control>>
+participant AuthorizationService as AUTHZ <<service>>
+participant DecommissionAircraftService as SVC <<service>>
+participant AircraftRepository as REPO <<repository>>
+participant "aircraft:Aircraft" as AIRCRAFT <<entity>>
+
+ATCC -> UI : doShow()
+UI -> REPO : findActiveByCompany(collaboratorCompany)
+REPO --> UI : activeAircraftList
+UI -> ATCC : displays list of active aircraft
+
+ATCC -> UI : selects aircraft registration
+
+UI -> CTRL : decommissionAircraft(registration)
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(AIR_TRANSPORT_COMPANY_COLLABORATOR)
+activate AUTHZ
+AUTHZ --> CTRL : ok (or throws UnauthorizedException)
+deactivate AUTHZ
+
+CTRL -> SVC : decommissionAircraft(AircraftRegistration(registration))
+activate SVC
+
+SVC -> REPO : ofIdentity(AircraftRegistration(registration))
+activate REPO
+REPO --> SVC : Optional<Aircraft>
+deactivate REPO
+
+alt aircraft not found
+  SVC --> CTRL : throws IllegalArgumentException
+  CTRL --> UI : error
+  UI --> ATCC : "Aircraft not found"
+else aircraft found
+
+  SVC -> AIRCRAFT : company()
+  AIRCRAFT --> SVC : aircraftCompany
+
+  alt aircraft belongs to a different company
+    SVC --> CTRL : throws IllegalStateException
+    CTRL --> UI : error
+    UI --> ATCC : "Aircraft does not belong to your company"
+  else aircraft belongs to collaborator's company
+
+    SVC -> REPO : hasPendingFlights(AircraftRegistration)
+    activate REPO
+    REPO --> SVC : boolean
+    deactivate REPO
+
+    alt has pending flights
+      SVC --> CTRL : throws IllegalStateException
+      CTRL --> UI : error
+      UI --> ATCC : "Cannot decommission: aircraft has pending flights"
+    else no pending flights
+
+      SVC -> AIRCRAFT : decommission()
+      activate AIRCRAFT
+      AIRCRAFT -> AIRCRAFT : setOperationalStatus(DECOMMISSIONED)
+      AIRCRAFT --> SVC : ok (or throws IllegalStateException\nif already DECOMMISSIONED)
+      deactivate AIRCRAFT
+
+      SVC -> REPO : save(aircraft)
+      activate REPO
+      REPO --> SVC : aircraft (persisted)
+      deactivate REPO
+
+      SVC --> CTRL : ok
+      deactivate SVC
+
+      CTRL --> UI : success
+      UI --> ATCC : "Aircraft decommissioned successfully"
+    end
+  end
+end
+
+@enduml
