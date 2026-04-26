@@ -1,0 +1,103 @@
+@startuml US061_ClassDiagram
+title US061 – Add a Customer's Collaborator\n(Class Diagram)
+
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor<<AggregateRoot>> #D0C8F8
+    BorderColor<<AggregateRoot>>     #534AB7
+
+    BackgroundColor<<Entity>>        #C2EAD8
+    BorderColor<<Entity>>            #0F6E56
+
+    BackgroundColor<<ValueObject>>   #FAE8C0
+    BorderColor<<ValueObject>>       #854F0B
+
+    BackgroundColor<<Controller>>    #FADADD
+    BorderColor<<Controller>>        #A03040
+
+    BackgroundColor<<Repository>>    #D8EAF8
+    BorderColor<<Repository>>        #1A5276
+
+    BackgroundColor<<Interface>>     #EDEDED
+    BorderColor<<Interface>>         #555555
+}
+
+' ─────────────────────────────────────────────────────────
+' UI LAYER
+' ─────────────────────────────────────────────────────────
+package "Presentation" {
+    class AddCollaboratorUI {
+        + run() : void
+        - displayCustomerList(customers : List<CustomerDTO>) : void
+        - promptCollaboratorData() : CollaboratorDataDTO
+        - showSuccess() : void
+        - showError(message : String) : void
+    }
+}
+
+' ─────────────────────────────────────────────────────────
+' APPLICATION LAYER
+' ─────────────────────────────────────────────────────────
+package "Application" {
+    class AddCollaboratorController <<Controller>> {
+        - customerRepository : CustomerRepository
+        - userRepository : UserRepository
+        + getAvailableCustomers() : List<CustomerDTO>
+        + addCollaborator(customerId : Long,\n  customerType : CustomerType,\n  email : String,\n  name : String,\n  phone : String,\n  position : String) : void
+    }
+
+    class CustomerDTO {
+        + id : Long
+        + name : String
+        + type : CustomerType
+    }
+
+    class CollaboratorDataDTO {
+        + email : String
+        + name : String
+        + phone : String
+    }
+
+    enum CustomerType {
+        AIR_TRANSPORT_COMPANY
+        AIR_CONTROL_AREA
+    }
+}
+
+
+' ─────────────────────────────────────────────────────────
+' REPOSITORY INTERFACES
+' ─────────────────────────────────────────────────────────
+package "Repository" {
+    interface UserRepository <<Interface>> {
+        + findByEmail(email : String) : Optional<User>
+        + save(user : User) : User
+    }
+
+    interface CustomerRepository <<Interface>> {
+        + findAllAirTransportCompanies() : List<AirTransportCompany>
+        + findAllAirControlAreas() : List<AirControlArea>
+        + findAirTransportCompanyById(id : Long) : Optional<AirTransportCompany>
+        + findAirControlAreaById(id : Long) : Optional<AirControlArea>
+        + save(company : AirTransportCompany) : AirTransportCompany
+        + save(area : AirControlArea) : AirControlArea
+    }
+}
+
+' ─────────────────────────────────────────────────────────
+' RELATIONSHIPS ACROSS LAYERS
+' ─────────────────────────────────────────────────────────
+
+' UI -> Controller
+AddCollaboratorUI ..> AddCollaboratorController : uses
+
+' Controller -> Repositories
+AddCollaboratorController ..> UserRepository       : uses
+AddCollaboratorController ..> CustomerRepository   : uses
+
+' Controller -> DTOs
+AddCollaboratorController ..> CustomerDTO          : creates
+AddCollaboratorController ..> CustomerType         : uses
+AddCollaboratorUI          ..> CollaboratorDataDTO : creates
+
+@enduml
