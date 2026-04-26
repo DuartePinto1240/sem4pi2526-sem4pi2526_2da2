@@ -55,7 +55,6 @@ else email is unique
     USER --> CTRL : newUser
     deactivate USER
     CTRL -> UREPO : save(newUser)
-    UREPO --> CTRL : savedUser
 
     CTRL -> CREPO : findById(customerId, customerType)
     CREPO --> CTRL : customer
@@ -70,7 +69,6 @@ else email is unique
     deactivate CUSTOMER
 
     CTRL -> CREPO : save(customer)
-    CREPO --> CTRL : ok
 
     CTRL --> UI : success
     UI --> BO : "Collaborator added successfully"
