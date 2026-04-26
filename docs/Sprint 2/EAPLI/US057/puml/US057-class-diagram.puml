@@ -1,0 +1,65 @@
+@startuml CD_US057
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+    class AddEngineModelToAircraftUI <<Boundary>> {
+    }
+}
+
+package "Application" {
+    class AddEngineModelToAircraftController {
+        + getAircraftModels(): Iterable<AircraftModel>
+        + getCompatibleEngines(aircraftModelId): Iterable<EngineModel>
+        + addEngineModelToAircraft(aircraftModelId, engineModelId): AircraftModel
+    }
+}
+
+package "Domain" {
+    class AircraftModel <<Aggregate Root>> {
+        - modelName: String
+        - manufacturer: String
+        - type: AircraftType
+        + addCertifiedEngine(engine: EngineModel): void
+        + certifiedEngines(): List<EngineModel>
+        + motorizationType(): MotorizationType
+    }
+
+    class EngineModel <<Entity>> {
+        ' Defined in US056
+        + motorizationType(): MotorizationType
+    }
+
+    enum MotorizationType <<Enumeration>> {
+        TURBOFAN
+        TURBOPROP
+        TURBOJET
+        RAMJET
+        ELECTRIC_PROPELLER
+    }
+}
+
+package "Persistence" {
+    interface AircraftModelRepository <<Repository>> {
+        + findById(id): Optional<AircraftModel>
+        + findAll(): Iterable<AircraftModel>
+        + save(model): AircraftModel
+    }
+
+    interface EngineModelRepository <<Repository>> {
+        + findById(id): Optional<EngineModel>
+        + findByMotorizationType(type): Iterable<EngineModel>
+    }
+}
+
+' Relationships
+AddEngineModelToAircraftUI ..> AddEngineModelToAircraftController : use
+AddEngineModelToAircraftController ..> AircraftModelRepository : use
+AddEngineModelToAircraftController ..> EngineModelRepository : use
+AddEngineModelToAircraftController ..> AircraftModel : use
+
+AircraftModel "1" o--> "1..*" EngineModel : certifiedEngines
+EngineModel "1" *--> "1" MotorizationType
+
+@enduml
