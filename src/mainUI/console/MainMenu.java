@@ -11,6 +11,17 @@ import ui.ToggleUserUI;
 
 import java.util.Optional;
 
+/**
+ * Main console menu for the AlSafe backoffice system.
+ *
+ * <p>Navigation depends on the current session state:</p>
+ * <ul>
+ *   <li><b>No session</b> — Login and Exit only.
+ *       User registration is an admin operation and requires authentication.</li>
+ *   <li><b>Admin session</b> — Full user management and company options.</li>
+ *   <li><b>Regular user session</b> — Logout only (future US will expand this).</li>
+ * </ul>
+ */
 public class MainMenu extends AbstractUI {
 
     private final LoginController loginController = new LoginController();
@@ -19,108 +30,116 @@ public class MainMenu extends AbstractUI {
     @Override
     protected boolean doShow() {
         int option = -1;
-
         while (option != 0) {
             printMenu();
-            option = Console.readInteger("Escolha uma opção");
+            option = Console.readInteger("Option");
             handleOption(option);
         }
-
         return false;
     }
 
+    // -------------------------------------------------------------------------
+    // Menu rendering
+    // -------------------------------------------------------------------------
+
     private void printMenu() {
-        System.out.println("\n╔══════════════════════════════════════╗");
-        System.out.println("║        AlSafe - Menu Principal       ║");
-        System.out.println("╠══════════════════════════════════════╣");
+        System.out.println();
+        System.out.println("  ╔══════════════════════════════════════════╗");
 
         if (currentUser == null) {
-            System.out.println("║  1. Login                            ║");
-            System.out.println("║  2. Registar utilizador              ║");
-            System.out.println("║  0. Sair                             ║");
+            System.out.println("  ║       AlSafe Backoffice — Main Menu      ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  1.  Login                               ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  0.  Exit                                ║");
 
         } else if (currentUser.isAdmin()) {
-            System.out.printf("║ Logado: %-29s║%n", currentUser.getName());
-            System.out.printf("║ Perfil: %-29s║%n", "ADMINISTRADOR");
-            System.out.println("╠══════════════════════════════════════╣");
-            System.out.println("║  [Gestão de Utilizadores]            ║");
-            System.out.println("║  1. Ativar/Desativar user            ║");
-            System.out.println("║  2. Listar utilizadores              ║");
-            System.out.println("╠══════════════════════════════════════╣");
-            System.out.println("║  [Gestão de Companhias]              ║");
-            System.out.println("║  3. Registar companhia aérea (US060) ║");
-            System.out.println("╠══════════════════════════════════════╣");
-            System.out.println("║  9. Logout                           ║");
-            System.out.println("║  0. Sair                             ║");
+            System.out.printf( "  ║  Logged in : %-28s║%n", currentUser.getName());
+            System.out.printf( "  ║  Role      : %-28s║%n", "ADMINISTRATOR");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  [ User Management ]                     ║");
+            System.out.println("  ║  1.  Register User                       ║");
+            System.out.println("  ║  2.  Enable/Disable User                 ║");
+            System.out.println("  ║  3.  List Users                          ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  [ Company Management ]                  ║");
+            System.out.println("  ║  4.  Register Air Transport Company      ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  9.  Logout                              ║");
+            System.out.println("  ║  0.  Exit                                ║");
 
         } else {
-            System.out.printf("║ Logado: %-29s║%n", currentUser.getName());
-            System.out.printf("║ Perfil: %-29s║%n", "Utilizador");
-            System.out.println("╠══════════════════════════════════════╣");
-            System.out.println("║  9. Logout                           ║");
-            System.out.println("║  0. Sair                             ║");
+            System.out.printf( "  ║  Logged in : %-28s║%n", currentUser.getName());
+            System.out.printf( "  ║  Role      : %-28s║%n", currentUser.getRole());
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  9.  Logout                              ║");
+            System.out.println("  ║  0.  Exit                                ║");
         }
 
-        System.out.println("╚══════════════════════════════════════╝");
+        System.out.println("  ╚══════════════════════════════════════════╝");
     }
 
-    private void handleOption(int option) {
+    // -------------------------------------------------------------------------
+    // Option dispatching
+    // -------------------------------------------------------------------------
+
+    private void handleOption(final int option) {
         if (currentUser == null) {
             switch (option) {
-                case 1: doLogin();                   break;
-                case 2: new RegisterUserUI().show(); break;
-                case 0: doExit();                    break;
-                default: System.out.println(">> Opção inválida. Tente novamente.");
+                case 1: doLogin(); break;
+                case 0: doExit();  break;
+                default: System.out.println("  >> Invalid option. Please try again.");
             }
         } else if (currentUser.isAdmin()) {
             switch (option) {
-                case 1: new ToggleUserUI().show();                    break;
-                case 2: new ListUsersUI().show();                     break;
-                case 3: new RegisterAirTransportCompanyUI().show();   break;
-                case 9: doLogout();                                   break;
-                case 0: doExit();                                     break;
-                default: System.out.println(">> Opção inválida. Tente novamente.");
+                case 1: new RegisterUserUI().show();                break;
+                case 2: new ToggleUserUI().show();                  break;
+                case 3: new ListUsersUI().show();                   break;
+                case 4: new RegisterAirTransportCompanyUI().show(); break;
+                case 9: doLogout();                                 break;
+                case 0: doExit();                                   break;
+                default: System.out.println("  >> Invalid option. Please try again.");
             }
         } else {
             switch (option) {
                 case 9: doLogout(); break;
                 case 0: doExit();   break;
-                default: System.out.println(">> Opção inválida ou sem permissão.");
+                default: System.out.println("  >> Invalid option or insufficient permissions.");
             }
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Actions
+    // -------------------------------------------------------------------------
+
     private void doLogin() {
-        System.out.println("\n--- Login ---");
-        String email = Console.readLine("Email:");
-        String pass  = Console.readLine("Password:");
+        System.out.println("\n  --- Login ---");
+        final String email = Console.readLine("  Email   :");
+        final String pass  = Console.readLine("  Password:");
 
-        Optional<User> result = loginController.login(email, pass);
-
+        final Optional<User> result = loginController.login(email, pass);
         if (result.isPresent()) {
             currentUser = result.get();
-            System.out.println("\n>> Login efetuado com sucesso!");
-            System.out.println("   Bem-vindo(a), " + currentUser.getName() + "!");
-            if (currentUser.isAdmin()) {
-                System.out.println("   Perfil: ADMINISTRADOR");
-            }
+            System.out.println("\n  >> Login successful! Welcome, " + currentUser.getName() + ".");
+            if (currentUser.isAdmin()) System.out.println("     Role: ADMINISTRATOR");
         } else {
-            System.out.println("\n>> Erro: Email ou password incorretos, ou conta inativa.");
+            System.out.println("\n  >> Login failed: incorrect email/password or account inactive.");
         }
     }
 
     private void doLogout() {
-        System.out.println("\n>> Logout efetuado. Até logo, " + currentUser.getName() + "!");
+        System.out.println("\n  >> Logged out. Goodbye, " + currentUser.getName() + ".");
         currentUser = null;
     }
 
     private void doExit() {
-        System.out.println("\nA fechar o sistema AlSafe. Até logo!");
+        System.out.println("\n  Shutting down AlSafe. Goodbye!");
         System.exit(0);
     }
 
     @Override
     public String headline() {
-        return "AlSafe - Menu Principal";
+        return "AlSafe Backoffice";
     }
 }

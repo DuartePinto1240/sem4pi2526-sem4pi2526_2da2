@@ -5,35 +5,46 @@ import domain.User;
 import eapli.framework.presentation.console.AbstractUI;
 
 /**
- * UI para US033 - Listar utilizadores do backoffice com o seu estado.
+ * Console UI for US033 — List backoffice users.
+ *
+ * <p>Displays a formatted table of all registered users sorted alphabetically
+ * by name, including name, email, role, phone, status, security clearance
+ * expiry and next skills assessment date.</p>
  */
 public class ListUsersUI extends AbstractUI {
 
     private final ListUsersController theController = new ListUsersController();
 
+    /**
+     * Fetches all users and renders them as a formatted table.
+     *
+     * @return {@code false} to return to the admin menu
+     */
     @Override
     protected boolean doShow() {
-        System.out.println("\n--- Lista de Utilizadores do Backoffice ---");
-        System.out.printf("%-20s | %-25s | %-12s | %-10s | %s%n",
-                "Nome", "Email", "Staff Nº", "Telefone", "Estado");
-        System.out.println("-".repeat(85));
+        System.out.println("\n+--------------------------------------------+");
+        System.out.println("|      Backoffice User List                  |");
+        System.out.println("+--------------------------------------------+");
 
-        boolean hasUsers = false;
-        int total = 0, ativos = 0;
+        final String header = String.format("%-22s | %-28s | %-22s | %-9s | %-8s | %-10s | %s",
+                "Name", "Email", "Role", "Phone", "Status",
+                "Clearance", "Next Assessment");
+        System.out.println(header);
+        System.out.println("-".repeat(header.length() + 5));
 
+        int total = 0, active = 0;
         for (User u : theController.allUsers()) {
             System.out.println(u);
             total++;
-            if (u.isActive()) ativos++;
-            hasUsers = true;
+            if (u.isActive()) active++;
         }
 
-        if (!hasUsers) {
-            System.out.println("  (nenhum utilizador registado)");
+        if (total == 0) {
+            System.out.println("  (no users registered)");
         } else {
-            System.out.println("-".repeat(85));
-            System.out.printf("Total: %d utilizador(es) | Ativos: %d | Inativos: %d%n",
-                    total, ativos, total - ativos);
+            System.out.println("-".repeat(header.length() + 5));
+            System.out.printf("Total: %d user(s)  |  Active: %d  |  Inactive: %d%n",
+                    total, active, total - active);
         }
 
         return false;
@@ -41,6 +52,6 @@ public class ListUsersUI extends AbstractUI {
 
     @Override
     public String headline() {
-        return "Listar Utilizadores";
+        return "List Users";
     }
 }

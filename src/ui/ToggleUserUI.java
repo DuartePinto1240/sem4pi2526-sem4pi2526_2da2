@@ -7,56 +7,72 @@ import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 
 /**
- * UI para US032 - Ativar/Desativar utilizadores do backoffice.
- * Apenas acessível pelo Admin.
+ * Console UI for US032 — Enable/Disable a backoffice user.
+ *
+ * <p>Displays the current user list so the administrator can choose
+ * which account to activate or deactivate, then delegates the action
+ * to {@link ToggleUserController}.</p>
+ *
+ * <p>Only accessible when logged in as an administrator.</p>
  */
 public class ToggleUserUI extends AbstractUI {
 
+    /** Controller that handles activate/deactivate logic. */
     private final ToggleUserController toggleController = new ToggleUserController();
+
+    /** Controller used to display the current user list. */
     private final ListUsersController  listController   = new ListUsersController();
 
+    /**
+     * Displays the user list, prompts for an email and action, then executes.
+     *
+     * @return {@code false} to return to the calling menu
+     */
     @Override
     protected boolean doShow() {
-        System.out.println("\n--- Ativar / Desativar Utilizador ---");
+        System.out.println("\n+------------------------------------------+");
+        System.out.println("|    Enable / Disable User                 |");
+        System.out.println("+------------------------------------------+");
 
-        // Mostrar lista de utilizadores para ajudar na escolha
         printUserList();
 
-        String email = Console.readLine("\nEmail do utilizador a alterar (ou ENTER para cancelar):");
+        final String email = Console.readLine("\nUser email to change (press ENTER to cancel):");
         if (email == null || email.isBlank()) {
-            System.out.println("Operação cancelada.");
+            System.out.println("Operation cancelled.");
             return false;
         }
 
-        System.out.println("\n1. Ativar utilizador");
-        System.out.println("2. Desativar utilizador");
-        int option = Console.readInteger("Escolha");
+        System.out.println("\n  1. Enable user");
+        System.out.println("  2. Disable user");
+        final int option = Console.readInteger("Choice");
 
         try {
             switch (option) {
                 case 1:
                     toggleController.activateUser(email);
-                    System.out.println(">> Utilizador ativado com sucesso.");
+                    System.out.println(">> User enabled successfully.");
                     break;
                 case 2:
                     toggleController.deactivateUser(email);
-                    System.out.println(">> Utilizador desativado com sucesso.");
+                    System.out.println(">> User disabled successfully.");
                     break;
                 default:
-                    System.out.println("Opção inválida.");
+                    System.out.println(">> Invalid option.");
             }
         } catch (IllegalArgumentException e) {
-            System.out.println(">> ERRO: " + e.getMessage());
+            System.out.println(">> ERROR: " + e.getMessage());
         }
 
         return false;
     }
 
+    /**
+     * Prints a formatted table of all registered users.
+     */
     private void printUserList() {
-        System.out.println("\nUtilizadores registados:");
-        System.out.printf("%-20s | %-25s | %-12s | %-10s | %s%n",
-                "Nome", "Email", "Staff Nº", "Telefone", "Estado");
-        System.out.println("-".repeat(85));
+        System.out.printf("%n%-20s | %-25s | %-15s | %-9s | %s%n",
+                "Name", "Email", "Staff No.", "Phone", "Status");
+        System.out.println("-".repeat(88));
 
         boolean hasUsers = false;
         for (User u : listController.allUsers()) {
@@ -64,12 +80,17 @@ public class ToggleUserUI extends AbstractUI {
             hasUsers = true;
         }
         if (!hasUsers) {
-            System.out.println("  (nenhum utilizador registado)");
+            System.out.println("  (no users registered)");
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the title of this UI panel
+     */
     @Override
     public String headline() {
-        return "Ativar/Desativar Utilizador";
+        return "Enable/Disable User";
     }
 }

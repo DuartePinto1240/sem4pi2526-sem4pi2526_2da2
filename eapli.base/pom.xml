@@ -64,8 +64,9 @@
 			<groupId>jakarta.xml.bind</groupId>
 			<artifactId>jakarta.xml.bind-api</artifactId>
 			<version>4.0.1</version>
-			<scope>provided</scope>
+			<scope>compile</scope>
 		</dependency>
+
 
 		<!-- keep junit4 engine for now -->
 		<dependency>

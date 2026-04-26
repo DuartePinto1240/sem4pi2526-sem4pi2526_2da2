@@ -4,21 +4,39 @@ import domain.User;
 import persistence.PersistenceContext;
 import repositories.UserRepository;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
 /**
- * Controller para US033 - Listar utilizadores do backoffice com o seu estado.
+ * Controller for US033 — List backoffice users.
+ *
+ * <p>Returns all registered users sorted alphabetically by name,
+ * including both active and inactive accounts with their current status.</p>
  */
 public class ListUsersController {
 
     private final UserRepository repo;
 
+    /**
+     * Creates a new controller using the shared persistence context.
+     */
     public ListUsersController() {
         this.repo = PersistenceContext.getInstance().userRepository();
     }
 
     /**
-     * Devolve todos os utilizadores registados no sistema, incluindo o seu estado.
+     * Returns all registered users sorted alphabetically by name (case-insensitive).
+     * Both active and inactive users are included (US033.3).
+     *
+     * @return sorted iterable of all {@link User} records
      */
     public Iterable<User> allUsers() {
-        return repo.findAll();
+        final List<User> users = new ArrayList<>();
+        for (User u : repo.findAll()) {
+            users.add(u);
+        }
+        users.sort(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER));
+        return users;
     }
 }

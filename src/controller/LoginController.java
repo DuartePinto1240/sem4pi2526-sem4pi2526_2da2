@@ -1,43 +1,50 @@
 package controller;
 
-import domain.User;
 import domain.EmailAddress;
+import domain.User;
 import persistence.PersistenceContext;
 import repositories.UserRepository;
+
 import java.util.Optional;
 
 /**
- * Controller para Login - US030.
- * Autentica o utilizador verificando email, password e se está ativo.
+ * Controller for US030 — Authentication.
+ *
+ * <p>Authenticates a user by verifying their email and password.
+ * Login is only successful when the account exists and is active.</p>
  */
 public class LoginController {
 
+    /** Repository used to look up users. */
     private final UserRepository repo;
 
+    /**
+     * Creates a new controller using the shared persistence context.
+     */
     public LoginController() {
         this.repo = PersistenceContext.getInstance().userRepository();
     }
 
     /**
-     * Tenta autenticar um utilizador.
+     * Attempts to authenticate a user with the given credentials.
      *
-     * @param email    Email do utilizador
-     * @param password Password introduzida
-     * @return Optional com o User se credenciais corretas e conta ativa, vazio caso contrário
+     * @param email    the user's email address
+     * @param password the password to verify
+     * @return an {@link Optional} containing the authenticated {@link User},
+     *         or empty if credentials are invalid or the account is inactive
      */
-    public Optional<User> login(String email, String password) {
+    public Optional<User> login(final String email, final String password) {
         try {
-            EmailAddress emailVO = EmailAddress.valueOf(email);
-            Optional<User> userOpt = repo.ofIdentity(emailVO);
-
+            final EmailAddress emailVO = EmailAddress.valueOf(email);
+            final Optional<User> userOpt = repo.ofIdentity(emailVO);
             if (userOpt.isPresent()) {
-                User u = userOpt.get();
+                final User u = userOpt.get();
                 if (u.isActive() && u.checkPassword(password)) {
                     return Optional.of(u);
                 }
             }
         } catch (Exception e) {
-            System.err.println("Erro no login: " + e.getMessage());
+            System.err.println("Login error: " + e.getMessage());
         }
         return Optional.empty();
     }
