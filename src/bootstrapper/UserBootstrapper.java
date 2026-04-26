@@ -1,52 +1,44 @@
 package bootstrapper;
 
-import controller.RegisterUserController;
+import domain.BaseRoles;
+import domain.EmailAddress;
+import domain.User;
 import domain.ValidEmailDomains;
 import eapli.framework.actions.Action;
+import eapli.framework.infrastructure.authz.application.AuthzRegistry;
+import eapli.framework.infrastructure.authz.application.UserManagementService;
+import eapli.framework.infrastructure.authz.domain.model.Role;
+import persistence.PersistenceContext;
+import repositories.UserRepository;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * Bootstrap action that:
- * <ol>
- *   <li>Registers the valid AISafe internal email domains (section 3.1.1).</li>
- *   <li>Ensures the default administrator account exists.</li>
- * </ol>
+ * Bootstrap action for the default administrator account.
  *
- * <p>Executed once at application startup. If the admin account already exists
- * (e.g. from a previous run in the H2 database), step 2 is a no-op.</p>
- *
- * <p>Default admin credentials:</p>
- * <ul>
- *   <li>Email:    {@value #ADMIN_EMAIL}</li>
- *   <li>Password: {@value #ADMIN_PASSWORD}</li>
- *   <li>Staff No: {@value #ADMIN_STAFF}</li>
- * </ul>
+ * <p>Creates the admin SystemUser (EAPLI Framework — for authentication)
+ * and the admin domain User (our repository — for domain data) independently,
+ * so that both always exist after startup regardless of DB state.</p>
  */
 public class UserBootstrapper implements Action {
 
-    private static final String ADMIN_EMAIL    = "admin@alsafe.com";
-    private static final String ADMIN_PASSWORD = "Admin1234";
-    private static final String ADMIN_NAME     = "AlSafe Administrator";
-    private static final String ADMIN_PHONE    = "910000000";
-    private static final String ADMIN_STAFF    = "STAFF-ADMIN-001";
+    private static final String ADMIN_EMAIL     = "admin@alsafe.com";
+    private static final String ADMIN_PASSWORD  = "Admin1234";
+    private static final String ADMIN_FIRSTNAME = "AlSafe";
+    private static final String ADMIN_LASTNAME  = "Administrator";
+    private static final String ADMIN_PHONE     = "910000000";
+    private static final String ADMIN_STAFF     = "STAFF-ADMIN-001";
 
-    /**
-     * Loads valid email domains and creates the admin account if needed.
-     *
-     * @return {@code true} if completed without errors
-     */
     @Override
     public boolean execute() {
         loadValidDomains();
-        createAdminIfAbsent();
+        createAdminSystemUser();
+        createAdminDomainUser();
         return true;
     }
 
-    /**
-     * Registers the valid AISafe internal email domains.
-     * These are the only domains accepted for backoffice user registration.
-     */
     private void loadValidDomains() {
         ValidEmailDomains.register("alsafe.com");
         ValidEmailDomains.register("alsafe.pt");
@@ -54,17 +46,57 @@ public class UserBootstrapper implements Action {
     }
 
     /**
-     * Creates the default admin account if it does not already exist.
-     * The admin's security clearance is set to 10 years from today.
+     * Creates the admin SystemUser via the EAPLI Framework.
+     * Silently skips if the SystemUser already exists (any duplicate-key
+     * exception, regardless of how the framework wraps it).
      */
-    private void createAdminIfAbsent() {
+    private void createAdminSystemUser() {
         try {
-            final LocalDate clearanceExpiry = LocalDate.now().plusYears(10);
-            new RegisterUserController().registerAdmin(
-                    ADMIN_EMAIL, ADMIN_NAME, ADMIN_PHONE,
-                    ADMIN_PASSWORD, ADMIN_STAFF, clearanceExpiry);
-        } catch (Exception e) {
-            // Admin already exists — silently skip
+            final UserManagementService svc = AuthzRegistry.userService();
+            final Set<Role> roles = new HashSet<>();
+            roles.add(BaseRoles.ADMIN);
+
+            svc.registerNewUser(
+                    ADMIN_EMAIL,       // username (= email)
+                    ADMIN_PASSWORD,
+                    ADMIN_FIRSTNAME,   // firstName — must not be empty
+                    ADMIN_LASTNAME,    // lastName  — must not be empty
+                    ADMIN_EMAIL,       // email
+                    roles
+            );
+
+        } catch (final Exception e) {
+            // Any exception here means the admin SystemUser already exists
+            // (the framework may wrap ConstraintViolationException in
+            //  RollbackException, so we catch broadly and skip silently)
+        }
+    }
+
+    /**
+     * Creates the admin domain User in our repository.
+     * Skips silently if already present.
+     */
+    private void createAdminDomainUser() {
+        try {
+            final UserRepository repo = PersistenceContext.getInstance().userRepository();
+            final EmailAddress emailVO = EmailAddress.valueOf(ADMIN_EMAIL);
+
+            if (repo.ofIdentity(emailVO).isPresent()) {
+                return;
+            }
+
+            final User admin = new User(
+                    emailVO,
+                    ADMIN_FIRSTNAME + " " + ADMIN_LASTNAME,
+                    ADMIN_PHONE,
+                    ADMIN_STAFF,
+                    LocalDate.now().plusYears(10));
+            admin.markAsAdmin();
+            repo.save(admin);
+
+        } catch (final Exception e) {
+            System.err.println("[Bootstrap] ERROR creating admin domain User: "
+                    + e.getClass().getName() + ": " + e.getMessage());
         }
     }
 }

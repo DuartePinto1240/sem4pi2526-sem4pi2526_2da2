@@ -56,13 +56,13 @@ public class RegisterUserUI extends AbstractUI {
             final User u = theController.registerUser(
                     email, name, phoneNumber, password, staffNumber, clearance);
             System.out.println("\n  >> User registered successfully!");
-            System.out.printf("     Name             : %s%n", u.getName());
-            System.out.printf("     Email            : %s%n", u.identity());
-            System.out.printf("     Role             : %s%n", u.getRole());
-            System.out.printf("     Staff No.        : %s%n", u.getStaffNumber());
-            System.out.printf("     Clearance Expiry : %s%n", u.getSecurityClearanceExpiry());
-            System.out.printf("     Next Assessment  : %s%n", u.getNextSkillsAssessmentDate());
-            System.out.println("     Status           : ACTIVE");
+            System.out.printf("     Name: %s%n", u.getName());
+            System.out.printf("     Email: %s%n", u.identity());
+            System.out.printf("     Role: %s%n", u.getRole());
+            System.out.printf("     Staff No.: %s%n", u.getStaffNumber());
+            System.out.printf("     Clearance Expiry: %s%n", u.getSecurityClearanceExpiry());
+            System.out.printf("     Next Assessment: %s%n", u.getNextSkillsAssessmentDate());
+            System.out.println("     Status: ACTIVE");
         } catch (IllegalArgumentException e) {
             System.out.println("\n  >> ERROR: " + e.getMessage());
         }
@@ -76,7 +76,7 @@ public class RegisterUserUI extends AbstractUI {
 
     private String readName() {
         while (true) {
-            final String v = Console.readLine("  Full Name                 :");
+            final String v = Console.readLine("  Full Name:");
             if (v == null || v.isBlank()) {
                 System.out.println("  ! Name must not be blank. Please try again.");
             } else {
@@ -92,7 +92,7 @@ public class RegisterUserUI extends AbstractUI {
      */
     private String readEmail() {
         while (true) {
-            final String v = Console.readLine("  Email                     :");
+            final String v = Console.readLine("  Email:");
             if (v == null || v.isBlank()) {
                 System.out.println("  ! Email must not be blank. Please try again.");
                 continue;
@@ -131,7 +131,7 @@ public class RegisterUserUI extends AbstractUI {
      */
     private String readPhone() {
         while (true) {
-            final String v = Console.readLine("  Phone Number (9 digits)   :");
+            final String v = Console.readLine("  Phone Number (9 digits):");
             if (v == null || v.isBlank()) {
                 System.out.println("  ! Phone number must not be blank. Please try again.");
                 continue;
@@ -160,7 +160,7 @@ public class RegisterUserUI extends AbstractUI {
      */
     private String readStaffNumber() {
         while (true) {
-            final String v = Console.readLine("  Staff Number              :");
+            final String v = Console.readLine("  Staff Number:");
             if (v == null || v.isBlank()) {
                 System.out.println("  ! Staff number must not be blank. Please try again.");
                 continue;
@@ -180,7 +180,7 @@ public class RegisterUserUI extends AbstractUI {
 
     private String readPassword() {
         while (true) {
-            final String v = Console.readLine("  Password (min. 4 chars)   :");
+            final String v = Console.readLine("  Password (min. 4 chars):");
             if (v == null || v.length() < 4) {
                 System.out.println("  ! Password must be at least 4 characters. Please try again.");
             } else {

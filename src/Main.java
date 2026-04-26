@@ -1,13 +1,27 @@
 import bootstrapper.Bootstrap;
+import domain.AlSafePasswordPolicy;
+import eapli.framework.infrastructure.authz.application.AuthzRegistry;
+import eapli.framework.infrastructure.authz.domain.model.PlainTextEncoder;
+import eapli.framework.infrastructure.authz.repositories.impl.jpa.JpaAutoTxUserRepository;
 import mainUI.console.MainMenu;
+
+import java.util.HashMap;
 
 /**
  * Application entry point for the AlSafe backoffice system.
  *
- * <p>Runs the bootstrap process to ensure base data exists (admin account),
- * then launches the main console menu in a loop until the user exits.</p>
+ * <p>Startup sequence:</p>
+ * <ol>
+ *   <li>Configure {@code AuthzRegistry} with the JPA user repository,
+ *       password policy and encoder — required for all authentication
+ *       and authorisation operations (US030).</li>
+ *   <li>Run the bootstrap process (creates admin account and default data).</li>
+ *   <li>Launch the main console menu.</li>
+ * </ol>
  */
 public class Main {
+
+    private static final String PERSISTENCE_UNIT = "eapli.base.AlSafePU";
 
     /**
      * Starts the AlSafe application.
@@ -16,12 +30,22 @@ public class Main {
      */
     public static void main(final String[] args) {
         printBanner();
+
+        // 1. Configure AuthzRegistry — must be done before any bootstrap or login
+        AuthzRegistry.configure(
+                new JpaAutoTxUserRepository(PERSISTENCE_UNIT, new HashMap<>()),
+                new AlSafePasswordPolicy(),
+                new PlainTextEncoder()
+        );
+
+        // 2. Bootstrap (domains, admin account, company data)
         new Bootstrap().execute();
 
+        // 3. Launch menu
         try {
             new MainMenu().show();
-        } catch (Exception e) {
-            System.out.println("Fatal error: " + e.getMessage());
+        } catch (final Exception e) {
+            System.err.println("Fatal error: " + e.getMessage());
             e.printStackTrace();
         }
     }

@@ -16,14 +16,8 @@ import java.util.List;
  */
 public class ListUsersController {
 
-    private final UserRepository repo;
-
-    /**
-     * Creates a new controller using the shared persistence context.
-     */
-    public ListUsersController() {
-        this.repo = PersistenceContext.getInstance().userRepository();
-    }
+    /** Repository for domain-specific user data. */
+    private final UserRepository repo = PersistenceContext.getInstance().userRepository();
 
     /**
      * Returns all registered users sorted alphabetically by name (case-insensitive).

@@ -1,7 +1,10 @@
 package mainUI.console;
 
 import controller.LoginController;
-import domain.User;
+import domain.BaseRoles;
+import eapli.framework.infrastructure.authz.application.AuthorizationService;
+import eapli.framework.infrastructure.authz.application.AuthzRegistry;
+import eapli.framework.infrastructure.authz.application.UserSession;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 import ui.ListUsersUI;
@@ -12,21 +15,36 @@ import ui.ToggleUserUI;
 import java.util.Optional;
 
 /**
- * Main console menu for the AlSafe backoffice system.
+ * Main console menu for the AlSafe backoffice system (US030).
+ *
+ * <p>Uses the EAPLI Framework's {@link AuthorizationService} for session
+ * management and role-based authorisation:</p>
+ * <ul>
+ *   <li>{@code authz.session()} — checks if a user is currently logged in.</li>
+ *   <li>{@code authz.isAuthenticatedUserAuthorizedTo(role)} — checks roles.</li>
+ *   <li>{@code authz.clearSession()} — ends the session (logout).</li>
+ * </ul>
  *
  * <p>Navigation depends on the current session state:</p>
  * <ul>
- *   <li><b>No session</b> — Login and Exit only.
- *       User registration is an admin operation and requires authentication.</li>
+ *   <li><b>No session</b> — Login and Exit only.</li>
  *   <li><b>Admin session</b> — Full user management and company options.</li>
  *   <li><b>Regular user session</b> — Logout only (future US will expand this).</li>
  * </ul>
  */
 public class MainMenu extends AbstractUI {
 
-    private final LoginController loginController = new LoginController();
-    private User currentUser = null;
+    /** Framework authorisation service — holds the current session. */
+    private final AuthorizationService authz = AuthzRegistry.authorizationService();
 
+    /** Controller for the login use case. */
+    private final LoginController loginController = new LoginController();
+
+    /**
+     * Runs the menu loop until the user chooses to exit.
+     *
+     * @return {@code false} always
+     */
     @Override
     protected boolean doShow() {
         int option = -1;
@@ -42,19 +60,23 @@ public class MainMenu extends AbstractUI {
     // Menu rendering
     // -------------------------------------------------------------------------
 
+    /** Renders the appropriate menu based on the current session state. */
     private void printMenu() {
         System.out.println();
         System.out.println("  ╔══════════════════════════════════════════╗");
 
-        if (currentUser == null) {
+        if (authz.session().isEmpty()) {
+            // No active session
             System.out.println("  ║       AlSafe Backoffice — Main Menu      ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  1.  Login                               ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  0.  Exit                                ║");
 
-        } else if (currentUser.isAdmin()) {
-            System.out.printf( "  ║  Logged in : %-28s║%n", currentUser.getName());
+        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.ADMIN)) {
+            // Admin session
+            final String name = currentUserName();
+            System.out.printf( "  ║  Logged in : %-28s║%n", name);
             System.out.printf( "  ║  Role      : %-28s║%n", "ADMINISTRATOR");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  [ User Management ]                     ║");
@@ -69,8 +91,10 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  0.  Exit                                ║");
 
         } else {
-            System.out.printf( "  ║  Logged in : %-28s║%n", currentUser.getName());
-            System.out.printf( "  ║  Role      : %-28s║%n", currentUser.getRole());
+            // Regular user session
+            final String name = currentUserName();
+            System.out.printf( "  ║  Logged in : %-28s║%n", name);
+            System.out.printf( "  ║  Role      : %-28s║%n", "USER");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  9.  Logout                              ║");
             System.out.println("  ║  0.  Exit                                ║");
@@ -83,14 +107,19 @@ public class MainMenu extends AbstractUI {
     // Option dispatching
     // -------------------------------------------------------------------------
 
+    /**
+     * Dispatches the chosen option to the appropriate action or UI.
+     *
+     * @param option the integer option entered by the user
+     */
     private void handleOption(final int option) {
-        if (currentUser == null) {
+        if (authz.session().isEmpty()) {
             switch (option) {
                 case 1: doLogin(); break;
                 case 0: doExit();  break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
-        } else if (currentUser.isAdmin()) {
+        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.ADMIN)) {
             switch (option) {
                 case 1: new RegisterUserUI().show();                break;
                 case 2: new ToggleUserUI().show();                  break;
@@ -113,31 +142,55 @@ public class MainMenu extends AbstractUI {
     // Actions
     // -------------------------------------------------------------------------
 
+    /** Handles the login flow — reads credentials and authenticates via the framework. */
     private void doLogin() {
         System.out.println("\n  --- Login ---");
-        final String email = Console.readLine("  Email   :");
+        final String email = Console.readLine("  Email:");
         final String pass  = Console.readLine("  Password:");
 
-        final Optional<User> result = loginController.login(email, pass);
+        final Optional<UserSession> result = loginController.login(email, pass);
+
         if (result.isPresent()) {
-            currentUser = result.get();
-            System.out.println("\n  >> Login successful! Welcome, " + currentUser.getName() + ".");
-            if (currentUser.isAdmin()) System.out.println("     Role: ADMINISTRATOR");
+            System.out.println("\n  >> Login successful! Welcome, " + currentUserName() + ".");
+            if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.ADMIN)) {
+                System.out.println("     Role: ADMINISTRATOR");
+            }
         } else {
             System.out.println("\n  >> Login failed: incorrect email/password or account inactive.");
         }
     }
 
+    /** Ends the current session via the framework and returns to the public menu. */
     private void doLogout() {
-        System.out.println("\n  >> Logged out. Goodbye, " + currentUser.getName() + ".");
-        currentUser = null;
+        final String name = currentUserName();
+        authz.clearSession();
+        System.out.println("\n  >> Logged out. Goodbye, " + name + ".");
     }
 
+    /** Terminates the application. */
     private void doExit() {
         System.out.println("\n  Shutting down AlSafe. Goodbye!");
         System.exit(0);
     }
 
+    /**
+     * Returns the name of the currently authenticated user,
+     * or "User" if no session is active.
+     *
+     * @return the user's first name from the framework session
+     */
+    private String currentUserName() {
+        return authz.session()
+                .map(UserSession::authenticatedUser)
+                .map(u -> u.name().firstName())
+                .orElse("User");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return the headline shown above this menu
+     */
     @Override
     public String headline() {
         return "AlSafe Backoffice";
