@@ -1,37 +1,43 @@
 @startuml
 actor Administrator
-participant AddUserUI as UI <<boundary>>
-participant AddUserController as CTRL <<control>>
-participant UserManagementService as SVC <<service>>
-participant "builder:SystemUserBuilder" as BLDR <<builder>>
-participant "user:SystemUser" as USER <<domain>>
-participant PersistenceContext as PCON <<registry>>
-participant RepositoryFactory as FACT <<factory>>
-participant SystemUserRepository as REPO <<repository>>
+participant RegisterUserUI as UI <<boundary>>
+participant RegisterUserController as CTRL <<control>>
+participant ValidEmailDomains as VED <<utility>>
+participant "user:User" as USER <<domain>>
+participant PersistenceContext as PCON <<singleton>>
+participant UserRepository as REPO <<repository>>
 
 Administrator -> UI : doShow()
-UI -> Administrator : requests user data
-Administrator -> UI : inputs data (email, pass, name, roles)
-UI -> CTRL : addUser(email, pass, name, roles)
+UI -> Administrator : requests user data (field by field)
 
-CTRL -> SVC : registerNewUser(email, pass, name, roles)
-activate SVC
-SVC -> BLDR : create(policy, encoder)
-SVC -> BLDR : withData(email, pass, name, roles)
-SVC -> BLDR : build()
-activate BLDR
-BLDR -> USER : create(email, password, name, roles)
-BLDR --> SVC : user
-deactivate BLDR
+note right of UI
+  Each field validated immediately.
+  On error: re-prompt that field only.
+end note
 
-SVC -> PCON : repositories()
-PCON --> SVC : factory
-SVC -> FACT : users()
-FACT --> SVC : repo
-SVC -> REPO : save(user)
-SVC --> CTRL : user
-deactivate SVC
+Administrator -> UI : name, email, phone, staffNumber, password, clearanceExpiry
+UI -> VED : isValid(email)
+VED --> UI : true / false
+UI -> PCON : getInstance().userRepository()
+PCON --> UI : repo
+UI -> REPO : ofIdentity(email) [uniqueness checks]
+REPO --> UI : empty
 
-CTRL --> UI : success
-UI --> Administrator : informs success
+UI -> CTRL : registerUser(email, name, phone, password, staffNumber, clearanceExpiry)
+activate CTRL
+CTRL -> VED : isValid(email)
+CTRL -> REPO : ofIdentity(email)
+REPO --> CTRL : empty
+CTRL -> USER : new User(email, name, phone, password, staffNumber, clearanceExpiry)
+activate USER
+USER -> USER : validate all fields
+USER -> USER : role = "USER"
+USER -> USER : nextSkillsAssessmentDate = today + 5 years
+USER --> CTRL : user
+deactivate USER
+CTRL -> REPO : save(user)
+CTRL --> UI : user
+deactivate CTRL
+
+UI --> Administrator : displays success (name, email, role, clearance, assessment)
 @enduml

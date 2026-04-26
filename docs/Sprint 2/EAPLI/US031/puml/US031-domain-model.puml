@@ -1,5 +1,5 @@
 @startuml
-title Domain Model Excerpt - US031 (User Registration)
+title Domain Model Excerpt — US031 (User Registration)
 
 skinparam linetype ortho
 skinparam class {
@@ -11,33 +11,36 @@ skinparam class {
 
 package "User Management Aggregate" {
     class User <<AggregateRoot>> {
-        + email : Email
+        + email : EmailAddress
         + name : String
         + phoneNumber : String
+        + staffNumber : String
+        + password : String
+        + active : boolean
+        + admin : boolean
+        + role : String
+        + securityClearanceExpiry : LocalDate
+        + nextSkillsAssessmentDate : LocalDate
     }
 
-    class SecurityClearance <<ValueObject>> {
-        + expiryDate : LocalDate
+    class EmailAddress <<ValueObject>> {
+        + address : String
     }
 
-    class SkillsAssessment <<ValueObject>> {
-        + assessmentDate : LocalDate
-    }
-
-    class Role <<ValueObject>> {
-        + name : String
-    }
-
-    User "1" *-- "1" SecurityClearance
-    User "1" *-- "0..*" SkillsAssessment
-    User "1" *-- "1..*" Role
+    User "1" *-- "1" EmailAddress
 }
 
 note right of User
   Invariants:
-  - Email must be unique and valid
-  - Name and Phone cannot be empty
-  - Must have at least one Role
+  - email must be unique and valid
+  - email domain must be in ValidEmailDomains
+  - name and phoneNumber cannot be blank
+  - phoneNumber must be exactly 9 digits
+  - staffNumber must be unique and not blank
+  - password >= 4 characters
+  - securityClearanceExpiry must be future
+  - nextSkillsAssessmentDate = today + 5 years (auto)
+  - new user is always active = true, admin = false
 end note
 
 @enduml

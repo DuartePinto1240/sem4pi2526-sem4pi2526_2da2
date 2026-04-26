@@ -1,21 +1,50 @@
 @startuml
 skinparam classAttributeIconSize 0
 
-class DeactivateUserController <<control>> {
-  +allUsers(): Iterable<SystemUser>
-  +deactivateUser(user): SystemUser
-}
-class UserManagementService <<service>> {
-  +deactivateUser(user): SystemUser
-}
-class SystemUser <<aggregate root>> {
-  -active: boolean
-  -deactivatedAt: Calendar
-  +deactivate(now)
-  +isActive(): boolean
+package "UI" {
+  class ToggleUserUI <<boundary>> {
+    +doShow(): boolean
+    -printUserList()
+  }
 }
 
-DeactivateUserController ..> UserManagementService
-UserManagementService ..> SystemUser
-UserManagementService ..> PersistenceContext
+package "Application" {
+  class ToggleUserController <<control>> {
+    +allUsers(): Iterable<User>
+    +deactivateUser(email): boolean
+    +activateUser(email): boolean
+    -findOrThrow(email): User
+  }
+  class ListUsersController <<control>> {
+    +allUsers(): Iterable<User>
+  }
+}
+
+package "Domain" {
+  class User <<aggregate root>> {
+    -active: boolean
+    +deactivate()
+    +activate()
+    +isActive(): boolean
+    +isAdmin(): boolean
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +userRepository(): UserRepository
+  }
+  interface UserRepository <<repository>> {
+    +ofIdentity(EmailAddress): Optional<User>
+    +findAll(): Iterable<User>
+    +save(user): User
+  }
+}
+
+ToggleUserUI ..> ToggleUserController
+ToggleUserUI ..> ListUsersController
+ToggleUserController ..> PersistenceContext
+ToggleUserController ..> User
+ListUsersController ..> PersistenceContext
+PersistenceContext ..> UserRepository
 @enduml

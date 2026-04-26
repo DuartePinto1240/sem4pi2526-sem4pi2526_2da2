@@ -1,26 +1,45 @@
 @startuml
 actor Administrator
-participant DeactivateUserUI as UI <<boundary>>
-participant DeactivateUserController as CTRL <<control>>
-participant UserManagementService as SVC <<service>>
-participant "user:SystemUser" as USER <<domain>>
-participant SystemUserRepository as REPO <<repository>>
+participant ToggleUserUI as UI <<boundary>>
+participant ListUsersController as LCTRL <<control>>
+participant ToggleUserController as TCTRL <<control>>
+participant "user:User" as USER <<domain>>
+participant UserRepository as REPO <<repository>>
 
-Administrator -> UI : selects user from list
-UI -> CTRL : deactivateUser(user)
-CTRL -> SVC : deactivateUser(user)
-activate SVC
+Administrator -> UI : doShow()
+UI -> LCTRL : allUsers()
+LCTRL -> REPO : findAll()
+REPO --> LCTRL : users
+LCTRL -> LCTRL : sort by name
+LCTRL --> UI : sorted users
+UI --> Administrator : displays user list with status
 
-SVC -> USER : deactivate(CurrentCalendar.now())
-activate USER
-USER -> USER : this.active = false
-USER -> USER : this.deactivatedAt = now
-deactivate USER
+Administrator -> UI : enters email + choice (1=Enable / 2=Disable)
 
-SVC -> REPO : save(user)
-SVC --> CTRL : user
-deactivate SVC
+alt Disable (choice = 2)
+    UI -> TCTRL : deactivateUser(email)
+    activate TCTRL
+    TCTRL -> REPO : ofIdentity(email)
+    REPO --> TCTRL : user
+    TCTRL -> USER : isAdmin() [guard: admin cannot be disabled]
+    TCTRL -> USER : isActive() [guard: already inactive?]
+    TCTRL -> USER : deactivate()
+    USER -> USER : active = false
+    TCTRL -> REPO : save(user)
+    TCTRL --> UI : true
+    deactivate TCTRL
+else Enable (choice = 1)
+    UI -> TCTRL : activateUser(email)
+    activate TCTRL
+    TCTRL -> REPO : ofIdentity(email)
+    REPO --> TCTRL : user
+    TCTRL -> USER : isActive() [guard: already active?]
+    TCTRL -> USER : activate()
+    USER -> USER : active = true
+    TCTRL -> REPO : save(user)
+    TCTRL --> UI : true
+    deactivate TCTRL
+end
 
-CTRL --> UI : user
 UI --> Administrator : confirms status change
 @enduml

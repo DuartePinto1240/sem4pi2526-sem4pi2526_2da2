@@ -1,23 +1,46 @@
 @startuml
 skinparam classAttributeIconSize 0
 
-class ListUsersController <<control>> {
-  +allUsers(): Iterable<SystemUserDTO>
-}
-class UserManagementService <<service>> {
-  +allUsers(): Iterable<SystemUserDTO>
-}
-class SystemUserDTO <<dto>> {
-  +email: String
-  +fullName: String
-  +roles: String
-  +status: String
-}
-class SystemUser <<aggregate root>> {
-  +toDTO(): SystemUserDTO
+package "UI" {
+  class ListUsersUI <<boundary>> {
+    +doShow(): boolean
+  }
 }
 
-ListUsersController ..> UserManagementService
-UserManagementService ..> SystemUserRepository
-UserManagementService ..> SystemUserDTO
+package "Application" {
+  class ListUsersController <<control>> {
+    +allUsers(): Iterable<User>
+  }
+}
+
+package "Domain" {
+  class User <<aggregate root>> {
+    -name: String
+    -email: EmailAddress
+    -role: String
+    -phoneNumber: String
+    -active: boolean
+    -securityClearanceExpiry: LocalDate
+    -nextSkillsAssessmentDate: LocalDate
+    +getName(): String
+    +getRole(): String
+    +isActive(): boolean
+    +toString(): String
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +userRepository(): UserRepository
+  }
+  interface UserRepository <<repository>> {
+    +findAll(): Iterable<User>
+  }
+}
+
+ListUsersUI ..> ListUsersController
+ListUsersController ..> PersistenceContext
+ListUsersController ..> User : sorts by name
+PersistenceContext ..> UserRepository
+UserRepository ..> User
 @enduml

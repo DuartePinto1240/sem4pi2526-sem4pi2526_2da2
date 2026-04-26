@@ -1,51 +1,73 @@
 @startuml
 skinparam classAttributeIconSize 0
 
-package "Application" {
-  class AddUserController <<control>> {
-    +addUser(email, password, first, last, roles)
+package "UI" {
+  class RegisterUserUI <<boundary>> {
+    +doShow(): boolean
+    -readName(): String
+    -readEmail(): String
+    -readPhone(): String
+    -readStaffNumber(): String
+    -readPassword(): String
+    -readClearanceDate(): LocalDate
   }
-  class UserManagementService <<service>> {
-    +registerNewUser(email, password, first, last, roles)
+}
+
+package "Application" {
+  class RegisterUserController <<control>> {
+    +registerUser(email, name, phone, password, staff, clearance): User
+    +registerAdmin(email, name, phone, password, staff, clearance): User
   }
 }
 
 package "Domain" {
-  class SystemUser <<aggregate root>> {
-    -username: Username
-    -password: Password
-    -name: Name
+  class User <<aggregate root>> {
     -email: EmailAddress
-    -phone: PhoneNumber
-    -roles: RoleSet
-  }
-  class SystemUserBuilder <<builder>> {
-    -policy: PasswordPolicy
-    -encoder: PasswordEncoder
-    +withData(email, password, first, last, roles)
-    +build(): SystemUser
+    -name: String
+    -phoneNumber: String
+    -staffNumber: String
+    -password: String
+    -active: boolean
+    -admin: boolean
+    -role: String
+    -securityClearanceExpiry: LocalDate
+    -nextSkillsAssessmentDate: LocalDate
+    +makeAdmin()
+    +isActive(): boolean
+    +isAdmin(): boolean
+    +checkPassword(String): boolean
+    +updateSecurityClearance(LocalDate)
+    +updateSkillsAssessment(LocalDate)
   }
   class EmailAddress <<value object>> {
     -address: String
+    +valueOf(String): EmailAddress
+  }
+  class ValidEmailDomains <<utility>> {
+    +register(String)
+    +isValid(String): boolean
+    +getAll(): Set<String>
   }
 }
 
 package "Infrastructure.Persistence" {
-  class PersistenceContext <<registry>> {
-    +repositories(): RepositoryFactory
+  class PersistenceContext <<singleton>> {
+    +getInstance(): PersistenceContext
+    +userRepository(): UserRepository
   }
-  interface RepositoryFactory <<factory>> {
-    +users(): SystemUserRepository
-  }
-  interface SystemUserRepository <<repository>> {
-    +save(user)
+  interface UserRepository <<repository>> {
+    +save(user): User
+    +ofIdentity(EmailAddress): Optional<User>
+    +findAll(): Iterable<User>
+    +findAllActive(): Iterable<User>
   }
 }
 
-AddUserController ..> UserManagementService
-UserManagementService ..> SystemUserBuilder
-UserManagementService ..> PersistenceContext
-PersistenceContext ..> RepositoryFactory
-RepositoryFactory ..> SystemUserRepository
-SystemUser *-- EmailAddress
+RegisterUserUI ..> RegisterUserController
+RegisterUserUI ..> ValidEmailDomains : checks domain
+RegisterUserController ..> ValidEmailDomains : validates
+RegisterUserController ..> PersistenceContext
+RegisterUserController ..> User : creates
+PersistenceContext ..> UserRepository
+User *-- EmailAddress
 @enduml

@@ -2,29 +2,25 @@
 actor Administrator
 participant ListUsersUI as UI <<boundary>>
 participant ListUsersController as CTRL <<control>>
-participant UserManagementService as SVC <<service>>
-participant SystemUserRepository as REPO <<repository>>
-participant "user:SystemUser" as USER <<domain>>
-participant SystemUserDTO as DTO
+participant UserRepository as REPO <<repository>>
 
 Administrator -> UI : doShow()
 UI -> CTRL : allUsers()
-CTRL -> SVC : allUsers()
-activate SVC
+activate CTRL
 
-SVC -> REPO : findAll()
-REPO --> SVC : usersList
+CTRL -> REPO : findAll()
+REPO --> CTRL : all users (unordered)
 
-loop for each user in usersList
-    SVC -> USER : toDTO()
-    activate USER
-    USER -> DTO : create(email, name, role, status)
-    USER --> SVC : dto
-    deactivate USER
-end
+CTRL -> CTRL : sort by name (case-insensitive Comparator)
+CTRL --> UI : sorted Iterable<User>
+deactivate CTRL
 
-SVC --> CTRL : listDTO
-deactivate SVC
-CTRL --> UI : listDTO
-UI --> Administrator : displays user table
+note right of UI
+  Displays formatted table:
+  Name | Email | Role | Phone | Status | Clearance | Next Assessment
+  Both ACTIVE and INACTIVE users are shown.
+  Sorted alphabetically by name.
+end note
+
+UI --> Administrator : displays user table with totals (active / inactive)
 @enduml
