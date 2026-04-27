@@ -1,27 +1,33 @@
 @startuml
 left to right direction
 
-actor "User" as U
+actor "Any User" as U
+actor "Administrator" as A
+actor "Regular User (Backoffice Operator)" as RU
 
-rectangle "System Authorization Module" {
+rectangle "Authentication & Authorization (US030)" {
   usecase "Login" as UC_Login
   usecase "Logout" as UC_Logout
-  usecase "Authenticate Credentials" as UC_Auth
-  usecase "Load User Roles" as UC_Roles
-  usecase "Access Feature" as UC_Feature
-  usecase "Authorize Role" as UC_Access
+  usecase "Verify Credentials\n& Active Status" as UC_Verify
+  usecase "Access Admin\nFunctionalities" as UC_Admin
+  usecase "Access User\nFunctionalities" as UC_User
 }
 
 U --> UC_Login
 U --> UC_Logout
-U --> UC_Feature
 
-UC_Login ..> UC_Auth : <<include>>
-UC_Login ..> UC_Roles : <<include>>
-UC_Feature ..> UC_Access : <<include>>
+A --> UC_Admin
+RU --> UC_User
 
-note bottom of UC_Access
-  Verified by
-  AuthorizationService
+UC_Login ..> UC_Verify : <<include>>
+UC_Admin ..> UC_Login : <<extend>>\n[requires ADMIN role]
+UC_User  ..> UC_Login : <<extend>>\n[requires login]
+
+note bottom of UC_Verify
+  Checks via AuthzRegistry:
+  1. SystemUser exists
+  2. Password matches
+  3. Account is active (isActive())
 end note
+
 @enduml

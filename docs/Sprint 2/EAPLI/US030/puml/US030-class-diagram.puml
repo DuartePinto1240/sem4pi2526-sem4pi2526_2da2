@@ -2,42 +2,76 @@
 skinparam classAttributeIconSize 0
 
 package "Presentation" {
-  class LoginUI <<boundary>> {
-    +doShow()
+  class MainMenu <<boundary>> {
+    -loginController: LoginController
+    +doShow(): boolean
+    -printMenu()
+    -handleOption(int)
+    -doLogin()
+    -doLogout()
+    -currentUserName(): String
   }
 }
 
 package "Application" {
   class LoginController <<control>> {
-    +login(username, password): boolean
+    +login(email: String, password: String): Optional<UserSession>
   }
 }
 
 package "Infrastructure.Authz" {
   class AuthzRegistry <<registry>> {
+    {static} +configure(repo, policy, encoder)
     {static} +authenticationService(): AuthenticationService
+    {static} +authorizationService(): AuthorizationService
   }
   interface AuthenticationService <<service>> {
     +authenticate(username, password): Optional<UserSession>
   }
+  interface AuthorizationService <<service>> {
+    +session(): Optional<UserSession>
+    +isAuthenticatedUserAuthorizedTo(Role): boolean
+    +clearSession()
+  }
   class UserSession <<session>> {
-    -authenticatedUser: SystemUser
     +authenticatedUser(): SystemUser
   }
-}
-
-package "Domain" {
   class SystemUser <<aggregate root>> {
     -username: Username
     -password: Password
     -roles: RoleSet
+    -active: boolean
     +isActive(): boolean
+    +name(): Name
   }
 }
 
-LoginUI ..> LoginController
-LoginController ..> AuthzRegistry
+package "Domain" {
+  class BaseRoles <<utility>> {
+    {static} +ADMIN: Role
+    {static} +BACKOFFICE_OPERATOR: Role
+  }
+}
+
+MainMenu ..> LoginController
+MainMenu ..> AuthzRegistry : authorizationService()
+LoginController ..> AuthzRegistry : authenticationService()
 AuthzRegistry ..> AuthenticationService
+AuthzRegistry ..> AuthorizationService
 AuthenticationService ..> UserSession
-AuthenticationService ..> SystemUser
+UserSession ..> SystemUser
+MainMenu ..> BaseRoles : isAuthenticatedUserAuthorizedTo()
+
+note right of MainMenu
+  No currentUser field —
+  session managed by AuthzRegistry.
+  authz.session().isEmpty() → unauthenticated
+  authz.isAuthenticatedUserAuthorizedTo(ADMIN) → admin menu
+end note
+
+note right of LoginController
+  Returns Optional<UserSession>:
+  empty if unknown email,
+  wrong password, or inactive account.
+end note
 @enduml

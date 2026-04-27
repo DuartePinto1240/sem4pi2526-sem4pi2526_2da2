@@ -1,31 +1,51 @@
 @startuml
 actor User
-participant LoginUI as UI <<boundary>>
+participant MainMenu as MENU <<boundary>>
 participant LoginController as CTRL <<control>>
 participant AuthzRegistry as REG <<registry>>
 participant AuthenticationService as AUTH <<service>>
-participant "session:UserSession" as SESS <<session>>
+participant AuthorizationService as AUTHZ <<service>>
 
-User -> UI : doShow()
-UI -> User : asks for username and password
-User -> UI : provides credentials
-UI -> CTRL : login(user, pass)
+User -> MENU : starts application
+MENU -> AUTHZ : session().isEmpty()
+AUTHZ --> MENU : true (no session)
+MENU --> User : shows public menu (Login / Exit only)
 
+User -> MENU : chooses Login (option 1)
+MENU -> User : asks for email and password
+User -> MENU : provides email and password
+
+MENU -> CTRL : login(email, password)
+activate CTRL
 CTRL -> REG : authenticationService()
 REG --> CTRL : authService
-
-CTRL -> AUTH : authenticate(user, pass)
+CTRL -> AUTH : authenticate(email, password)
 activate AUTH
-AUTH -> AUTH : checkCredentials(user, pass)
-AUTH -> SESS : create(user)
+AUTH -> AUTH : find SystemUser by username
+AUTH -> AUTH : verify password
+AUTH -> AUTH : check isActive()
 AUTH --> CTRL : Optional<UserSession>
 deactivate AUTH
+CTRL --> MENU : Optional<UserSession>
+deactivate CTRL
 
-alt session is present
-    CTRL --> UI : true
-    UI --> User : show main menu
-else session is empty
-    CTRL --> UI : false
-    UI --> User : show error message
+alt session is present (login successful)
+    MENU -> AUTHZ : isAuthenticatedUserAuthorizedTo(ADMIN)
+    AUTHZ --> MENU : true / false
+    MENU --> User : "Login successful. Welcome, {name}."
+    MENU --> User : shows role-based menu (admin or regular user)
+else session is empty (login failed)
+    MENU --> User : "Login failed: incorrect email/password or account inactive."
 end
+
+User -> MENU : chooses Logout (option 9)
+MENU -> AUTHZ : clearSession()
+MENU --> User : "Logged out. Goodbye, {name}."
+MENU --> User : shows public menu again
+
+note right of AUTH
+  Single error message for all failure cases
+  (security best practice — does not reveal
+  whether email exists or not)
+end note
 @enduml

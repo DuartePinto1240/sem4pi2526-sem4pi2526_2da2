@@ -15,8 +15,25 @@ package "UI" {
 
 package "Application" {
   class RegisterUserController <<control>> {
+    -userSvc: UserManagementService
+    -repo: UserRepository
     +registerUser(email, name, phone, password, staff, clearance): User
     +registerAdmin(email, name, phone, password, staff, clearance): User
+  }
+}
+
+package "Infrastructure.Authz" {
+  class AuthzRegistry <<registry>> {
+    {static} +userService(): UserManagementService
+  }
+  class UserManagementService <<service>> {
+    +registerNewUser(username, password, firstName, lastName, email, roles): SystemUser
+  }
+  class SystemUser <<aggregate root>> {
+    -username: Username
+    -password: Password
+    -roles: RoleSet
+    -active: boolean
   }
 }
 
@@ -26,16 +43,13 @@ package "Domain" {
     -name: String
     -phoneNumber: String
     -staffNumber: String
-    -password: String
     -active: boolean
-    -admin: boolean
     -role: String
     -securityClearanceExpiry: LocalDate
     -nextSkillsAssessmentDate: LocalDate
-    +makeAdmin()
+    +markAsAdmin()
     +isActive(): boolean
-    +isAdmin(): boolean
-    +checkPassword(String): boolean
+    +getRole(): String
     +updateSecurityClearance(LocalDate)
     +updateSkillsAssessment(LocalDate)
   }
@@ -48,6 +62,10 @@ package "Domain" {
     +isValid(String): boolean
     +getAll(): Set<String>
   }
+  class BaseRoles <<utility>> {
+    {static} +ADMIN: Role
+    {static} +BACKOFFICE_OPERATOR: Role
+  }
 }
 
 package "Infrastructure.Persistence" {
@@ -59,15 +77,34 @@ package "Infrastructure.Persistence" {
     +save(user): User
     +ofIdentity(EmailAddress): Optional<User>
     +findAll(): Iterable<User>
-    +findAllActive(): Iterable<User>
   }
 }
 
 RegisterUserUI ..> RegisterUserController
 RegisterUserUI ..> ValidEmailDomains : checks domain
+RegisterUserController ..> AuthzRegistry : userService()
+RegisterUserController ..> UserManagementService : registerNewUser()
 RegisterUserController ..> ValidEmailDomains : validates
 RegisterUserController ..> PersistenceContext
 RegisterUserController ..> User : creates
+RegisterUserController ..> BaseRoles : assigns roles
+UserManagementService ..> SystemUser : creates
 PersistenceContext ..> UserRepository
 User *-- EmailAddress
+
+note right of RegisterUserController
+  Two-step registration:
+  1. Create SystemUser via framework
+     (authentication + role assignment)
+  2. Create domain User in our repo
+     (phone, staff, clearance, assessment)
+  Linked by email address.
+end note
+
+note right of User
+  Does NOT hold password or admin flag.
+  Authentication delegated to SystemUser.
+  role field is display-only string.
+  nextSkillsAssessmentDate auto = today+5yr
+end note
 @enduml

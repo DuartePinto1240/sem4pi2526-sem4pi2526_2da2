@@ -3,13 +3,15 @@ actor Administrator
 participant ToggleUserUI as UI <<boundary>>
 participant ListUsersController as LCTRL <<control>>
 participant ToggleUserController as TCTRL <<control>>
-participant "user:User" as USER <<domain>>
+participant AuthzRegistry as REG <<registry>>
+participant UserManagementService as SVC <<service>>
+participant "domainUser:User" as USER <<domain>>
 participant UserRepository as REPO <<repository>>
 
 Administrator -> UI : doShow()
 UI -> LCTRL : allUsers()
 LCTRL -> REPO : findAll()
-REPO --> LCTRL : users
+REPO --> LCTRL : domain users
 LCTRL -> LCTRL : sort by name
 LCTRL --> UI : sorted users
 UI --> Administrator : displays user list with status
@@ -20,23 +22,47 @@ alt Disable (choice = 2)
     UI -> TCTRL : deactivateUser(email)
     activate TCTRL
     TCTRL -> REPO : ofIdentity(email)
-    REPO --> TCTRL : user
-    TCTRL -> USER : isAdmin() [guard: admin cannot be disabled]
+    REPO --> TCTRL : domainUser
+    TCTRL -> USER : getRole() [guard: "ADMIN" cannot be disabled]
     TCTRL -> USER : isActive() [guard: already inactive?]
+
+    ' Step 1: disable SystemUser via framework
+    TCTRL -> REG : userService()
+    REG --> TCTRL : svc
+    TCTRL -> SVC : allUsers() [find SystemUser by email]
+    SVC --> TCTRL : systemUser
+    TCTRL -> SVC : deactivateUser(systemUser)
+    note right of TCTRL
+      Framework sets SystemUser.active = false.
+      Subsequent login attempts will be refused
+      by AuthenticationService.
+    end note
+
+    ' Step 2: mirror in domain User
     TCTRL -> USER : deactivate()
     USER -> USER : active = false
-    TCTRL -> REPO : save(user)
+    TCTRL -> REPO : save(domainUser)
     TCTRL --> UI : true
     deactivate TCTRL
+
 else Enable (choice = 1)
     UI -> TCTRL : activateUser(email)
     activate TCTRL
     TCTRL -> REPO : ofIdentity(email)
-    REPO --> TCTRL : user
+    REPO --> TCTRL : domainUser
     TCTRL -> USER : isActive() [guard: already active?]
+
+    ' Step 1: activate SystemUser via framework
+    TCTRL -> REG : userService()
+    REG --> TCTRL : svc
+    TCTRL -> SVC : allUsers() [find SystemUser by email]
+    SVC --> TCTRL : systemUser
+    TCTRL -> SVC : activateUser(systemUser)
+
+    ' Step 2: mirror in domain User
     TCTRL -> USER : activate()
     USER -> USER : active = true
-    TCTRL -> REPO : save(user)
+    TCTRL -> REPO : save(domainUser)
     TCTRL --> UI : true
     deactivate TCTRL
 end
