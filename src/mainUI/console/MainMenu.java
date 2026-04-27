@@ -11,6 +11,7 @@ import ui.ListUsersUI;
 import ui.RegisterAirTransportCompanyUI;
 import ui.RegisterUserUI;
 import ui.ToggleUserUI;
+import ui.CreateEngineModelUI;
 
 import java.util.Optional;
 
@@ -87,6 +88,9 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  [ Company Management ]                  ║");
             System.out.println("  ║  4.  Register Air Transport Company      ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  [ Backoffice Configuration ]            ║");
+            System.out.println("  ║  5.  Create Engine Model                 ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  9.  Logout                              ║");
             System.out.println("  ║  0.  Exit                                ║");
 
@@ -125,6 +129,7 @@ public class MainMenu extends AbstractUI {
                 case 2: new ToggleUserUI().show();                  break;
                 case 3: new ListUsersUI().show();                   break;
                 case 4: new RegisterAirTransportCompanyUI().show(); break;
+                case 5: new CreateEngineModelUI().show();           break;
                 case 9: doLogout();                                 break;
                 case 0: doExit();                                   break;
                 default: System.out.println("  >> Invalid option. Please try again.");

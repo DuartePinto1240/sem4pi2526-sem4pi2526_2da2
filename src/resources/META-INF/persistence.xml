@@ -11,6 +11,9 @@
         <class>domain.EmailAddress</class>
         <class>domain.AirTransportCompany</class>
         <class>domain.CompanyCode</class>
+        <class>domain.enginemodel.EngineModel</class>
+        <class>domain.enginemodel.Thrust</class>
+        <class>domain.enginemodel.TSFC</class>
         <properties>
             <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:file:./db/alsafe;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE"/>
             <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>

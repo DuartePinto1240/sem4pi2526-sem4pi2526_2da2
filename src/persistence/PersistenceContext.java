@@ -1,8 +1,10 @@
 package persistence;
 
 import persistence.impl.inmemory.InMemoryAirTransportCompanyRepository;
+import persistence.impl.jpa.JpaEngineModelRepository;
 import persistence.impl.jpa.JpaUserRepository;
 import repositories.AirTransportCompanyRepository;
+import repositories.EngineModelRepository;
 import repositories.UserRepository;
 
 import java.io.IOException;
@@ -15,8 +17,9 @@ import java.util.Properties;
  * Singleton that provides access to all repository instances.
  *
  * <p>Reads {@code application.properties} from the classpath to determine
- * the JPA persistence unit name. The {@link UserRepository} uses JPA with
- * an H2 file-based database so data persists across restarts.</p>
+ * the JPA persistence unit name. The {@link UserRepository} and
+ * {@link EngineModelRepository} use JPA with an H2 file-based database
+ * so data persists across restarts.</p>
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class PersistenceContext {
@@ -30,6 +33,7 @@ public class PersistenceContext {
 
     private final UserRepository userRepository;
     private final AirTransportCompanyRepository airTransportCompanyRepository;
+    private final EngineModelRepository engineModelRepository;
 
     private PersistenceContext() {
         final Properties props = loadProperties();
@@ -44,13 +48,10 @@ public class PersistenceContext {
 
         this.userRepository = new JpaUserRepository(persistenceUnit, extendedProps);
         this.airTransportCompanyRepository = new InMemoryAirTransportCompanyRepository();
+        this.engineModelRepository =
+                new JpaEngineModelRepository(persistenceUnit, extendedProps);
     }
 
-    /**
-     * Returns the singleton instance, creating it if necessary.
-     *
-     * @return the single {@link PersistenceContext} instance
-     */
     public static synchronized PersistenceContext getInstance() {
         if (instance == null) {
             instance = new PersistenceContext();
@@ -58,22 +59,16 @@ public class PersistenceContext {
         return instance;
     }
 
-    /**
-     * Returns the shared {@link UserRepository} backed by H2.
-     *
-     * @return user repository
-     */
     public UserRepository userRepository() {
         return userRepository;
     }
 
-    /**
-     * Returns the shared {@link AirTransportCompanyRepository}.
-     *
-     * @return air transport company repository
-     */
     public AirTransportCompanyRepository airTransportCompanyRepository() {
         return airTransportCompanyRepository;
+    }
+
+    public EngineModelRepository engineModelRepository() {
+        return engineModelRepository;
     }
 
     private static Properties loadProperties() {
