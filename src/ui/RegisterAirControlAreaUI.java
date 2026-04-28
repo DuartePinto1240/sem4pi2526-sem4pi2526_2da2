@@ -21,6 +21,31 @@ public class RegisterAirControlAreaUI extends AbstractUI {
 
         System.out.println("\n--- Register Air Control Area ---");
 
+        System.out.println("\nExisting Air Control Areas:");
+
+        final Iterable<AirControlArea> existingAreas = ctrl.allAreas();
+
+        boolean hasAreas = false;
+
+        for (final AirControlArea area : existingAreas) {
+            hasAreas = true;
+            System.out.printf(
+                    " - %s | %s [ minLat: %.1f | maxLat: %.1f | minLon: %.1f | maxLat: %.1f]%n",
+                    area.identity(),
+                    area.name(),
+                    area.boundary().minLat(),
+                    area.boundary().maxLat(),
+                    area.boundary().minLon(),
+                    area.boundary().maxLon()
+
+            );
+        }
+
+        if (!hasAreas) {
+            System.out.println(" No air control areas registered yet.");
+        }
+
+        System.out.println();
         final String code = Console.readLine("Area code (e.g. LPPC):");
         final String name = Console.readLine("Area name (e.g. Lisbon ACC):");
 

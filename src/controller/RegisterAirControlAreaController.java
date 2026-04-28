@@ -28,6 +28,18 @@ public class RegisterAirControlAreaController {
     }
 
     /**
+     * Returns all registered air control areas, ordered for display.
+     *
+     * <p>Used by the UI to show existing areas before the operator
+     * enters new data, helping to avoid accidental overlaps.</p>
+     *
+     * @return iterable of all existing {@link AirControlArea} records
+     */
+    public Iterable<AirControlArea> allAreas() {
+        return repo.findAll();
+    }
+
+    /**
      * Registers a new Air Control Area.
      *
      * @param areaCode the unique code for this area (e.g. "LPPC")

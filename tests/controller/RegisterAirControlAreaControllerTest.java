@@ -247,4 +247,37 @@ public class RegisterAirControlAreaControllerTest {
         controller.registerAirControlArea(
                 "LPPC", "   ", 36.0, 42.0, -10.0, -6.0);
     }
+
+    @Test
+    public void ensureAllAreasReturnsEmptyWhenNoAreasExist() {
+        // Arrange — empty repo
+
+        // Act
+        final Iterable<AirControlArea> areas = controller.allAreas();
+
+        // Assert
+        assertNotNull(areas);
+        assertFalse(areas.iterator().hasNext());
+    }
+
+    @Test
+    public void ensureAllAreasReturnsRegisteredAreas() {
+        // Arrange
+        controller.registerAirControlArea(
+                "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+
+        controller.registerAirControlArea(
+                "LECM", "Madrid ACC", 36.0, 42.0, -6.0, 0.0);
+
+        // Act
+        final Iterable<AirControlArea> areas = controller.allAreas();
+
+        int count = 0;
+        for (final AirControlArea area : areas) {
+            count++;
+        }
+
+        // Assert
+        assertEquals(2, count);
+    }
 }
