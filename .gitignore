@@ -25,3 +25,12 @@ Thumbs.db
 # Reports
 **/target/site/jacoco/
 *.exec
+
+# IntelliJ compiled output
+out/
+
+# Database files (generated at runtime, not versioned)
+db/
+*.mv.db
+*.lock.db
+*.trace.db
