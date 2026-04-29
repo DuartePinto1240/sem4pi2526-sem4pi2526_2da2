@@ -1,7 +1,7 @@
 package domain;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link AirControlArea} aggregate root (US050).
@@ -70,47 +70,61 @@ public class AirControlAreaTest {
     // Invalid construction — area code
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureNullAreaCodeIsRejected() {
-        new AirControlArea(null, "Lisbon ACC", VALID_BOUNDARY);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlArea(null, "Lisbon ACC", VALID_BOUNDARY);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureEmptyAreaCodeIsRejected() {
-        new AirControlArea("", "Lisbon ACC", VALID_BOUNDARY);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlArea("", "Lisbon ACC", VALID_BOUNDARY);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureBlankAreaCodeIsRejected() {
-        new AirControlArea("   ", "Lisbon ACC", VALID_BOUNDARY);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlArea("   ", "Lisbon ACC", VALID_BOUNDARY);
+        });
     }
 
     // =========================================================================
     // Invalid construction — name
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureNullNameIsRejected() {
-        new AirControlArea("LPPC", null, VALID_BOUNDARY);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlArea("LPPC", null, VALID_BOUNDARY);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureEmptyNameIsRejected() {
-        new AirControlArea("LPPC", "", VALID_BOUNDARY);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlArea("LPPC", "", VALID_BOUNDARY);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureBlankNameIsRejected() {
-        new AirControlArea("LPPC", "   ", VALID_BOUNDARY);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlArea("LPPC", "   ", VALID_BOUNDARY);
+        });
     }
 
     // =========================================================================
     // Invalid construction — boundary
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureNullBoundaryIsRejected() {
-        new AirControlArea("LPPC", "Lisbon ACC", null);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlArea("LPPC", "Lisbon ACC", null);
+        });
     }
 
     // =========================================================================

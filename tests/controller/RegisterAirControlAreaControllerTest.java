@@ -2,14 +2,14 @@ package controller;
 
 import domain.AirControlArea;
 import domain.AirControlAreaCode;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import persistence.impl.inmemory.InMemoryAirControlAreaRepository;
 import repositories.AirControlAreaRepository;
 
 import java.lang.reflect.Field;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link RegisterAirControlAreaController} (US050).
@@ -26,7 +26,7 @@ public class RegisterAirControlAreaControllerTest {
     private RegisterAirControlAreaController controller;
     private AirControlAreaRepository repo;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         repo = new InMemoryAirControlAreaRepository();
         controller = new RegisterAirControlAreaController();
@@ -100,152 +100,170 @@ public class RegisterAirControlAreaControllerTest {
     // Rule 1 — Unique code
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureDuplicateCodeIsRejected() {
-        // Arrange
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            // Arrange
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
 
-        // Act — same code, different name and non-overlapping boundary
-        controller.registerAirControlArea(
-                "LPPC", "Other Area", 50.0, 55.0, 10.0, 20.0);
-
-        // Assert: exception expected
+            // Act — same code, different name and non-overlapping boundary
+            controller.registerAirControlArea(
+            "LPPC", "Other Area", 50.0, 55.0, 10.0, 20.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureDuplicateCodeIsCaseInsensitive() {
-        // Arrange
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            // Arrange
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
 
-        // Act — lowercase version of the same code
-        controller.registerAirControlArea(
-                "lppc", "Other Area", 50.0, 55.0, 10.0, 20.0);
-
-        // Assert: exception expected
+            // Act — lowercase version of the same code
+            controller.registerAirControlArea(
+            "lppc", "Other Area", 50.0, 55.0, 10.0, 20.0);
+        });
     }
 
     // =========================================================================
     // Rule 2 — Unique name
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureDuplicateNameIsRejected() {
-        // Arrange
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            // Arrange
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
 
-        // Act — different code, same name, non-overlapping boundary
-        controller.registerAirControlArea(
-                "LECM", "Lisbon ACC", 50.0, 55.0, 10.0, 20.0);
-
-        // Assert: exception expected
+            // Act — different code, same name, non-overlapping boundary
+            controller.registerAirControlArea(
+            "LECM", "Lisbon ACC", 50.0, 55.0, 10.0, 20.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureDuplicateNameIsCaseInsensitive() {
-        // Arrange
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            // Arrange
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
 
-        // Act — same name in different case, non-overlapping boundary
-        controller.registerAirControlArea(
-                "LECM", "lisbon acc", 50.0, 55.0, 10.0, 20.0);
-
-        // Assert: exception expected
+            // Act — same name in different case, non-overlapping boundary
+            controller.registerAirControlArea(
+            "LECM", "lisbon acc", 50.0, 55.0, 10.0, 20.0);
+        });
     }
 
     // =========================================================================
     // Rule 3 — No boundary overlap
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureOverlappingBoundaryIsRejected() {
-        // Arrange
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            // Arrange
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
 
-        // Act — boundary overlaps the top-right corner of LPPC
-        controller.registerAirControlArea(
-                "LECM", "Madrid ACC", 40.0, 46.0, -8.0, -2.0);
-
-        // Assert: exception expected
+            // Act — boundary overlaps the top-right corner of LPPC
+            controller.registerAirControlArea(
+            "LECM", "Madrid ACC", 40.0, 46.0, -8.0, -2.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureFullyContainedBoundaryIsRejected() {
-        // Arrange — LECM entirely inside LPPC
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 30.0, 50.0, -15.0, 0.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            // Arrange — LECM entirely inside LPPC
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 30.0, 50.0, -15.0, 0.0);
 
-        // Act
-        controller.registerAirControlArea(
-                "LECM", "Madrid ACC", 36.0, 42.0, -10.0, -6.0);
-
-        // Assert: exception expected
+            // Act
+            controller.registerAirControlArea(
+            "LECM", "Madrid ACC", 36.0, 42.0, -10.0, -6.0);
+        });
     }
 
     // =========================================================================
     // Coordinate validation (delegated to GeographicBoundary)
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureInvalidMinLatIsRejected() {
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", -95.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", -95.0, 42.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureInvalidMaxLatIsRejected() {
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 36.0, 95.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 36.0, 95.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMinLatGreaterThanMaxLatIsRejected() {
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 42.0, 36.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 42.0, 36.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureInvalidMinLonIsRejected() {
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 36.0, 42.0, -190.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 36.0, 42.0, -190.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMinLonGreaterThanMaxLonIsRejected() {
-        controller.registerAirControlArea(
-                "LPPC", "Lisbon ACC", 36.0, 42.0, -6.0, -10.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            "LPPC", "Lisbon ACC", 36.0, 42.0, -6.0, -10.0);
+        });
     }
 
     // =========================================================================
     // Null / blank inputs
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureNullCodeIsRejected() {
-        controller.registerAirControlArea(
-                null, "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            null, "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureBlankCodeIsRejected() {
-        controller.registerAirControlArea(
-                "   ", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            "   ", "Lisbon ACC", 36.0, 42.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureNullNameIsRejected() {
-        controller.registerAirControlArea(
-                "LPPC", null, 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            "LPPC", null, 36.0, 42.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureBlankNameIsRejected() {
-        controller.registerAirControlArea(
-                "LPPC", "   ", 36.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.registerAirControlArea(
+            "LPPC", "   ", 36.0, 42.0, -10.0, -6.0);
+        });
     }
 
     @Test

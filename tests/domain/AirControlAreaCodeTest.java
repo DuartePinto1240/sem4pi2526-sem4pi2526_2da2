@@ -1,7 +1,7 @@
 package domain;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link AirControlAreaCode} value object (US050).
@@ -54,19 +54,25 @@ public class AirControlAreaCodeTest {
     // Invalid construction
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureNullCodeIsRejected() {
-        new AirControlAreaCode(null);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlAreaCode(null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureEmptyCodeIsRejected() {
-        new AirControlAreaCode("");
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlAreaCode("");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureBlankCodeIsRejected() {
-        new AirControlAreaCode("   ");
+        assertThrows(IllegalArgumentException.class, () -> {
+            new AirControlAreaCode("   ");
+        });
     }
 
     // =========================================================================

@@ -1,7 +1,7 @@
 package domain;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link GeographicBoundary} value object (US050).
@@ -51,49 +51,65 @@ public class GeographicBoundaryTest {
     // Invalid latitude
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMinLatBelowMinus90IsRejected() {
-        new GeographicBoundary(-91.0, 42.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new GeographicBoundary(-91.0, 42.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMaxLatAbove90IsRejected() {
-        new GeographicBoundary(36.0, 91.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new GeographicBoundary(36.0, 91.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMinLatGreaterThanMaxLatIsRejected() {
-        new GeographicBoundary(42.0, 36.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new GeographicBoundary(42.0, 36.0, -10.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMinLatEqualToMaxLatIsRejected() {
-        // min == max is not a valid area
-        new GeographicBoundary(36.0, 36.0, -10.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            // min == max is not a valid area
+            new GeographicBoundary(36.0, 36.0, -10.0, -6.0);
+        });
     }
 
     // =========================================================================
     // Invalid longitude
     // =========================================================================
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMinLonBelowMinus180IsRejected() {
-        new GeographicBoundary(36.0, 42.0, -181.0, -6.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new GeographicBoundary(36.0, 42.0, -181.0, -6.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMaxLonAbove180IsRejected() {
-        new GeographicBoundary(36.0, 42.0, -10.0, 181.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new GeographicBoundary(36.0, 42.0, -10.0, 181.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMinLonGreaterThanMaxLonIsRejected() {
-        new GeographicBoundary(36.0, 42.0, -6.0, -10.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new GeographicBoundary(36.0, 42.0, -6.0, -10.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void ensureMinLonEqualToMaxLonIsRejected() {
-        new GeographicBoundary(36.0, 42.0, -10.0, -10.0);
+        assertThrows(IllegalArgumentException.class, () -> {
+            new GeographicBoundary(36.0, 42.0, -10.0, -10.0);
+        });
     }
 
     // =========================================================================
