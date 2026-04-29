@@ -13,6 +13,7 @@ import ui.RegisterUserUI;
 import ui.RegisterAirControlAreaUI;
 import ui.ToggleUserUI;
 import ui.CreateEngineModelUI;
+import ui.CreateAircraftModelUI;
 
 import java.util.Optional;
 
@@ -101,6 +102,7 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  [ Backoffice Configuration ]            ║");
             System.out.println("  ║  2.  Register Air Control Area           ║");  // US050
             System.out.println("  ║  3.  Create Engine Model                 ║");
+            System.out.println("  ║  4.  Create Aircraft Model               ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  9.  Logout                              ║");
             System.out.println("  ║  0.  Exit                                ║");
@@ -149,6 +151,7 @@ public class MainMenu extends AbstractUI {
                 case 1: new RegisterAirTransportCompanyUI().show(); break;
                 case 2: new RegisterAirControlAreaUI().show();      break;
                 case 3: new CreateEngineModelUI().show();           break;
+                case 4: new CreateAircraftModelUI().show();          break;
                 case 9: doLogout();                                  break;
                 case 0: doExit();                                    break;
                 default: System.out.println("  >> Invalid option. Please try again.");
