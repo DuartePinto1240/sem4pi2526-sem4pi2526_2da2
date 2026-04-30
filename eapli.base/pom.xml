@@ -32,10 +32,7 @@
 	</properties>
 	<modules>
 		<module>exemplo.app.backoffice.console</module>
-		<module>exemplo.app.user.console</module>
-		<module>exemplo.app.other.console</module>
 		<module>exemplo.app.common.console</module>
-		<module>exemplo.app.bootstrap</module>
 		<module>exemplo.bootstrappers</module>
 		<module>exemplo.core</module>
 		<module>exemplo.infrastructure.application</module>

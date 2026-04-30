@@ -1,6 +1,10 @@
-REM set the class path,
-REM assumes the build was executed with maven copy-dependencies
-SET BASE_CP=exemplo.app.backoffice.console\target\exemplo.app.backoffice.console-1.4.0-SNAPSHOT.jar;exemplo.app.backoffice.console\target\dependency\*;
+@echo off
+echo =================================================
+echo    A iniciar o AlSafe Backoffice (Modo Rapido)   
+echo =================================================
 
-REM call the java VM, e.g, 
-java -cp %BASE_CP% eapli.exemplo.app.backoffice.console.ExemploBackoffice
+REM Compila apenas os ficheiros modificados e executa a classe Main no modulo correto
+call mvn compile exec:java -Dexec.mainClass="Main" -pl exemplo.app.backoffice.console
+
+echo.
+pause

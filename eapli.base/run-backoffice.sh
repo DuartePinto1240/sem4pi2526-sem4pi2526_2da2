@@ -1,8 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-#REM set the class path,
-#REM assumes the build was executed with maven copy-dependencies
-export BASE_CP=exemplo.app.backoffice.console/target/exemplo.app.backoffice.console-1.4.0-SNAPSHOT.jar:exemplo.app.backoffice.console/target/dependency/*;
+# Termina o script imediatamente se ocorrer algum erro crítico
+set -e
 
-#REM call the java VM, e.g,
-java -cp $BASE_CP eapli.exemplo.app.backoffice.console.ExemploBackoffice
+echo "================================================="
+echo "          A iniciar o AlSafe Backoffice          "
+echo "================================================="
+
+# Compila apenas os ficheiros modificados e executa a classe Main no módulo correto
+mvn compile exec:java -Dexec.mainClass="Main" -pl exemplo.app.backoffice.console
