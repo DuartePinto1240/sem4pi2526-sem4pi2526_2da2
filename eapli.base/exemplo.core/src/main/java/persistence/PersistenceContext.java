@@ -3,10 +3,12 @@ package persistence;
 import persistence.impl.inmemory.InMemoryAirTransportCompanyRepository;
 import persistence.impl.inmemory.InMemoryAirControlAreaRepository;
 import persistence.impl.inmemory.InMemoryAircraftModelRepository;
+import persistence.impl.inmemory.InMemoryAircraftRepository;
 import persistence.impl.jpa.JpaAirControlAreaRepository;
 import persistence.impl.jpa.JpaEngineModelRepository;
 import persistence.impl.jpa.JpaUserRepository;
 import repositories.AircraftModelRepository;
+import repositories.AircraftRepository;
 import repositories.AirTransportCompanyRepository;
 import repositories.AirControlAreaRepository;
 import repositories.EngineModelRepository;
@@ -18,20 +20,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-/**
- * Singleton that provides access to all repository instances.
- *
- * <p>Reads {@code application.properties} from the classpath to determine
- * the JPA persistence unit name. The {@link UserRepository} and
- * {@link EngineModelRepository} use JPA with an H2 file-based database
- * so data persists across restarts.</p>
- */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class PersistenceContext {
 
     private static final String PROPERTIES_FILE      = "application.properties";
     private static final String PERSISTENCE_UNIT_KEY = "persistence.persistenceUnit";
-    private static final String SCHEMA_KEY            =
+    private static final String SCHEMA_KEY           =
             "jakarta.persistence.schema-generation.database.action";
 
     private static PersistenceContext instance;
@@ -41,6 +35,7 @@ public class PersistenceContext {
     private final EngineModelRepository         engineModelRepository;
     private final AirControlAreaRepository      airControlAreaRepository;
     private final AircraftModelRepository       aircraftModelRepository;
+    private final AircraftRepository            aircraftRepository;
 
     private PersistenceContext() {
         final Properties props = loadProperties();
@@ -58,6 +53,7 @@ public class PersistenceContext {
         this.engineModelRepository        = new JpaEngineModelRepository(persistenceUnit, extendedProps);
         this.airControlAreaRepository     = new JpaAirControlAreaRepository(persistenceUnit, extendedProps);
         this.aircraftModelRepository      = new InMemoryAircraftModelRepository();
+        this.aircraftRepository           = new InMemoryAircraftRepository();
     }
 
     public static synchronized PersistenceContext getInstance() {
@@ -85,6 +81,10 @@ public class PersistenceContext {
 
     public AircraftModelRepository aircraftModelRepository() {
         return aircraftModelRepository;
+    }
+
+    public AircraftRepository aircraftRepository() {
+        return aircraftRepository;
     }
 
     private static Properties loadProperties() {

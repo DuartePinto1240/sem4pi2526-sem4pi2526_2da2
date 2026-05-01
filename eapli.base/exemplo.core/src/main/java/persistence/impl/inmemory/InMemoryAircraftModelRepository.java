@@ -3,16 +3,30 @@ package persistence.impl.inmemory;
 import domain.aircraftmodel.AircraftModel;
 import repositories.AircraftModelRepository;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class InMemoryAircraftModelRepository implements AircraftModelRepository {
 
     private final List<AircraftModel> store = new ArrayList<>();
+    private final AtomicLong idSequence = new AtomicLong(1);
 
     @Override
     public <S extends AircraftModel> S save(final S aircraftModel) {
+        // se ainda não tem ID, atribui um
+        if (aircraftModel.identity() == null) {
+            try {
+                final Field idField = AircraftModel.class.getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(aircraftModel, idSequence.getAndIncrement());
+            } catch (final NoSuchFieldException | IllegalAccessException e) {
+                throw new RuntimeException("Failed to set ID on AircraftModel", e);
+            }
+        }
+        store.removeIf(a -> a.identity().equals(aircraftModel.identity()));
         store.add(aircraftModel);
         return aircraftModel;
     }
