@@ -1,6 +1,7 @@
 package controller;
 
 import domain.User;
+import dto.UserDTO;
 import persistence.PersistenceContext;
 import repositories.UserRepository;
 
@@ -13,6 +14,9 @@ import java.util.List;
  *
  * <p>Returns all registered users sorted alphabetically by name,
  * including both active and inactive accounts with their current status.</p>
+ *
+ * <p>Returns {@link UserDTO} objects instead of domain {@link User} entities
+ * to decouple the UI layer from the domain model (DTO pattern).</p>
  */
 public class ListUsersController {
 
@@ -20,17 +24,28 @@ public class ListUsersController {
     private final UserRepository repo = PersistenceContext.getInstance().userRepository();
 
     /**
-     * Returns all registered users sorted alphabetically by name (case-insensitive).
-     * Both active and inactive users are included (US033.3).
+     * Returns all registered users as DTOs, sorted alphabetically by name
+     * (case-insensitive). Both active and inactive users are included (US033.3).
      *
-     * @return sorted iterable of all {@link User} records
+     * @return sorted iterable of {@link UserDTO} records
      */
-    public Iterable<User> allUsers() {
-        final List<User> users = new ArrayList<>();
+    public Iterable<UserDTO> allUsers() {
+        final List<UserDTO> dtos = new ArrayList<>();
+
         for (User u : repo.findAll()) {
-            users.add(u);
+            dtos.add(new UserDTO(
+                    u.identity().toString(),
+                    u.getName(),
+                    u.getRole(),
+                    u.getPhoneNumber(),
+                    u.getStaffNumber(),
+                    u.isActive(),
+                    u.getSecurityClearanceExpiry(),
+                    u.getNextSkillsAssessmentDate()
+            ));
         }
-        users.sort(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER));
-        return users;
+
+        dtos.sort(Comparator.comparing(UserDTO::getName, String.CASE_INSENSITIVE_ORDER));
+        return dtos;
     }
 }

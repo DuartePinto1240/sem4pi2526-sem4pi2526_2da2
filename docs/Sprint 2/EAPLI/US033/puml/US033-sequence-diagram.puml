@@ -2,24 +2,34 @@
 actor Administrator
 participant ListUsersUI as UI <<boundary>>
 participant ListUsersController as CTRL <<control>>
+participant PersistenceContext as PCON <<singleton>>
 participant UserRepository as REPO <<repository>>
+participant "userDTO:UserDTO" as DTO <<dto>>
 
 Administrator -> UI : doShow()
 UI -> CTRL : allUsers()
 activate CTRL
 
+CTRL -> PCON : getInstance().userRepository()
+PCON --> CTRL : repo
 CTRL -> REPO : findAll()
-REPO --> CTRL : all users (unordered)
+REPO --> CTRL : Iterable<User> (unordered domain objects)
+
+loop for each User
+    CTRL -> DTO : new UserDTO(email, name, role, phone, staff, active, clearance, assessment)
+    DTO --> CTRL : userDTO
+end
 
 CTRL -> CTRL : sort by name (case-insensitive Comparator)
-CTRL --> UI : sorted Iterable<User>
+CTRL --> UI : sorted Iterable<UserDTO>
 deactivate CTRL
 
 note right of UI
-  Displays formatted table:
+  Displays formatted table using UserDTO:
   Name | Email | Role | Phone | Status | Clearance | Next Assessment
   Both ACTIVE and INACTIVE users are shown.
   Sorted alphabetically by name.
+  UI never accesses domain User directly.
 end note
 
 UI --> Administrator : displays user table with totals (active / inactive)

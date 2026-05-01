@@ -24,10 +24,12 @@ UC_Admin ..> UC_Login : <<extend>>\n[requires ADMIN role]
 UC_User  ..> UC_Login : <<extend>>\n[requires login]
 
 note bottom of UC_Verify
-  Checks via AuthzRegistry:
-  1. SystemUser exists
-  2. Password matches
-  3. Account is active (isActive())
+  Checks performed:
+  1. SystemUser exists (framework)
+  2. Password matches (framework)
+  3. Account is active — isActive() (framework)
+  4. Security clearance not expired (domain)
+  All checks must pass for login to succeed.
+  Skills assessment expiry has no effect.
 end note
-
 @enduml

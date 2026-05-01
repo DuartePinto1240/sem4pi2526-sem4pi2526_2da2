@@ -51,16 +51,32 @@ package "Domain" {
     {static} +ADMIN: Role
     {static} +BACKOFFICE_OPERATOR: Role
   }
+  class User <<aggregate root>> {
+    -securityClearanceExpiry: LocalDate
+    +getSecurityClearanceExpiry(): LocalDate
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +userRepository(): UserRepository
+  }
+  interface UserRepository <<repository>> {
+    +ofIdentity(EmailAddress): Optional<User>
+  }
 }
 
 MainMenu ..> LoginController
 MainMenu ..> AuthzRegistry : authorizationService()
 LoginController ..> AuthzRegistry : authenticationService()
+LoginController ..> PersistenceContext : clearance check
 AuthzRegistry ..> AuthenticationService
 AuthzRegistry ..> AuthorizationService
 AuthenticationService ..> UserSession
 UserSession ..> SystemUser
 MainMenu ..> BaseRoles : isAuthenticatedUserAuthorizedTo()
+PersistenceContext ..> UserRepository
+UserRepository ..> User
 
 note right of MainMenu
   No currentUser field —
@@ -70,8 +86,10 @@ note right of MainMenu
 end note
 
 note right of LoginController
-  Returns Optional<UserSession>:
-  empty if unknown email,
-  wrong password, or inactive account.
+  Two-step authentication:
+  1. Framework: verify credentials + active status
+  2. Domain: check securityClearanceExpiry
+     → if expired: clearSession() + return empty
+  Skills assessment expiry has no effect on login.
 end note
 @enduml

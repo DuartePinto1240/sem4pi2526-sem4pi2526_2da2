@@ -4,6 +4,7 @@ import domain.AlSafePasswordPolicy;
 import domain.BaseRoles;
 import domain.User;
 import domain.ValidEmailDomains;
+import dto.UserDTO;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.application.AuthorizationService;
 import eapli.framework.infrastructure.authz.application.UserSession;
@@ -36,9 +37,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@link PersistenceContext} is reset before each test via reflection
  * to ensure domain-level isolation between tests.</p>
  *
- * <p>Tests that create {@code SystemUser}s use globally unique email
- * addresses so they can survive across test runs without conflicts.</p>
- *
  * <p>Follows the AAA (Arrange – Act – Assert) convention.</p>
  */
 class ControllersTest {
@@ -50,10 +48,6 @@ class ControllersTest {
     // Framework setup
     // =========================================================================
 
-    /**
-     * Configure {@code AuthzRegistry} once for the entire test class.
-     * Subsequent calls are ignored by the framework.
-     */
     @BeforeAll
     @SuppressWarnings({"rawtypes", "unchecked"})
     static void setUpFramework() {
@@ -68,12 +62,6 @@ class ControllersTest {
         }
     }
 
-    /**
-     * Before each test:
-     * 1. Reset PersistenceContext singleton with a fresh in-memory repository.
-     * 2. Reset ValidEmailDomains registry.
-     * 3. Clear any active framework session.
-     */
     @BeforeEach
     void setUp() throws Exception {
         // Reset PersistenceContext singleton
@@ -98,10 +86,9 @@ class ControllersTest {
     }
 
     // =========================================================================
-    // Helper — create SystemUser in framework (ignores duplicate)
+    // Helper
     // =========================================================================
 
-    /** Creates a SystemUser in the framework's JPA repository. Idempotent. */
     private void createSystemUser(final String email, final String password,
                                   final String firstName, final String lastName,
                                   final Role role) {
@@ -149,7 +136,7 @@ class ControllersTest {
 
     @Test
     void ensureLoginFailsWithUnknownEmail() {
-        // Arrange (US030.3) — no user registered for this email
+        // Arrange (US030.3) — no user registered
 
         // Act
         final Optional<UserSession> result =
@@ -190,48 +177,114 @@ class ControllersTest {
     }
 
     @Test
+    void ensureLoginFailsWhenSecurityClearanceIsExpired() {
+        // Arrange (US030 — per client clarification: expired clearance blocks login)
+        final String testEmail = "expired.clearance@alsafe.com";
+        createSystemUser(testEmail, "pass1234",
+                "Expired", "Clearance", BaseRoles.BACKOFFICE_OPERATOR);
+
+        // Create domain User with an expired clearance date
+        // We bypass the constructor validation by using a past date trick:
+        // create with future date, then update to expired via updateSecurityClearance
+        // But since updateSecurityClearance also rejects past dates, we use
+        // a User with a clearance that is already "today - 1 day" — we test
+        // the domain state directly after setting it via reflection.
+        final UserRepository repo = PersistenceContext.getInstance().userRepository();
+        final domain.EmailAddress emailVO = domain.EmailAddress.valueOf(testEmail);
+
+        // Create with future clearance, then force-expire it via reflection
+        final User u = new User(emailVO, "Expired Clearance", "910000091", "S-EXP", FUTURE);
+        try {
+            final Field f = User.class.getDeclaredField("securityClearanceExpiry");
+            f.setAccessible(true);
+            f.set(u, LocalDate.now().minusDays(1)); // clearance expired yesterday
+        } catch (Exception ex) {
+            fail("Could not set expired clearance for test: " + ex.getMessage());
+        }
+        repo.save(u);
+
+        // Act — LoginController must detect the expired clearance and deny login
+        final Optional<UserSession> result = new LoginController().login(testEmail, "pass1234");
+
+        // Assert
+        assertTrue(result.isEmpty(),
+                "Login must fail when security clearance has expired (client clarification)");
+    }
+
+    @Test
+    void ensureLoginSucceedsWhenClearanceIsValid() {
+        // Arrange — verify valid clearance does NOT block login
+        final String testEmail = "valid.clearance@alsafe.com";
+        createSystemUser(testEmail, "pass1234",
+                "Valid", "Clearance", BaseRoles.BACKOFFICE_OPERATOR);
+
+        final UserRepository repo = PersistenceContext.getInstance().userRepository();
+        final domain.EmailAddress emailVO = domain.EmailAddress.valueOf(testEmail);
+        repo.save(new User(emailVO, "Valid Clearance", "910000092", "S-VLC", FUTURE));
+
+        // Act
+        final Optional<UserSession> result = new LoginController().login(testEmail, "pass1234");
+
+        // Assert
+        assertTrue(result.isPresent(),
+                "Login must succeed when security clearance is valid");
+    }
+
+    @Test
+    void ensureSkillsAssessmentExpiryDoesNotBlockLogin() {
+        // Arrange (per client: skills assessment has NO effect on login ability)
+        final String testEmail = "skills.expired@alsafe.com";
+        createSystemUser(testEmail, "pass1234",
+                "Skills", "Expired", BaseRoles.BACKOFFICE_OPERATOR);
+
+        final UserRepository repo = PersistenceContext.getInstance().userRepository();
+        final domain.EmailAddress emailVO = domain.EmailAddress.valueOf(testEmail);
+        final User u = new User(emailVO, "Skills Expired", "910000093", "S-SKE", FUTURE);
+        // Force-expire the skills assessment date
+        try {
+            final Field f = User.class.getDeclaredField("nextSkillsAssessmentDate");
+            f.setAccessible(true);
+            f.set(u, LocalDate.now().minusDays(1)); // assessment overdue
+        } catch (Exception ex) {
+            fail("Could not set expired assessment for test: " + ex.getMessage());
+        }
+        repo.save(u);
+
+        // Act — login must still succeed (skills assessment does not block login)
+        final Optional<UserSession> result = new LoginController().login(testEmail, "pass1234");
+
+        // Assert
+        assertTrue(result.isPresent(),
+                "Expired skills assessment must NOT block login (client clarification)");
+    }
+
+    @Test
     void ensureLoginFailsForDisabledAccount() {
         // Arrange (US030.3 + US032.3)
-        // Use a unique email to avoid conflicts with the JPA DB across test runs.
         final String testEmail = "disabled.test@alsafe.com";
         createSystemUser(testEmail, "pass1234",
                 "Disabled", "Test", BaseRoles.BACKOFFICE_OPERATOR);
 
-        // Ensure SystemUser is active before we disable it
-        // (it may have been left inactive from a previous test run)
+        // Ensure SystemUser is active
         for (eapli.framework.infrastructure.authz.domain.model.SystemUser su
                 : AuthzRegistry.userService().allUsers()) {
             if (su.identity().toString().equals(testEmail) && !su.isActive()) {
-                try {
-                    AuthzRegistry.userService().activateUser(su);
-                } catch (final Exception ignored) {
-                }
+                try { AuthzRegistry.userService().activateUser(su); }
+                catch (final Exception ignored) { }
             }
         }
 
-        // Create domain User so ToggleUserController can find it
+        // Create domain User and deactivate it
         final UserRepository repo = PersistenceContext.getInstance().userRepository();
         final domain.EmailAddress emailVO = domain.EmailAddress.valueOf(testEmail);
         if (repo.ofIdentity(emailVO).isEmpty()) {
             repo.save(new User(emailVO, "Disabled Test", "910000099", "S-DISABLED", FUTURE));
         }
+        repo.ofIdentity(emailVO).ifPresent(u -> { u.deactivate(); repo.save(u); });
 
-        // Disable the domain user (domain layer only — SystemUser sync
-        // would require the framework call, but domain state is sufficient
-        // to verify the login guard in our LoginController)
-        repo.ofIdentity(emailVO).ifPresent(u -> {
-            u.deactivate();
-            repo.save(u);
-        });
-
-        // Act — login should fail because domain User is inactive
-        // (LoginController checks isActive() on the SystemUser via the framework)
-        // To fully test this we verify the domain state directly:
+        // Assert domain state
         assertTrue(repo.ofIdentity(emailVO).map(u -> !u.isActive()).orElse(false),
                 "Domain user must be inactive after deactivation (US032.1)");
-
-        // The framework login would also fail once SystemUser is deactivated.
-        // That integration is tested in ensureDeactivationAndReactivationChangesDomainStatus.
     }
 
     @Test
@@ -324,15 +377,12 @@ class ControllersTest {
     @Test
     void ensureDomainRepositoryRejectsDuplicateEmail() {
         // Arrange (US031.2)
-        // Email uniqueness is enforced by RegisterUserController before saving.
-        // In the in-memory repository a duplicate save overwrites silently,
-        // so we verify uniqueness at the identity level instead.
         final UserRepository repo = PersistenceContext.getInstance().userRepository();
         final domain.EmailAddress email = domain.EmailAddress.valueOf("dup@alsafe.com");
         repo.save(new User(email, "User A", "910000001", "S-103", FUTURE));
         repo.save(new User(email, "User B", "910000002", "S-104", FUTURE));
 
-        // Assert — only one record exists for this email (last write wins in memory)
+        // Assert — only one record per email
         final long count = java.util.stream.StreamSupport
                 .stream(repo.findAll().spliterator(), false)
                 .filter(u -> u.identity().equals(email))
@@ -397,10 +447,8 @@ class ControllersTest {
         final User u = new User(
                 domain.EmailAddress.valueOf("d@alsafe.com"),
                 "D User", "910000001", "S-300", FUTURE);
-
         // Act
         u.deactivate();
-
         // Assert
         assertFalse(u.isActive());
     }
@@ -412,10 +460,8 @@ class ControllersTest {
                 domain.EmailAddress.valueOf("r@alsafe.com"),
                 "R User", "910000001", "S-301", FUTURE);
         u.deactivate();
-
         // Act
         u.activate();
-
         // Assert
         assertTrue(u.isActive());
     }
@@ -424,7 +470,6 @@ class ControllersTest {
     void ensureToggleRejectsDeactivatingNonExistentUser() {
         // Arrange (US032)
         final ToggleUserController tog = new ToggleUserController();
-
         // Act / Assert
         assertThrows(IllegalArgumentException.class, () ->
                 tog.deactivateUser("ghost@alsafe.com"));
@@ -439,7 +484,6 @@ class ControllersTest {
                 "Admin2", "910000000", "S-ADM2", LocalDate.now().plusYears(10));
         admin.markAsAdmin();
         repo.save(admin);
-
         // Act / Assert
         assertThrows(IllegalArgumentException.class, () ->
                 new ToggleUserController().deactivateUser("admin2@alsafe.com"));
@@ -454,7 +498,6 @@ class ControllersTest {
                 "AI User", "910000001", "S-302", FUTURE);
         u.deactivate();
         repo.save(u);
-
         // Act / Assert
         assertThrows(IllegalArgumentException.class, () ->
                 new ToggleUserController().deactivateUser("ai@alsafe.com"));
@@ -467,7 +510,6 @@ class ControllersTest {
         repo.save(new User(
                 domain.EmailAddress.valueOf("aa@alsafe.com"),
                 "AA User", "910000001", "S-303", FUTURE));
-
         // Act / Assert
         assertThrows(IllegalArgumentException.class, () ->
                 new ToggleUserController().activateUser("aa@alsafe.com"));
@@ -486,18 +528,16 @@ class ControllersTest {
         // Act — deactivate
         tog.deactivateUser("toggle@alsafe.com");
         assertFalse(repo.ofIdentity(
-                        domain.EmailAddress.valueOf("toggle@alsafe.com"))
-                .get().isActive());
+                domain.EmailAddress.valueOf("toggle@alsafe.com")).get().isActive());
 
         // Act — reactivate
         tog.activateUser("toggle@alsafe.com");
         assertTrue(repo.ofIdentity(
-                        domain.EmailAddress.valueOf("toggle@alsafe.com"))
-                .get().isActive());
+                domain.EmailAddress.valueOf("toggle@alsafe.com")).get().isActive());
     }
 
     // =========================================================================
-    // US033 — List users
+    // US033 — List users (returns UserDTO)
     // =========================================================================
 
     @Test
@@ -515,7 +555,7 @@ class ControllersTest {
 
         // Act
         int count = 0;
-        for (User ignored : new ListUsersController().allUsers()) count++;
+        for (UserDTO ignored : new ListUsersController().allUsers()) count++;
 
         // Assert
         assertEquals(3, count);
@@ -527,7 +567,7 @@ class ControllersTest {
 
         // Act
         int count = 0;
-        for (User ignored : new ListUsersController().allUsers()) count++;
+        for (UserDTO ignored : new ListUsersController().allUsers()) count++;
 
         // Assert (US033.1 — edge case)
         assertEquals(0, count);
@@ -546,7 +586,7 @@ class ControllersTest {
 
         // Act
         final List<String> names = new ArrayList<>();
-        for (User u : new ListUsersController().allUsers()) names.add(u.getName());
+        for (UserDTO u : new ListUsersController().allUsers()) names.add(u.getName());
 
         // Assert
         assertEquals("Alice", names.get(0));
@@ -567,8 +607,8 @@ class ControllersTest {
         repo.save(inactiveUser);
 
         // Act
-        final List<User> users = new ArrayList<>();
-        for (User u : new ListUsersController().allUsers()) users.add(u);
+        final List<UserDTO> users = new ArrayList<>();
+        for (UserDTO u : new ListUsersController().allUsers()) users.add(u);
 
         // Assert
         assertTrue(users.stream().anyMatch(u ->
@@ -590,8 +630,8 @@ class ControllersTest {
                 "Regular User", "910000001", "S-USR", FUTURE));
 
         // Act
-        final List<User> users = new ArrayList<>();
-        for (User u : new ListUsersController().allUsers()) users.add(u);
+        final List<UserDTO> users = new ArrayList<>();
+        for (UserDTO u : new ListUsersController().allUsers()) users.add(u);
 
         // Assert
         assertTrue(users.stream().anyMatch(u -> u.getRole().equals("ADMIN")));
@@ -607,8 +647,8 @@ class ControllersTest {
                 "Clearance User", "910000001", "S-408", clearance));
 
         // Act
-        final List<User> users = new ArrayList<>();
-        for (User u : new ListUsersController().allUsers()) users.add(u);
+        final List<UserDTO> users = new ArrayList<>();
+        for (UserDTO u : new ListUsersController().allUsers()) users.add(u);
 
         // Assert
         assertTrue(users.stream().anyMatch(u ->
@@ -623,11 +663,36 @@ class ControllersTest {
                 "Assessment User", "910000001", "S-409", FUTURE));
 
         // Act
-        final List<User> users = new ArrayList<>();
-        for (User u : new ListUsersController().allUsers()) users.add(u);
+        final List<UserDTO> users = new ArrayList<>();
+        for (UserDTO u : new ListUsersController().allUsers()) users.add(u);
 
         // Assert
         assertTrue(users.stream().allMatch(u ->
                 u.getNextSkillsAssessmentDate() != null));
+    }
+
+    @Test
+    void ensureUserDTOContainsCorrectFields() {
+        // Arrange (US033 — DTO decouples UI from domain)
+        final UserRepository repo = PersistenceContext.getInstance().userRepository();
+        final LocalDate clearance = LocalDate.now().plusYears(2);
+        repo.save(new User(
+                domain.EmailAddress.valueOf("dto@alsafe.com"),
+                "DTO User", "910000001", "S-DTO", clearance));
+
+        // Act
+        final List<UserDTO> users = new ArrayList<>();
+        for (UserDTO u : new ListUsersController().allUsers()) users.add(u);
+        final UserDTO dto = users.get(0);
+
+        // Assert — all fields mapped correctly
+        assertEquals("dto@alsafe.com",   dto.getEmail());
+        assertEquals("DTO User",         dto.getName());
+        assertEquals("BACKOFFICE_OPERATOR", dto.getRole());
+        assertEquals("910000001",        dto.getPhoneNumber());
+        assertEquals("S-DTO",            dto.getStaffNumber());
+        assertTrue(dto.isActive());
+        assertEquals(clearance,          dto.getSecurityClearanceExpiry());
+        assertNotNull(dto.getNextSkillsAssessmentDate());
     }
 }

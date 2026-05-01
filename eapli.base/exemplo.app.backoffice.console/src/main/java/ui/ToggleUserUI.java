@@ -3,6 +3,7 @@ package ui;
 import controller.ListUsersController;
 import controller.ToggleUserController;
 import domain.User;
+import dto.UserDTO;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 
@@ -75,7 +76,7 @@ public class ToggleUserUI extends AbstractUI {
         System.out.println("-".repeat(88));
 
         boolean hasUsers = false;
-        for (User u : listController.allUsers()) {
+        for (UserDTO u : listController.allUsers()) {
             System.out.println(u);
             hasUsers = true;
         }

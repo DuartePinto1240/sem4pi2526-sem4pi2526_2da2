@@ -7,17 +7,27 @@ skinparam class {
     BorderColor<<AggregateRoot>> #534AB7
     BackgroundColor<<ValueObject>> #FAE8C0
     BorderColor<<ValueObject>> #854F0B
+    BackgroundColor<<FrameworkEntity>> #C8F0D0
+    BorderColor<<FrameworkEntity>> #1A7A34
 }
 
-package "User Management Aggregate" {
+package "EAPLI Framework (Authentication Layer)" {
+    class SystemUser <<FrameworkEntity>> {
+        + username : Username
+        + password : Password
+        + roles : RoleSet
+        + active : boolean
+        + isActive(): boolean
+    }
+}
+
+package "AlSafe Domain (User Management Aggregate)" {
     class User <<AggregateRoot>> {
         + email : EmailAddress
         + name : String
         + phoneNumber : String
         + staffNumber : String
-        + password : String
         + active : boolean
-        + admin : boolean
         + role : String
         + securityClearanceExpiry : LocalDate
         + nextSkillsAssessmentDate : LocalDate
@@ -30,17 +40,25 @@ package "User Management Aggregate" {
     User "1" *-- "1" EmailAddress
 }
 
+SystemUser .. User : linked by email\n(username = email)
+
 note right of User
-  Invariants:
-  - email must be unique and valid
-  - email domain must be in ValidEmailDomains
-  - name and phoneNumber cannot be blank
-  - phoneNumber must be exactly 9 digits
-  - staffNumber must be unique and not blank
-  - password >= 4 characters
+  Domain invariants:
+  - email unique, valid format, valid AISafe domain
+  - name not blank
+  - phoneNumber exactly 9 digits, unique
+  - staffNumber not blank, unique
   - securityClearanceExpiry must be future
-  - nextSkillsAssessmentDate = today + 5 years (auto)
-  - new user is always active = true, admin = false
+  - nextSkillsAssessmentDate = today + 5yr (auto)
+  - active = true on creation
+  - role = "BACKOFFICE_OPERATOR" on creation
+  Note: password and authentication
+  managed by SystemUser (framework)
 end note
 
+note left of SystemUser
+  Managed by EAPLI Framework.
+  Stores credentials and roles.
+  Created via UserManagementService.
+end note
 @enduml

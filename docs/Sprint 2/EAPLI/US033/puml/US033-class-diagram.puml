@@ -9,7 +9,27 @@ package "UI" {
 
 package "Application" {
   class ListUsersController <<control>> {
-    +allUsers(): Iterable<User>
+    +allUsers(): Iterable<UserDTO>
+  }
+}
+
+package "DTO" {
+  class UserDTO <<dto>> {
+    -email: String
+    -name: String
+    -role: String
+    -phoneNumber: String
+    -staffNumber: String
+    -active: boolean
+    -securityClearanceExpiry: LocalDate
+    -nextSkillsAssessmentDate: LocalDate
+    +getName(): String
+    +getEmail(): String
+    +getRole(): String
+    +isActive(): boolean
+    +getSecurityClearanceExpiry(): LocalDate
+    +getNextSkillsAssessmentDate(): LocalDate
+    +toString(): String
   }
 }
 
@@ -22,10 +42,6 @@ package "Domain" {
     -active: boolean
     -securityClearanceExpiry: LocalDate
     -nextSkillsAssessmentDate: LocalDate
-    +getName(): String
-    +getRole(): String
-    +isActive(): boolean
-    +toString(): String
   }
 }
 
@@ -39,8 +55,24 @@ package "Infrastructure.Persistence" {
 }
 
 ListUsersUI ..> ListUsersController
+ListUsersUI ..> UserDTO : displays
 ListUsersController ..> PersistenceContext
-ListUsersController ..> User : sorts by name
+ListUsersController ..> User : reads
+ListUsersController ..> UserDTO : creates (converts User → UserDTO)
 PersistenceContext ..> UserRepository
 UserRepository ..> User
+
+note right of ListUsersController
+  DTO pattern:
+  Converts each domain User to UserDTO
+  before returning — UI never accesses
+  domain objects directly.
+end note
+
+note right of UserDTO
+  No domain logic.
+  No JPA annotations.
+  No framework dependencies.
+  Pure data carrier for the UI layer.
+end note
 @enduml
