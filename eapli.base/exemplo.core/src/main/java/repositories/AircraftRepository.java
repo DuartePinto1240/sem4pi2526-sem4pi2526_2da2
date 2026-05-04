@@ -14,6 +14,10 @@ public interface AircraftRepository {
 
     Iterable<Aircraft> findByCompanyIata(String companyIata);
 
+    Iterable<Aircraft> findByCompanyIataAndModelId(String companyIata, Long modelId);
+
+    Iterable<Aircraft> findByCompanyIataAndManufacturer(String companyIata, String manufacturer);
+
     <S extends Aircraft> S save(S aircraft);
 
     boolean containsOfIdentity(String registration);

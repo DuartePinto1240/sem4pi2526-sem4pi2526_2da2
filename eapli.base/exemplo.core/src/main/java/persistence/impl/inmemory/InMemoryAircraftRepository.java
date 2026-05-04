@@ -41,8 +41,24 @@ public class InMemoryAircraftRepository implements AircraftRepository {
     }
 
     @Override
+    public Iterable<Aircraft> findByCompanyIataAndModelId(
+            final String companyIata, final Long modelId) {
+        return store.stream()
+                .filter(a -> a.companyIata().equalsIgnoreCase(companyIata.trim())
+                        && a.aircraftModelId().equals(modelId))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Iterable<Aircraft> findByCompanyIataAndManufacturer(
+            final String companyIata, final String manufacturer) {
+        // filtragem por manufacturer feita no controller
+        // aqui só filtramos por companyIata
+        return findByCompanyIata(companyIata);
+    }
+
+    @Override
     public <S extends Aircraft> S save(final S aircraft) {
-        // update if already exists, insert if not
         store.removeIf(a -> a.registration()
                 .equalsIgnoreCase(aircraft.registration()));
         store.add(aircraft);

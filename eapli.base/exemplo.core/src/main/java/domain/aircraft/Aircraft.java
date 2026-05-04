@@ -5,6 +5,7 @@ import eapli.framework.domain.model.AggregateRoot;
 import eapli.framework.validations.Preconditions;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "AIRCRAFT")
@@ -28,6 +29,9 @@ public class Aircraft implements AggregateRoot<String> {
 
     @Embedded
     private OperationalStatus operationalStatus;
+
+    @Column(name = "registration_date", nullable = false)
+    private LocalDate registrationDate;
 
     public Aircraft(final String registration,
                     final String countryOfRegistration,
@@ -54,6 +58,7 @@ public class Aircraft implements AggregateRoot<String> {
         this.aircraftModelId       = model.identity();
         this.cabinConfiguration    = cabinConfiguration;
         this.operationalStatus     = OperationalStatus.active();
+        this.registrationDate      = LocalDate.now();
     }
 
     public void decommission() {
@@ -74,18 +79,24 @@ public class Aircraft implements AggregateRoot<String> {
         return this.registration.equalsIgnoreCase(that.registration);
     }
 
-    public String registration()             { return registration;          }
-    public String countryOfRegistration()    { return countryOfRegistration; }
-    public String companyIata()              { return companyIata;           }
-    public Long aircraftModelId()            { return aircraftModelId;       }
-    public CabinConfiguration cabinConfiguration() { return cabinConfiguration; }
-    public OperationalStatus operationalStatus()    { return operationalStatus;  }
+    public String registration()                   { return registration;          }
+    public String countryOfRegistration()          { return countryOfRegistration; }
+    public String companyIata()                    { return companyIata;           }
+    public Long aircraftModelId()                  { return aircraftModelId;       }
+    public CabinConfiguration cabinConfiguration() { return cabinConfiguration;   }
+    public OperationalStatus operationalStatus()   { return operationalStatus;     }
+    public LocalDate registrationDate()            { return registrationDate;      }
+
+    public int ageInYears() {
+        return LocalDate.now().getYear() - registrationDate.getYear();
+    }
 
     @Override
     public String toString() {
-        return String.format("%s | %s | %s | %s",
+        return String.format("%s | %s | %s | %s | Registered: %s",
                 registration, countryOfRegistration,
-                operationalStatus, cabinConfiguration);
+                operationalStatus, cabinConfiguration,
+                registrationDate);
     }
 
     protected Aircraft() {

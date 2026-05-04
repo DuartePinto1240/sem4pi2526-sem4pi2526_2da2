@@ -8,6 +8,7 @@ import eapli.framework.infrastructure.authz.application.UserSession;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 import ui.AddAircraftToFleetUI;
+import ui.ListCompanyFleetUI;
 import ui.ListUsersUI;
 import ui.RegisterAirTransportCompanyUI;
 import ui.RegisterUserUI;
@@ -82,6 +83,7 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  [ Fleet Management ]                    ║");
             System.out.println("  ║  1.  Add Aircraft to Fleet (US070)       ║");
+            System.out.println("  ║  2.  List Company Fleet    (US072)       ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  9.  Logout                              ║");
             System.out.println("  ║  0.  Exit                                ║");
@@ -130,9 +132,10 @@ public class MainMenu extends AbstractUI {
         } else if (authz.isAuthenticatedUserAuthorizedTo(
                 BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR)) {
             switch (option) {
-                case 1: new AddAircraftToFleetUI().show(); break;
-                case 9: doLogout();                        break;
-                case 0: doExit();                          break;
+                case 1: new AddAircraftToFleetUI().show();  break;
+                case 2: new ListCompanyFleetUI().show();    break;
+                case 9: doLogout();                         break;
+                case 0: doExit();                           break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 
