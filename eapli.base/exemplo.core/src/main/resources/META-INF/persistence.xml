@@ -17,6 +17,12 @@
         <class>domain.AirControlArea</class>
         <class>domain.AirControlAreaCode</class>
         <class>domain.GeographicBoundary</class>
+        <class>domain.Airport</class>
+        <class>domain.ICAOCode</class>
+        <class>domain.IATACode</class>
+        <class>domain.AirportName</class>
+        <class>domain.AirportCoordinates</class>
+        <class>domain.Elevation</class>
         <properties>
             <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:file:./db/alsafe;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE"/>
             <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>

@@ -1,18 +1,14 @@
 package persistence;
 
 import persistence.impl.inmemory.InMemoryAirTransportCompanyRepository;
-import persistence.impl.inmemory.InMemoryAirControlAreaRepository;
 import persistence.impl.inmemory.InMemoryAircraftModelRepository;
 import persistence.impl.inmemory.InMemoryAircraftRepository;
+import persistence.impl.inmemory.InMemoryCountryRepository;
 import persistence.impl.jpa.JpaAirControlAreaRepository;
+import persistence.impl.jpa.JpaAirportRepository;
 import persistence.impl.jpa.JpaEngineModelRepository;
 import persistence.impl.jpa.JpaUserRepository;
-import repositories.AircraftModelRepository;
-import repositories.AircraftRepository;
-import repositories.AirTransportCompanyRepository;
-import repositories.AirControlAreaRepository;
-import repositories.EngineModelRepository;
-import repositories.UserRepository;
+import repositories.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,6 +30,8 @@ public class PersistenceContext {
     private final AirTransportCompanyRepository airTransportCompanyRepository;
     private final EngineModelRepository         engineModelRepository;
     private final AirControlAreaRepository      airControlAreaRepository;
+    private final AirportRepository             airportRepository;
+    private final CountryRepository             countryRepository;
     private final AircraftModelRepository       aircraftModelRepository;
     private final AircraftRepository            aircraftRepository;
 
@@ -52,6 +50,8 @@ public class PersistenceContext {
         this.airTransportCompanyRepository = new InMemoryAirTransportCompanyRepository();
         this.engineModelRepository        = new JpaEngineModelRepository(persistenceUnit, extendedProps);
         this.airControlAreaRepository     = new JpaAirControlAreaRepository(persistenceUnit, extendedProps);
+        this.airportRepository            = new JpaAirportRepository(persistenceUnit, extendedProps);
+        this.countryRepository            = new InMemoryCountryRepository();
         this.aircraftModelRepository      = new InMemoryAircraftModelRepository();
         this.aircraftRepository           = new InMemoryAircraftRepository();
     }
@@ -78,6 +78,10 @@ public class PersistenceContext {
     public AirControlAreaRepository airControlAreaRepository() {
         return airControlAreaRepository;
     }
+
+    public AirportRepository airportRepository() { return airportRepository; }
+
+    public CountryRepository countryRepository() { return countryRepository; }
 
     public AircraftModelRepository aircraftModelRepository() {
         return aircraftModelRepository;
