@@ -1,0 +1,93 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+  class SimulationReportUI <<boundary>> {
+    +doShow()
+    +displayReport(reportPath): void
+    +headline(): String
+  }
+}
+
+package "Application" {
+  class SimulationReportController <<control>> {
+    +readReport(filePath): SimulationReportDTO
+    +formatReport(dto): String
+  }
+  class SimulationReportDTO <<data>> {
+    +totalFlights: int
+    +totalViolations: int
+    +passed: boolean
+    +flightStatuses: List<String>
+    +violationEvents: List<ViolationEventDTO>
+  }
+  class ViolationEventDTO <<data>> {
+    +timestamp: double
+    +flightId1: int
+    +flightId2: int
+    +position1: String
+    +position2: String
+    +velocity1: String
+    +velocity2: String
+  }
+}
+
+package "C Report Layer" {
+  class ReportWriter <<service>> {
+    +write_report(report, filename): void
+    +format_header(report): String
+    +format_summary(report): String
+    +format_violations(report): String
+    +format_flight_statuses(report): String
+  }
+  class SimulationReportC <<data>> {
+    +total_flights: int
+    +total_violations: int
+    +pass: int
+    +violations: ViolationEvent[]
+    +flight_statuses: int[]
+  }
+  class ViolationEventC <<data>> {
+    +timestamp: double
+    +flight_id_1: int
+    +flight_id_2: int
+    +lat1: double
+    +lon1: double
+    +alt1: double
+    +vx1: double
+    +vy1: double
+    +vz1: double
+    +lat2: double
+    +lon2: double
+    +alt2: double
+    +vx2: double
+    +vy2: double
+    +vz2: double
+  }
+  class ReportThread <<thread>> {
+    +run(): void
+    +wait_for_violation(): void
+    +accumulate_violation(event): void
+    +finalise_report(): void
+  }
+
+  SimulationReportC "1" *-- "0..*" ViolationEventC
+  ReportThread ..> SimulationReportC
+  ReportThread ..> ReportWriter
+}
+
+package "Infrastructure.Persistence" {
+  class ReportFileReader <<service>> {
+    +readFromFile(path): SimulationReportDTO
+    +parseLine(line): void
+  }
+}
+
+SimulationReportUI ..> SimulationReportController
+SimulationReportController ..> ReportFileReader
+SimulationReportController ..> SimulationReportDTO
+SimulationReportDTO "1" *-- "0..*" ViolationEventDTO
+ReportFileReader ..> SimulationReportDTO
+ReportWriter ..> SimulationReportC
+
+@enduml
