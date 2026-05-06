@@ -81,6 +81,17 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  9.  Logout                              ║");
             System.out.println("  ║  0.  Exit                                ║");
 
+        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON)) {
+            final String name = currentUserName();
+            System.out.printf( "  ║  Logged in : %-28s║%n", name);
+            System.out.printf( "  ║  Role      : %-28s║%n", "WEATHER PERSON");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  [ Weather Service ]                     ║");
+            System.out.println("  ║  1.  Register Weather Data               ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  9.  Logout                              ║");
+            System.out.println("  ║  0.  Exit                                ║");
+
         } else {
             final String name = currentUserName();
             System.out.printf( "  ║  Logged in : %-28s║%n", name);
@@ -132,6 +143,14 @@ public class MainMenu extends AbstractUI {
                 case 0: doExit();                           break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
+
+        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON)) {
+           switch (option) {
+               case 1: new RegisterWeatherDataUI().show(); break;
+               case 9: doLogout();                         break;
+               case 0: doExit();                           break;
+               default: System.out.println("  >> Invalid option. Please try again.");
+           }
 
         } else {
             switch (option) {

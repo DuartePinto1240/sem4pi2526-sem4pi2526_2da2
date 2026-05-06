@@ -17,6 +17,7 @@
         <class>domain.AirControlArea</class>
         <class>domain.AirControlAreaCode</class>
         <class>domain.GeographicBoundary</class>
+        <class>domain.WeatherData</class>
         <class>domain.Airport</class>
         <class>domain.ICAOCode</class>
         <class>domain.IATACode</class>
