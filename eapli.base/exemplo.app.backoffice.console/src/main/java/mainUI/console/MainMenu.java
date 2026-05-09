@@ -77,6 +77,7 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  [ Fleet Management ]                    ║");
             System.out.println("  ║  1.  Add Aircraft to Fleet (US070)       ║");
             System.out.println("  ║  2.  List Company Fleet    (US072)       ║");
+            System.out.println("  ║  3.  Decommission Aircraft (US071)       ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  9.  Logout                              ║");
             System.out.println("  ║  0.  Exit                                ║");
@@ -139,6 +140,7 @@ public class MainMenu extends AbstractUI {
             switch (option) {
                 case 1: new AddAircraftToFleetUI().show();  break;
                 case 2: new ListCompanyFleetUI().show();    break;
+                case 3: new DecommissionAircraftUI().show();break;
                 case 9: doLogout();                         break;
                 case 0: doExit();                           break;
                 default: System.out.println("  >> Invalid option. Please try again.");
