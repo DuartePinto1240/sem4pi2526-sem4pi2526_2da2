@@ -3,8 +3,8 @@ CFLAGS  = -Wall -Wextra -g
 TARGET  = simulation
 TEST    = test_simulation
 
-SRC     = src/main.c src/simulation.c src/flight.c
-TEST_SRC = tests/test_simulation.c src/simulation.c src/flight.c
+SRC     = src/main.c src/simulation.c src/flight.c src/report.c
+TEST_SRC = tests/test_simulation.c src/simulation.c src/flight.c src/report.c
 
 all: $(TARGET)
 
