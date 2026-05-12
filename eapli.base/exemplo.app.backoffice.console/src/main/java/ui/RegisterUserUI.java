@@ -4,6 +4,7 @@ import controller.RegisterUserController;
 import domain.EmailAddress;
 import domain.User;
 import domain.ValidEmailDomains;
+import eapli.framework.infrastructure.authz.domain.model.Role;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 import persistence.PersistenceContext;
@@ -13,28 +14,16 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
-/**
- * Console UI for US031 — Register a backoffice user.
- *
- * <p>Each field is validated individually with immediate retry on error.
- * Uniqueness constraints (email, phone, staff number) and domain validation
- * are checked against the database during input so the user never has to
- * restart the whole form.</p>
- *
- * <p>Only accessible from the administrator's menu.</p>
- */
 public class RegisterUserUI extends AbstractUI {
 
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter DATE_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    private final RegisterUserController theController = new RegisterUserController();
-    private final UserRepository repo = PersistenceContext.getInstance().userRepository();
+    private final RegisterUserController theController =
+            new RegisterUserController();
+    private final UserRepository repo =
+            PersistenceContext.getInstance().userRepository();
 
-    /**
-     * Displays the registration form with per-field validation and retry.
-     *
-     * @return {@code false} to return to the admin menu
-     */
     @Override
     protected boolean doShow() {
         System.out.println("\n+--------------------------------------------+");
@@ -51,28 +40,22 @@ public class RegisterUserUI extends AbstractUI {
         final String    staffNumber = readStaffNumber();
         final String    password    = readPassword();
         final LocalDate clearance   = readClearanceDate();
+        final Role      role        = readRole();
 
         try {
-            final User u = theController.registerUser(
-                    email, name, phoneNumber, password, staffNumber, clearance);
+            final User u = theController.registerUserWithRole(
+                    email, name, phoneNumber, password,
+                    staffNumber, clearance, role);
             System.out.println("\n  >> User registered successfully!");
-            System.out.printf("     Name: %s%n", u.getName());
-            System.out.printf("     Email: %s%n", u.identity());
-            System.out.printf("     Role: %s%n", u.getRole());
-            System.out.printf("     Staff No.: %s%n", u.getStaffNumber());
-            System.out.printf("     Clearance Expiry: %s%n", u.getSecurityClearanceExpiry());
-            System.out.printf("     Next Assessment: %s%n", u.getNextSkillsAssessmentDate());
-            System.out.println("     Status: ACTIVE");
+            System.out.printf("     Name  : %s%n", u.getName());
+            System.out.printf("     Email : %s%n", u.identity());
+            System.out.printf("     Role  : %s%n", role);
         } catch (IllegalArgumentException e) {
             System.out.println("\n  >> ERROR: " + e.getMessage());
         }
 
         return false;
     }
-
-    // -------------------------------------------------------------------------
-    // Per-field readers
-    // -------------------------------------------------------------------------
 
     private String readName() {
         while (true) {
@@ -85,11 +68,6 @@ public class RegisterUserUI extends AbstractUI {
         }
     }
 
-    /**
-     * Reads and validates email: format, domain, and uniqueness.
-     *
-     * @return valid, unique email in an accepted domain
-     */
     private String readEmail() {
         while (true) {
             final String v = Console.readLine("  Email:");
@@ -98,47 +76,35 @@ public class RegisterUserUI extends AbstractUI {
                 continue;
             }
             final String trimmed = v.trim();
-
-            // Format check
             try {
                 EmailAddress.valueOf(trimmed);
             } catch (Exception e) {
-                System.out.println("  ! Invalid email format (e.g. user@alsafe.com). Please try again.");
+                System.out.println("  ! Invalid email format. Please try again.");
                 continue;
             }
-
-            // Domain check
             if (!ValidEmailDomains.isEmpty() && !ValidEmailDomains.isValid(trimmed)) {
-                System.out.println("  ! Email domain is not accepted. Valid domains: "
-                        + ValidEmailDomains.getAll() + ". Please try again.");
+                System.out.println("  ! Email domain not accepted. Valid: "
+                        + ValidEmailDomains.getAll());
                 continue;
             }
-
-            // Uniqueness check
             if (repo.ofIdentity(EmailAddress.valueOf(trimmed)).isPresent()) {
-                System.out.println("  ! This email is already registered. Please use a different one.");
+                System.out.println("  ! Email already registered. Please use a different one.");
                 continue;
             }
-
             return trimmed;
         }
     }
 
-    /**
-     * Reads and validates phone: 9 digits and unique.
-     *
-     * @return valid, unique 9-digit phone number
-     */
     private String readPhone() {
         while (true) {
             final String v = Console.readLine("  Phone Number (9 digits):");
             if (v == null || v.isBlank()) {
-                System.out.println("  ! Phone number must not be blank. Please try again.");
+                System.out.println("  ! Phone must not be blank. Please try again.");
                 continue;
             }
             final String digits = v.trim();
             if (!digits.matches("\\d{9}")) {
-                System.out.println("  ! Must be exactly 9 digits (e.g. 912345678). Please try again.");
+                System.out.println("  ! Must be exactly 9 digits. Please try again.");
                 continue;
             }
             boolean inUse = false;
@@ -146,18 +112,13 @@ public class RegisterUserUI extends AbstractUI {
                 if (u.getPhoneNumber().equals(digits)) { inUse = true; break; }
             }
             if (inUse) {
-                System.out.println("  ! This phone number is already registered. Please use a different one.");
+                System.out.println("  ! Phone already registered. Please use a different one.");
                 continue;
             }
             return digits;
         }
     }
 
-    /**
-     * Reads and validates staff number: not blank and unique.
-     *
-     * @return valid, unique staff number
-     */
     private String readStaffNumber() {
         while (true) {
             final String v = Console.readLine("  Staff Number:");
@@ -171,7 +132,7 @@ public class RegisterUserUI extends AbstractUI {
                 if (u.getStaffNumber().equals(trimmed)) { inUse = true; break; }
             }
             if (inUse) {
-                System.out.println("  ! This staff number is already registered. Please use a different one.");
+                System.out.println("  ! Staff number already registered. Please use a different one.");
                 continue;
             }
             return trimmed;
@@ -189,12 +150,6 @@ public class RegisterUserUI extends AbstractUI {
         }
     }
 
-    /**
-     * Reads and validates the security clearance expiry date.
-     * Format: YYYY-MM-DD. Must be a future date.
-     *
-     * @return valid future {@link LocalDate}
-     */
     private LocalDate readClearanceDate() {
         while (true) {
             final String v = Console.readLine("  Security Clearance Expiry (YYYY-MM-DD):");
@@ -210,8 +165,23 @@ public class RegisterUserUI extends AbstractUI {
                 }
                 return date;
             } catch (DateTimeParseException e) {
-                System.out.println("  ! Invalid date format. Use YYYY-MM-DD (e.g. 2028-12-31). Please try again.");
+                System.out.println("  ! Invalid format. Use YYYY-MM-DD. Please try again.");
             }
+        }
+    }
+
+    private Role readRole() {
+        final Role[] roles = theController.availableRoles();
+        System.out.println("\n  Available roles:");
+        for (int i = 0; i < roles.length; i++) {
+            System.out.printf("    %d. %s%n", i + 1, roles[i].toString());
+        }
+        while (true) {
+            final int choice = Console.readInteger("  Select role:");
+            if (choice >= 1 && choice <= roles.length) {
+                return roles[choice - 1];
+            }
+            System.out.println("  ! Invalid option. Please try again.");
         }
     }
 
