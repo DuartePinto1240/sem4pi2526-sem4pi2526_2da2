@@ -10,6 +10,7 @@ import domain.enginemodel.TSFC;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -56,6 +57,45 @@ class AircraftTest {
                 new Aircraft("cs-tua", "Portugal", "TP", model, cabin);
 
         assertEquals("CS-TUA", aircraft.registration());
+    }
+    @Test
+    void ensureRegistrationDateIsSetToToday() {
+        final CabinConfiguration cabin =
+                new CabinConfiguration(100, 0, 0, 4);
+        final Aircraft aircraft =
+                new Aircraft("CS-TUH", "Portugal", "TP", model, cabin);
+
+        assertEquals(LocalDate.now(), aircraft.registrationDate());
+    }
+
+    @Test
+    void ensureAgeInYearsIsZeroForNewAircraft() {
+        final CabinConfiguration cabin =
+                new CabinConfiguration(100, 0, 0, 4);
+        final Aircraft aircraft =
+                new Aircraft("CS-TUI", "Portugal", "TP", model, cabin);
+
+        assertEquals(0, aircraft.ageInYears());
+    }
+
+    @Test
+    void ensureAircraftModelIdIsSet() {
+        final CabinConfiguration cabin =
+                new CabinConfiguration(100, 0, 0, 4);
+        final Aircraft aircraft =
+                new Aircraft("CS-TUJ", "Portugal", "TP", model, cabin);
+
+        assertEquals(model.identity(), aircraft.aircraftModelId());
+    }
+
+    @Test
+    void ensureToStringContainsRegistration() {
+        final CabinConfiguration cabin =
+                new CabinConfiguration(100, 0, 0, 4);
+        final Aircraft aircraft =
+                new Aircraft("CS-TUK", "Portugal", "TP", model, cabin);
+
+        assertTrue(aircraft.toString().contains("CS-TUK"));
     }
 
     @Test
