@@ -10,6 +10,7 @@ import persistence.PersistenceContext;
 import repositories.FlightPlanRepository;
 
 import java.io.File;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,7 +18,7 @@ import java.util.List;
 
 public class ImportFlightPlanController {
 
-    private static final String FLIGHT_PLANS_DIR    = "exemplo.core/flightplans";
+    private static final String FOLDER_NAME        = "flightplans";
     private static final String SUPPORTED_EXTENSION = ".fp";
 
     private final FlightPlanImporter   importer;
@@ -36,12 +37,13 @@ public class ImportFlightPlanController {
     }
 
     /**
-     * Returns the list of available flight plan files in the flightplans/ folder,
-     * sorted alphabetically.
+     * Returns the list of available flight plan files in the flightplans/ folder.
+     * Searches from the working directory upwards until the folder is found,
+     * so the application works regardless of from where it is launched.
      */
     public List<File> availableFlightPlanFiles() {
-        final File dir = new File(FLIGHT_PLANS_DIR);
-        if (!dir.exists() || !dir.isDirectory()) {
+        final File dir = resolveFlightPlansDir();
+        if (dir == null || !dir.exists() || !dir.isDirectory()) {
             return Collections.emptyList();
         }
         final File[] files = dir.listFiles(
@@ -68,6 +70,33 @@ public class ImportFlightPlanController {
             persistFlightPlans(result.getFlights());
         }
         return result;
+    }
+
+    /**
+     * Resolves the flightplans/ directory by searching from the working directory
+     * upwards through parent directories. This ensures the folder is found
+     * regardless of where the application is launched from.
+     */
+    private File resolveFlightPlansDir() {
+        // 1. Try working directory directly
+        File candidate = new File(FOLDER_NAME);
+        if (candidate.exists()) return candidate;
+
+        // 2. Try exemplo.core/flightplans relative to working directory
+        candidate = new File("exemplo.core" + File.separator + FOLDER_NAME);
+        if (candidate.exists()) return candidate;
+
+        // 3. Walk up from working directory looking for the folder
+        File dir = new File(".").getAbsoluteFile();
+        while (dir != null) {
+            candidate = new File(dir, FOLDER_NAME);
+            if (candidate.exists() && candidate.isDirectory()) return candidate;
+            candidate = new File(dir, "exemplo.core" + File.separator + FOLDER_NAME);
+            if (candidate.exists() && candidate.isDirectory()) return candidate;
+            dir = dir.getParentFile();
+        }
+
+        return null;
     }
 
     private FlightPlanImportResult unsupportedFormatResult(final String fileName) {
