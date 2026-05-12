@@ -64,6 +64,7 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  3.  Create Airport                      ║");
             System.out.println("  ║  4.  Create Engine Model                 ║");
             System.out.println("  ║  5.  Create Aircraft Model               ║");
+            System.out.println("  ║  6.  Add Engine Model to Aircraft Model  ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  9.  Logout                              ║");
             System.out.println("  ║  0.  Exit                                ║");
@@ -130,6 +131,7 @@ public class MainMenu extends AbstractUI {
                 case 3: new CreateAirportUI().show();               break;
                 case 4: new CreateEngineModelUI().show();           break;
                 case 5: new CreateAircraftModelUI().show();         break;
+                case 6: new AddEngineModelToAircraftUI().show();    break;
                 case 9: doLogout();                                 break;
                 case 0: doExit();                                   break;
                 default: System.out.println("  >> Invalid option. Please try again.");
