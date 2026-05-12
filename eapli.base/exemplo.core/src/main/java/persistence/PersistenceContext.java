@@ -4,6 +4,8 @@ import persistence.impl.inmemory.InMemoryAirTransportCompanyRepository;
 import persistence.impl.inmemory.InMemoryAircraftModelRepository;
 import persistence.impl.inmemory.InMemoryAircraftRepository;
 import persistence.impl.inmemory.InMemoryCountryRepository;
+import persistence.impl.inmemory.InMemoryFlightPlanRepository;
+import repositories.FlightPlanRepository;
 import persistence.impl.jpa.*;
 import repositories.*;
 
@@ -32,6 +34,7 @@ public class PersistenceContext {
     private final CountryRepository             countryRepository;
     private final AircraftModelRepository       aircraftModelRepository;
     private final AircraftRepository            aircraftRepository;
+    private final FlightPlanRepository          flightPlanRepository;
 
     private PersistenceContext() {
         final Properties props = loadProperties();
@@ -53,6 +56,7 @@ public class PersistenceContext {
         this.countryRepository            = new InMemoryCountryRepository();
         this.aircraftModelRepository      = new InMemoryAircraftModelRepository();
         this.aircraftRepository           = new InMemoryAircraftRepository();
+        this.flightPlanRepository         = new InMemoryFlightPlanRepository();
     }
 
     public static synchronized PersistenceContext getInstance() {
@@ -90,6 +94,8 @@ public class PersistenceContext {
     public AircraftRepository aircraftRepository() {
         return aircraftRepository;
     }
+
+    public FlightPlanRepository flightPlanRepository() { return flightPlanRepository; }
 
     private static Properties loadProperties() {
         final Properties props = new Properties();
