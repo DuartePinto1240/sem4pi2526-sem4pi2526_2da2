@@ -81,7 +81,7 @@ public class MainMenu extends AbstractUI {
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.PILOT)) {
             printLoggedInHeader("PILOT");
             System.out.println("  ║  [ Flight Management ]                   ║");
-            System.out.println("  ║  (options to be implemented in Sprint 3) ║");
+            System.out.println("  ║  1.  Import Flight Plan from File        ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
@@ -164,6 +164,7 @@ public class MainMenu extends AbstractUI {
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.PILOT)
                 || authz.isAuthenticatedUserAuthorizedTo(BaseRoles.FLIGHT_CONTROL_OPERATOR)) {
             switch (option) {
+                case 1: new ImportFlightPlanUI().show(); break;
                 case 9: doLogout(); break;
                 case 0: doExit();   break;
                 default: System.out.println("  >> Invalid option or insufficient permissions.");
