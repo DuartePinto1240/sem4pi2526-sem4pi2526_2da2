@@ -59,8 +59,25 @@ public class ListCompanyFleetUI extends AbstractUI {
                 break;
 
             case 3:
-                final String maker = Console.readLine("Manufacturer name:");
-                result = ctrl.listByMaker(companyIata, maker);
+                final List<String> makers = new ArrayList<>();
+                ctrl.usedManufacturers(companyIata).forEach(makers::add);
+
+                if (makers.isEmpty()) {
+                    System.out.println(">> No manufacturers found for this company.");
+                    return false;
+                }
+
+                System.out.println("\nAvailable manufacturers:");
+                for (int i = 0; i < makers.size(); i++) {
+                    System.out.printf("  %d. %s%n", i + 1, makers.get(i));
+                }
+
+                final int makerChoice = Console.readInteger("Select manufacturer:");
+                if (makerChoice < 1 || makerChoice > makers.size()) {
+                    System.out.println(">> Invalid option.");
+                    return false;
+                }
+                result = ctrl.listByMaker(companyIata, makers.get(makerChoice - 1));
                 break;
 
             case 4:

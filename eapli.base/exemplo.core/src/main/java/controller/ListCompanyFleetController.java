@@ -65,6 +65,17 @@ public class ListCompanyFleetController {
         }
         return result;
     }
+    public Iterable<String> usedManufacturers(final String companyIata) {
+        final List<String> manufacturers = new ArrayList<>();
+        for (final Aircraft a : aircraftRepo.findByCompanyIata(companyIata)) {
+            final Optional<AircraftModel> model =
+                    aircraftModelRepo.ofIdentity(a.aircraftModelId());
+            model.map(AircraftModel::manufacturer)
+                    .filter(m -> !manufacturers.contains(m))
+                    .ifPresent(manufacturers::add);
+        }
+        return manufacturers;
+    }
 
     // US072d — list sorted by registration (alphabetical)
     public Iterable<Aircraft> listByModelName(final String companyIata) {

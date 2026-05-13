@@ -6,6 +6,7 @@ import domain.aircraftmodel.AircraftModel;
 import persistence.PersistenceContext;
 import repositories.AircraftModelRepository;
 import repositories.AircraftRepository;
+import domain.Country;
 
 import java.util.Optional;
 
@@ -28,6 +29,9 @@ public class AddAircraftToFleetController {
 
     public Iterable<AircraftModel> availableAircraftModels() {
         return aircraftModelRepo.findAll();
+    }
+    public Iterable<Country> availableCountries() {
+        return PersistenceContext.getInstance().countryRepository().findAll();
     }
 
     public Aircraft addAircraft(final String registration,
