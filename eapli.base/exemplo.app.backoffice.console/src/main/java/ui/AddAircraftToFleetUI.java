@@ -1,6 +1,7 @@
 package ui;
 
 import controller.AddAircraftToFleetController;
+import domain.Country;
 import domain.aircraft.Aircraft;
 import domain.aircraftmodel.AircraftModel;
 import eapli.framework.io.util.Console;
@@ -48,7 +49,9 @@ public class AddAircraftToFleetUI extends AbstractUI {
 
         // 2. registration and country
         final String registration = Console.readLine("Aircraft registration (e.g. CS-TUA):");
-        final String country      = Console.readLine("Country of registration:");
+        // DEPOIS
+        final String country = selectCountry(ctrl);
+        if (country == null) return false;
 
         // 3. cabin configuration
         System.out.println("\n-- Cabin Configuration --");
@@ -87,6 +90,27 @@ public class AddAircraftToFleetUI extends AbstractUI {
         }
 
         return false;
+    }
+    private String selectCountry(final AddAircraftToFleetController ctrl) {
+        final List<Country> countries = new ArrayList<>();
+        ctrl.availableCountries().forEach(countries::add);
+
+        if (countries.isEmpty()) {
+            System.out.println("\n>> ERROR: No countries available.");
+            return null;
+        }
+
+        System.out.println("\nCountry of registration:");
+        for (int i = 0; i < countries.size(); i++) {
+            System.out.printf("  %d. %s%n", i + 1, countries.get(i).name());
+        }
+
+        final int choice = Console.readInteger("Select country:");
+        if (choice < 1 || choice > countries.size()) {
+            System.out.println(">> Invalid option.");
+            return null;
+        }
+        return countries.get(choice - 1).name();
     }
 
     @Override

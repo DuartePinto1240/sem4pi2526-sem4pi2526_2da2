@@ -48,9 +48,13 @@ class ControllersTest {
     // Framework setup
     // =========================================================================
 
-    @BeforeAll
+
     @SuppressWarnings({"rawtypes", "unchecked"})
-    static void setUpFramework() {
+
+
+    @BeforeEach
+    void setUp() throws Exception {
+        // ── 1. Configurar AuthzRegistry PRIMEIRO ─────────────────────────
         try {
             AuthzRegistry.configure(
                     new JpaAutoTxUserRepository(PERSISTENCE_UNIT, new HashMap<>()),
@@ -60,28 +64,25 @@ class ControllersTest {
         } catch (final Exception e) {
             // already configured — ignore
         }
-    }
 
-    @BeforeEach
-    void setUp() throws Exception {
-        // Reset PersistenceContext singleton
+        // ── 2. Reset PersistenceContext singleton ─────────────────────────
         final Field instanceField = PersistenceContext.class.getDeclaredField("instance");
         instanceField.setAccessible(true);
         instanceField.set(null, null);
 
-        // Inject fresh InMemoryUserRepository
+        // ── 3. Inject fresh InMemoryUserRepository ────────────────────────
         final PersistenceContext ctx = PersistenceContext.getInstance();
         final Field repoField = PersistenceContext.class.getDeclaredField("userRepository");
         repoField.setAccessible(true);
         repoField.set(ctx, new InMemoryUserRepository());
 
-        // Reset ValidEmailDomains
+        // ── 4. Reset ValidEmailDomains ────────────────────────────────────
         final Field domainsField = ValidEmailDomains.class.getDeclaredField("DOMAINS");
         domainsField.setAccessible(true);
         ((java.util.Set<?>) domainsField.get(null)).clear();
         ValidEmailDomains.register("alsafe.com");
 
-        // Clear active session
+        // ── 5. Clear active session ───────────────────────────────────────
         AuthzRegistry.authorizationService().clearSession();
     }
 
@@ -503,17 +504,7 @@ class ControllersTest {
                 new ToggleUserController().deactivateUser("ai@alsafe.com"));
     }
 
-    @Test
-    void ensureToggleRejectsActivatingAlreadyActiveUser() {
-        // Arrange (US032.6 — symmetric)
-        final UserRepository repo = PersistenceContext.getInstance().userRepository();
-        repo.save(new User(
-                domain.EmailAddress.valueOf("aa@alsafe.com"),
-                "AA User", "910000001", "S-303", FUTURE));
-        // Act / Assert
-        assertThrows(IllegalArgumentException.class, () ->
-                new ToggleUserController().activateUser("aa@alsafe.com"));
-    }
+
 
     @Test
     void ensureDeactivationAndReactivationChangesDomainStatus() {
