@@ -185,7 +185,55 @@ int check_safety_violations(FlightState *states,
     return new_violations;
 }
 
+/* Predicted Safety Violation Detection — US101
+  Uses position history to extrapolate next positions and detect potential future violations early */
 
+int check_predicted_violations(FlightState *states,
+                                int num_flights,
+                                double threshold_m,
+                                SimulationReport *report,
+                                double timestamp) {
+    int predictions = 0;
+
+    for (int i = 0; i < num_flights; i++) {
+        if (!states[i].active || states[i].history_count < 1) continue;
+
+        /* extrapolate next position of flight i */
+        Position *cur_i  = &states[i].current;
+        Position *prev_i = &states[i].history[states[i].history_count - 1];
+
+        Position next_i;
+        next_i.latitude  = cur_i->latitude  + (cur_i->latitude  - prev_i->latitude);
+        next_i.longitude = cur_i->longitude + (cur_i->longitude - prev_i->longitude);
+        next_i.altitude  = cur_i->altitude  + (cur_i->altitude  - prev_i->altitude);
+
+        for (int j = i + 1; j < num_flights; j++) {
+            if (!states[j].active || states[j].history_count < 1) continue;
+
+            /* extrapolate next position of flight j */
+            Position *cur_j  = &states[j].current;
+            Position *prev_j = &states[j].history[states[j].history_count - 1];
+
+            Position next_j;
+            next_j.latitude  = cur_j->latitude  + (cur_j->latitude  - prev_j->latitude);
+            next_j.longitude = cur_j->longitude + (cur_j->longitude - prev_j->longitude);
+            next_j.altitude  = cur_j->altitude  + (cur_j->altitude  - prev_j->altitude);
+
+            double predicted_dist = compute_distance(&next_i, &next_j);
+
+            /* warn if predicted distance is within 2x threshold */
+            if (predicted_dist < threshold_m * 2.0) {
+                printf("[MAIN] PREDICTED VIOLATION: flights %d and %d"
+                       " — predicted distance=%.1f m (2x threshold=%.1f m)\n",
+                       states[i].flight_id, states[j].flight_id,
+                       predicted_dist, threshold_m * 2.0);
+                predictions++;
+            }
+        }
+    }
+
+    return predictions;
+}
 
 /* ─────────────────────────────────────────
  * Main Simulation
@@ -250,6 +298,12 @@ int start_simulation(const SimulationConfig *config,
                 states, config->num_flights,
                 config->safety_threshold_m,
                 report, timestamp);
+
+        /* anticipate future violations using history — US101 */
+        check_predicted_violations(states, config->num_flights,
+                                    config->safety_threshold_m,
+                                    report,
+                                    timestamp);
 
         /* abort if too many violations */
         if (report->total_violations >= config->max_violations) {

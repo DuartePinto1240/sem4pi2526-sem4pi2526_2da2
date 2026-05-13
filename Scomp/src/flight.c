@@ -121,7 +121,8 @@ void execute_flight(int flight_id,
             break;
         }
 
-        printf("[FLIGHT %d] Step %d — lat=%.4f lon=%.4f alt=%.1f\n",
+         printf("[FLIGHT %d] Step %d — position update sent:"
+               " lat=%.4f lon=%.4f alt=%.1f\n",
                flight_id, step,
                pos.latitude, pos.longitude, pos.altitude);
 

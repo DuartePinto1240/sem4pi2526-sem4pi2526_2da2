@@ -99,6 +99,14 @@ int check_safety_violations(FlightState *states,
                              SimulationReport *report,
                              double timestamp);
 
+/* Check for predicted violations using position history.
+ * Returns number of predicted violations found. */
+int check_predicted_violations(FlightState *states,
+                                int num_flights,
+                                double threshold_m,
+                                SimulationReport *report,
+                                double timestamp);
+
 /* Compute Euclidean distance between two positions in metres. */
 double compute_distance(const Position *p1, const Position *p2);
 
