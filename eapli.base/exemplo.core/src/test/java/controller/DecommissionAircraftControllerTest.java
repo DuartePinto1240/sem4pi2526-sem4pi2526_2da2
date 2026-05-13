@@ -50,7 +50,7 @@ class DecommissionAircraftControllerTest {
         return a;
     }
 
-    // --- activeAircraftOfCompany ---
+    // activeAircraftOfCompany
 
     @Test
     void ensureActiveAircraftOfCompanyReturnsOnlyActiveOnes() {
@@ -90,7 +90,7 @@ class DecommissionAircraftControllerTest {
         assertEquals("CS-TUA", result.get(0).registration());
     }
 
-    // --- decommissionAircraft ---
+    // decommissionAircraft
 
     @Test
     void ensureValidDecommissionSucceeds() {

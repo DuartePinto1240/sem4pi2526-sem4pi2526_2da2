@@ -12,9 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ICAOCodeTest {
 
-    // =========================================================================
     // Valid construction and normalisation
-    // =========================================================================
 
     @Test
     void ensureValidCodeIsStored() {
@@ -36,9 +34,7 @@ class ICAOCodeTest {
         assertEquals("LPPT", new ICAOCode("  LPPT  ").code());
     }
 
-    // =========================================================================
     // Invalid formats
-    // =========================================================================
 
     @Test
     void ensureNullIsRejected() {
@@ -75,9 +71,7 @@ class ICAOCodeTest {
         assertThrows(IllegalArgumentException.class, () -> new ICAOCode(""));
     }
 
-    // =========================================================================
     // Equality and hashCode
-    // =========================================================================
 
     @Test
     void ensureTwoCodesWithSameValueAreEqual() {
@@ -110,9 +104,7 @@ class ICAOCodeTest {
         assertEquals(code, code);
     }
 
-    // =========================================================================
     // compareTo
-    // =========================================================================
 
     @Test
     void ensureCompareToReturnsZeroForEqualCodes() {
@@ -129,9 +121,7 @@ class ICAOCodeTest {
         assertTrue(new ICAOCode("LPPT").compareTo(new ICAOCode("EHAM")) > 0);
     }
 
-    // =========================================================================
     // toString
-    // =========================================================================
 
     @Test
     void ensureToStringReturnsCode() {

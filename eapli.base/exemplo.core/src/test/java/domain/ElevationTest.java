@@ -13,9 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ElevationTest {
 
-    // =========================================================================
     // Valid construction — all numeric values accepted
-    // =========================================================================
 
     @Test
     void ensurePositiveElevationIsStored() {
@@ -45,9 +43,7 @@ class ElevationTest {
         assertEquals(-400.0, new Elevation(-400.0).metres());
     }
 
-    // =========================================================================
     // Equality and hashCode
-    // =========================================================================
 
     @Test
     void ensureTwoElevationsWithSameValueAreEqual() {
@@ -80,9 +76,7 @@ class ElevationTest {
         assertEquals(e, e);
     }
 
-    // =========================================================================
     // toString
-    // =========================================================================
 
     @Test
     void ensureToStringContainsValue() {

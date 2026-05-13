@@ -12,9 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class IATACodeTest {
 
-    // =========================================================================
     // Valid construction and normalisation
-    // =========================================================================
 
     @Test
     void ensureValidCodeIsStored() {
@@ -36,9 +34,7 @@ class IATACodeTest {
         assertEquals("LIS", new IATACode("  LIS  ").code());
     }
 
-    // =========================================================================
     // Invalid formats
-    // =========================================================================
 
     @Test
     void ensureNullIsRejected() {
@@ -75,9 +71,7 @@ class IATACodeTest {
         assertThrows(IllegalArgumentException.class, () -> new IATACode(""));
     }
 
-    // =========================================================================
     // Equality and hashCode
-    // =========================================================================
 
     @Test
     void ensureTwoCodesWithSameValueAreEqual() {
@@ -110,9 +104,7 @@ class IATACodeTest {
         assertEquals(code, code);
     }
 
-    // =========================================================================
     // toString
-    // =========================================================================
 
     @Test
     void ensureToStringReturnsCode() {

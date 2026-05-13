@@ -14,9 +14,7 @@ public class AirControlAreaTest {
     private static final GeographicBoundary VALID_BOUNDARY =
             new GeographicBoundary(36.0, 42.0, -10.0, -6.0);
 
-    // =========================================================================
     // Valid construction
-    // =========================================================================
 
     @Test
     public void ensureValidAreaIsCreatedWithCorrectCode() {
@@ -66,9 +64,7 @@ public class AirControlAreaTest {
         assertEquals("Madrid ACC", area.name());
     }
 
-    // =========================================================================
     // Invalid construction — area code
-    // =========================================================================
 
     @Test
     public void ensureNullAreaCodeIsRejected() {
@@ -91,9 +87,7 @@ public class AirControlAreaTest {
         });
     }
 
-    // =========================================================================
     // Invalid construction — name
-    // =========================================================================
 
     @Test
     public void ensureNullNameIsRejected() {
@@ -116,9 +110,7 @@ public class AirControlAreaTest {
         });
     }
 
-    // =========================================================================
     // Invalid construction — boundary
-    // =========================================================================
 
     @Test
     public void ensureNullBoundaryIsRejected() {
@@ -127,9 +119,7 @@ public class AirControlAreaTest {
         });
     }
 
-    // =========================================================================
     // Identity and sameAs
-    // =========================================================================
 
     @Test
     public void ensureIdentityReturnsAreaCode() {
@@ -181,9 +171,7 @@ public class AirControlAreaTest {
         assertFalse(area.sameAs(null));
     }
 
-    // =========================================================================
     // toString
-    // =========================================================================
 
     @Test
     public void ensureToStringContainsCodeAndName() {

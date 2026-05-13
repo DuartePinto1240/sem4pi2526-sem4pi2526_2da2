@@ -27,7 +27,7 @@ public class RegisterUserUI extends AbstractUI {
     @Override
     protected boolean doShow() {
         System.out.println("\n+--------------------------------------------+");
-        System.out.println("|     Register Backoffice User               |");
+        System.out.println("|                Register User               |");
         System.out.println("+--------------------------------------------+");
 
         if (!ValidEmailDomains.isEmpty()) {

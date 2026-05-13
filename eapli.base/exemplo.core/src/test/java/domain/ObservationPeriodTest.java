@@ -19,9 +19,7 @@ public class ObservationPeriodTest {
     private static final LocalDateTime T3 = LocalDateTime.of(2026, 5, 1, 16, 0);
     private static final LocalDateTime T4 = LocalDateTime.of(2026, 5, 1, 20, 0);
 
-    // =========================================================================
     // Happy path
-    // =========================================================================
 
     @Test
     public void ensureValidPeriodIsCreated() {
@@ -30,9 +28,7 @@ public class ObservationPeriodTest {
         assertEquals(T2, p.endDateTime());
     }
 
-    // =========================================================================
     // Invalid construction
-    // =========================================================================
 
     @Test
     public void ensureEndBeforeStartIsRejected() {
@@ -58,9 +54,7 @@ public class ObservationPeriodTest {
                 () -> new ObservationPeriod(T1, null));
     }
 
-    // =========================================================================
     // Overlap detection
-    // =========================================================================
 
     @Test
     public void ensureOverlappingPeriodsAreDetected() {
@@ -100,9 +94,7 @@ public class ObservationPeriodTest {
         assertFalse(p.overlapsWith(null));
     }
 
-    // =========================================================================
     // Equality
-    // =========================================================================
 
     @Test
     public void ensureEqualPeriodsAreEqual() {

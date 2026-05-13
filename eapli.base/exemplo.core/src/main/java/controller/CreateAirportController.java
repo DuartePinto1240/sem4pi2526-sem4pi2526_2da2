@@ -97,7 +97,7 @@ public class CreateAirportController {
                                  final double elevationM,
                                  final String areaCode) {
 
-        // 1. Build Value Objects — format/range validation inside each VO
+        //Build Value Objects — format/range validation inside each VO
         final ICAOCode           icaoCode    = new ICAOCode(icao);
         final IATACode           iataCode    = new IATACode(iata);
         final AirportName        airportName = new AirportName(name);
@@ -105,30 +105,30 @@ public class CreateAirportController {
         final Elevation          elevation   = new Elevation(elevationM);
         final AirControlAreaCode areaRef     = new AirControlAreaCode(areaCode);
 
-        // 2. Country must exist in the bootstrap list
+        // Country must exist in the bootstrap list
         final Country country = countryRepo.findByName(countryName)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Country '" + countryName + "' is not in the system. "
                                 + "Please select a country from the available list."));
 
-        // 3. ICAO uniqueness
+        // ICAO uniqueness
         if (airportRepo.containsOfIdentity(icaoCode)) {
             throw new IllegalArgumentException(
                     "An airport with ICAO code '" + icao + "' already exists.");
         }
 
-        // 4. IATA uniqueness
+        // IATA uniqueness
         if (airportRepo.existsByIATACode(iataCode)) {
             throw new IllegalArgumentException(
                     "An airport with IATA code '" + iata + "' already exists.");
         }
 
-        // 5. Air control area must exist
+        // Air control area must exist
         final AirControlArea area = areaRepo.ofIdentity(areaRef)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No air control area found with code '" + areaCode + "'."));
 
-        // 6. Coordinates must be within the area boundary — hard rejection
+        // Coordinates must be within the area boundary — hard rejection
         if (!coords.isWithinBoundary(area.boundary())) {
             throw new IllegalArgumentException(String.format(
                     "Coordinates (%.2f, %.2f) are outside the boundary of area '%s' "
@@ -139,7 +139,7 @@ public class CreateAirportController {
                     area.boundary().minLon(), area.boundary().maxLon()));
         }
 
-        // 7. Create and persist
+        // Create and persist
         final Airport airport = new Airport(
                 icaoCode, iataCode, airportName,
                 town, country,

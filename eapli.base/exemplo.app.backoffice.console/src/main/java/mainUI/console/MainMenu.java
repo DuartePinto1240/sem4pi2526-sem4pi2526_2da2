@@ -65,9 +65,9 @@ public class MainMenu extends AbstractUI {
                 BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR)) {
             printLoggedInHeader("ATCC");
             System.out.println("  ║  [ Fleet Management ]                    ║");
-            System.out.println("  ║  1.  Add Aircraft to Fleet (US070)       ║");
-            System.out.println("  ║  2.  List Company Fleet    (US072)       ║");
-            System.out.println("  ║  3.  Decommission Aircraft (US071)       ║");
+            System.out.println("  ║  1.  Add Aircraft to Fleet               ║");
+            System.out.println("  ║  2.  List Company Fleet                  ║");
+            System.out.println("  ║  3.  Decommission Aircraft               ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 

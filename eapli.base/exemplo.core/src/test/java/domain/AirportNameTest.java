@@ -9,9 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class AirportNameTest {
 
-    // =========================================================================
     // Valid construction
-    // =========================================================================
 
     @Test
     void ensureValidNameIsStored() {

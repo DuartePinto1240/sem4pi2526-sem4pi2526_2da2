@@ -36,9 +36,7 @@ public class RegisterAirControlAreaControllerTest {
         field.set(controller, repo);
     }
 
-    // =========================================================================
     // Happy path
-    // =========================================================================
 
     @Test
     public void ensureValidAreaIsRegisteredAndReturned() {
@@ -96,9 +94,7 @@ public class RegisterAirControlAreaControllerTest {
         assertNotNull(adjacent);
     }
 
-    // =========================================================================
     // Rule 1 — Unique code
-    // =========================================================================
 
     @Test
     public void ensureDuplicateCodeIsRejected() {
@@ -126,9 +122,7 @@ public class RegisterAirControlAreaControllerTest {
         });
     }
 
-    // =========================================================================
     // Rule 2 — Unique name
-    // =========================================================================
 
     @Test
     public void ensureDuplicateNameIsRejected() {
@@ -156,9 +150,7 @@ public class RegisterAirControlAreaControllerTest {
         });
     }
 
-    // =========================================================================
     // Rule 3 — No boundary overlap
-    // =========================================================================
 
     @Test
     public void ensureOverlappingBoundaryIsRejected() {
@@ -186,9 +178,7 @@ public class RegisterAirControlAreaControllerTest {
         });
     }
 
-    // =========================================================================
     // Coordinate validation (delegated to GeographicBoundary)
-    // =========================================================================
 
     @Test
     public void ensureInvalidMinLatIsRejected() {
@@ -230,9 +220,7 @@ public class RegisterAirControlAreaControllerTest {
         });
     }
 
-    // =========================================================================
     // Null / blank inputs
-    // =========================================================================
 
     @Test
     public void ensureNullCodeIsRejected() {
