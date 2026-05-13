@@ -8,9 +8,6 @@ import java.util.Objects;
 
 /**
  * Value Object wrapping the elevation of an airport in metres above sea level.
- *
- * <p>Negative values are intentionally allowed: some airports exist below
- * sea level (e.g. Amsterdam Schiphol at −3.35 m). No lower bound is imposed.</p>
  */
 @Embeddable
 public class Elevation implements ValueObject {
@@ -21,9 +18,14 @@ public class Elevation implements ValueObject {
     /**
      * Creates a new Elevation.
      *
-     * @param metres the elevation in metres above sea level (may be negative)
+     * @param metres elevation in metres above sea level — must be > 0
+     * @throws IllegalArgumentException if metres is zero or negative
      */
     public Elevation(final double metres) {
+        if (metres <= 0) {
+            throw new IllegalArgumentException(
+                    "Elevation must be above sea level (> 0 m), got: " + metres);
+        }
         this.metres = metres;
     }
 

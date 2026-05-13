@@ -6,14 +6,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link Elevation} value object (US052).
- *
- * <p>The specification states "elevation in meters above sea level" as the
- * unit of reference. Negative values are accepted because some airports
- * (e.g. Amsterdam Schiphol at −3.35 m) exist below sea level.</p>
  */
 class ElevationTest {
 
-    // Valid construction — all numeric values accepted
+    // Valid construction
 
     @Test
     void ensurePositiveElevationIsStored() {
@@ -21,26 +17,28 @@ class ElevationTest {
     }
 
     @Test
-    void ensureZeroElevationIsAccepted() {
-        assertEquals(0.0, new Elevation(0.0).metres());
-    }
-
-    @Test
-    void ensureNegativeElevationIsAccepted() {
-        // Schiphol airport is ~3.35 m below sea level
-        assertEquals(-3.35, new Elevation(-3.35).metres());
-    }
-
-    @Test
     void ensureLargePositiveElevationIsAccepted() {
-        // Qamdo Bamda, Tibet — highest commercial airport at ~4334 m
         assertEquals(4334.0, new Elevation(4334.0).metres());
     }
 
+    // Invalid construction
+
     @Test
-    void ensureLargeNegativeElevationIsAccepted() {
-        // Dead Sea area ~ -400 m
-        assertEquals(-400.0, new Elevation(-400.0).metres());
+    void ensureZeroElevationIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new Elevation(0.0));
+    }
+
+    @Test
+    void ensureNegativeElevationIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new Elevation(-3.35));
+    }
+
+    @Test
+    void ensureLargeNegativeElevationIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new Elevation(-400.0));
     }
 
     // Equality and hashCode
@@ -52,12 +50,14 @@ class ElevationTest {
 
     @Test
     void ensureTwoElevationsWithSameValueHaveSameHashCode() {
-        assertEquals(new Elevation(113.0).hashCode(), new Elevation(113.0).hashCode());
+        assertEquals(new Elevation(113.0).hashCode(),
+                new Elevation(113.0).hashCode());
     }
 
     @Test
     void ensureTwoDifferentElevationsAreNotEqual() {
-        assertNotEquals(new Elevation(113.0), new Elevation(69.0));
+        assertNotEquals(new Elevation(113.0),
+                new Elevation(69.0));
     }
 
     @Test
@@ -88,4 +88,3 @@ class ElevationTest {
         assertTrue(new Elevation(113.0).toString().contains("m"));
     }
 }
-
