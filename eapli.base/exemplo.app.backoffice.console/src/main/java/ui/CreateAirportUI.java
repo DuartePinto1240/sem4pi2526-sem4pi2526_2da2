@@ -30,11 +30,9 @@ public class CreateAirportUI extends AbstractUI {
     protected boolean doShow() {
         final CreateAirportController ctrl = new CreateAirportController();
 
-        System.out.println("\n--- Create Airport (US052) ---");
+        System.out.println("\n--- Create Airport ---");
 
-        // ----------------------------------------------------------------
-        // Step 1 — select air control area
-        // ----------------------------------------------------------------
+        // select air control area
         System.out.println("\nAvailable Air Control Areas:");
 
         final List<AirControlArea> areas = new ArrayList<>();
@@ -72,18 +70,14 @@ public class CreateAirportUI extends AbstractUI {
                 selectedArea.boundary().minLat(), selectedArea.boundary().maxLat(),
                 selectedArea.boundary().minLon(), selectedArea.boundary().maxLon());
 
-        // ----------------------------------------------------------------
-        // Step 2 — enter basic airport data
-        // ----------------------------------------------------------------
+        // enter basic airport data
         System.out.println("\nAirport details:");
         final String icao = Console.readLine("  ICAO code (4 letters, e.g. LPPT):");
         final String iata = Console.readLine("  IATA code (3 letters, e.g. LIS):");
         final String name = Console.readLine("  Full name (e.g. Humberto Delgado Airport):");
         final String town = Console.readLine("  Town/City:");
 
-        // ----------------------------------------------------------------
-        // Step 3 — select country from list
-        // ----------------------------------------------------------------
+        // select country from list
         System.out.println("\nAvailable Countries:");
 
         final List<Country> countries = new ArrayList<>();
@@ -114,17 +108,13 @@ public class CreateAirportUI extends AbstractUI {
         final String countryName = countries.get(countryChoice - 1).name();
         System.out.println("  Selected: " + countryName);
 
-        // ----------------------------------------------------------------
-        // Step 4 — enter coordinates and elevation
-        // ----------------------------------------------------------------
+        // enter coordinates and elevation
         System.out.println("\nCoordinates (must be within the selected area boundary):");
         final double latitude  = Console.readDouble("  Latitude  (decimal degrees):");
         final double longitude = Console.readDouble("  Longitude (decimal degrees):");
         final double elevationM = Console.readDouble("\n  Elevation in metres above sea level (may be negative):");
 
-        // ----------------------------------------------------------------
-        // Step 5 — delegate to controller
-        // ----------------------------------------------------------------
+        // delegate to controller
         try {
             final domain.Airport airport = ctrl.createAirport(
                     icao, iata, name, town, countryName,
@@ -142,6 +132,6 @@ public class CreateAirportUI extends AbstractUI {
 
     @Override
     public String headline() {
-        return "US052 - Create Airport";
+        return "Create Airport";
     }
 }

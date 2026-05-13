@@ -12,9 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class GeographicBoundaryTest {
 
-    // =========================================================================
     // Valid construction
-    // =========================================================================
 
     @Test
     public void ensureValidBoundaryIsCreated() {
@@ -47,9 +45,7 @@ public class GeographicBoundaryTest {
         assertEquals(-10.0, b.maxLat(), 0.0001);
     }
 
-    // =========================================================================
     // Invalid latitude
-    // =========================================================================
 
     @Test
     public void ensureMinLatBelowMinus90IsRejected() {
@@ -80,9 +76,7 @@ public class GeographicBoundaryTest {
         });
     }
 
-    // =========================================================================
     // Invalid longitude
-    // =========================================================================
 
     @Test
     public void ensureMinLonBelowMinus180IsRejected() {
@@ -112,9 +106,7 @@ public class GeographicBoundaryTest {
         });
     }
 
-    // =========================================================================
     // overlapsWith — the 9 geometric configurations
-    // =========================================================================
 
     @Test
     public void ensureIdenticalBoundariesOverlap() {
@@ -219,9 +211,7 @@ public class GeographicBoundaryTest {
         assertFalse(b.overlapsWith(null));
     }
 
-    // =========================================================================
     // Equality and hashCode
-    // =========================================================================
 
     @Test
     public void ensureTwoBoundariesWithSameValuesAreEqual() {
@@ -262,9 +252,7 @@ public class GeographicBoundaryTest {
         assertEquals(b, b);
     }
 
-    // =========================================================================
     // toString
-    // =========================================================================
 
     @Test
     public void ensureToStringContainsAllValues() {

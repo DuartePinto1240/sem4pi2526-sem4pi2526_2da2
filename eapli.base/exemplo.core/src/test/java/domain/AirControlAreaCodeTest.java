@@ -10,9 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class AirControlAreaCodeTest {
 
-    // =========================================================================
     // Valid construction
-    // =========================================================================
 
     @Test
     public void ensureValidCodeIsCreated() {
@@ -50,9 +48,7 @@ public class AirControlAreaCodeTest {
         assertEquals("A", code.code());
     }
 
-    // =========================================================================
     // Invalid construction
-    // =========================================================================
 
     @Test
     public void ensureNullCodeIsRejected() {
@@ -75,9 +71,7 @@ public class AirControlAreaCodeTest {
         });
     }
 
-    // =========================================================================
     // Equality, hashCode, compareTo
-    // =========================================================================
 
     @Test
     public void ensureTwoCodesWithSameValueAreEqual() {
@@ -148,9 +142,7 @@ public class AirControlAreaCodeTest {
         assertNotEquals(0, c1.compareTo(c2));
     }
 
-    // =========================================================================
     // toString
-    // =========================================================================
 
     @Test
     public void ensureToStringReturnsTheCode() {

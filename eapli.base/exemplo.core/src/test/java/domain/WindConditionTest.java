@@ -12,9 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class WindConditionTest {
 
-    // =========================================================================
     // Happy path — valid construction
-    // =========================================================================
 
     @Test
     public void ensureValidWindConditionIsCreated() {
@@ -45,9 +43,7 @@ public class WindConditionTest {
         assertEquals(0.0, wc.windSpeed());
     }
 
-    // =========================================================================
     // Wind direction — invalid values
-    // =========================================================================
 
     @Test
     public void ensureNegativeDirectionIsRejected() {
@@ -67,9 +63,7 @@ public class WindConditionTest {
                 () -> new WindCondition(400.0, 10.0));
     }
 
-    // =========================================================================
     // Wind speed — invalid values
-    // =========================================================================
 
     @Test
     public void ensureNegativeWindSpeedIsRejected() {
@@ -77,9 +71,7 @@ public class WindConditionTest {
                 () -> new WindCondition(90.0, -0.1));
     }
 
-    // =========================================================================
     // Equality and toString
-    // =========================================================================
 
     @Test
     public void ensureEqualWindConditionsAreEqual() {

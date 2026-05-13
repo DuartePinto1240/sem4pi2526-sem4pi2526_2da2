@@ -76,9 +76,9 @@ public class MainMenu extends AbstractUI {
             System.out.printf( "  ║  Role      : %-28s║%n", "ATCC");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  [ Fleet Management ]                    ║");
-            System.out.println("  ║  1.  Add Aircraft to Fleet (US070)       ║");
-            System.out.println("  ║  2.  List Company Fleet    (US072)       ║");
-            System.out.println("  ║  3.  Decommission Aircraft (US071)       ║");
+            System.out.println("  ║  1.  Add Aircraft to Fleet               ║");
+            System.out.println("  ║  2.  List Company Fleet                  ║");
+            System.out.println("  ║  3.  Decommission Aircraft               ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  9.  Logout                              ║");
             System.out.println("  ║  0.  Exit                                ║");

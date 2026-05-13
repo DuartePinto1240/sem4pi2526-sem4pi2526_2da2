@@ -58,27 +58,27 @@ public class RegisterAirControlAreaController {
                                                   final double maxLat,
                                                   final double minLon,
                                                   final double maxLon) {
-        // 1. Unique code check
+        // Unique code check
         final AirControlAreaCode code = new AirControlAreaCode(areaCode);
         if (repo.containsOfIdentity(code)) {
             throw new IllegalArgumentException(
                     "An air control area with code '" + areaCode + "' already exists.");
         }
 
-        // 2. Unique name check
+        // Unique name check
         if (repo.existsByName(name)) {
             throw new IllegalArgumentException(
                     "An air control area with name '" + name + "' already exists.");
         }
 
-        // 3. Build value objects — GeographicBoundary validates ranges internally
+        // Build value objects — GeographicBoundary validates ranges internally
         final GeographicBoundary boundary = new GeographicBoundary(minLat, maxLat, minLon, maxLon);
         if (repo.existsOverlappingBoundary(boundary)) {
             throw new IllegalArgumentException(
                     "The provided geographic boundary overlaps with an existing air control area.");
         }
 
-        // 4. Create and persist
+        // Create and persist
         final AirControlArea area = new AirControlArea(areaCode, name, boundary);
         return repo.save(area);
     }

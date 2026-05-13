@@ -69,6 +69,6 @@ public class RegisterAirControlAreaUI extends AbstractUI {
 
     @Override
     public String headline() {
-        return "US050 - Register Air Control Area";
+        return " Register Air Control Area";
     }
 }

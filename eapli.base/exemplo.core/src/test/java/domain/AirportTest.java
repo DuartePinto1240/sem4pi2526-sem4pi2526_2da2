@@ -25,9 +25,7 @@ public class AirportTest {
                 VALID_TOWN, VALID_COUNTRY, VALID_COORDS, VALID_ELEV, VALID_AREA);
     }
 
-    // =========================================================================
     // Valid construction
-    // =========================================================================
 
     @Test
     public void ensureValidAirportIsCreatedWithCorrectICAO() {
@@ -64,9 +62,7 @@ public class AirportTest {
         assertEquals("LPPC", validAirport().airControlAreaCode().code());
     }
 
-    // =========================================================================
     // Negative elevation is allowed
-    // =========================================================================
 
     @Test
     public void ensureNegativeElevationIsAllowed() {
@@ -77,9 +73,7 @@ public class AirportTest {
         assertEquals(-3.35, airport.elevation().metres());
     }
 
-    // =========================================================================
     // Null / blank inputs rejected
-    // =========================================================================
 
     @Test
     public void ensureNullICAOIsRejected() {
@@ -123,9 +117,7 @@ public class AirportTest {
                         VALID_COUNTRY, VALID_COORDS, null, VALID_AREA));
     }
 
-    // =========================================================================
     // Identity and sameAs
-    // =========================================================================
 
     @Test
     public void ensureTwoAirportsWithSameICAOAreSame() {

@@ -21,9 +21,7 @@ public class WeatherSubAreaTest {
     private static final GeographicBoundary INSIDE =
             new GeographicBoundary(37.0, 40.0, -9.0, -7.0);
 
-    // =========================================================================
     // Happy path
-    // =========================================================================
 
     @Test
     public void ensureValidSubAreaIsCreated() {
@@ -31,9 +29,7 @@ public class WeatherSubAreaTest {
         assertEquals(INSIDE, sa.subBoundary());
     }
 
-    // =========================================================================
     // Null rejection
-    // =========================================================================
 
     @Test
     public void ensureNullBoundaryIsRejected() {
@@ -41,9 +37,7 @@ public class WeatherSubAreaTest {
                 () -> new WeatherSubArea(null));
     }
 
-    // =========================================================================
     // isInsideBoundary
-    // =========================================================================
 
     @Test
     public void ensureSubAreaInsideParentReturnsTrue() {
@@ -78,9 +72,7 @@ public class WeatherSubAreaTest {
         assertFalse(sa.isInsideBoundary(null));
     }
 
-    // =========================================================================
     // overlapsWith
-    // =========================================================================
 
     @Test
     public void ensureOverlappingSubAreasAreDetected() {
@@ -106,9 +98,7 @@ public class WeatherSubAreaTest {
         assertFalse(sa.overlapsWith(null));
     }
 
-    // =========================================================================
     // Equality
-    // =========================================================================
 
     @Test
     public void ensureEqualSubAreasAreEqual() {

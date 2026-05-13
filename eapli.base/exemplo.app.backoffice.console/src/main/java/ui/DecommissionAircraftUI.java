@@ -15,7 +15,7 @@ public class DecommissionAircraftUI extends AbstractUI {
         final DecommissionAircraftController ctrl =
                 new DecommissionAircraftController();
 
-        System.out.println("\n--- Decommission Aircraft (US071) ---");
+        System.out.println("\n--- Decommission Aircraft ---");
 
         // TODO: obter companyIata do utilizador autenticado quando a sessão estiver disponível
         final String companyIata = Console.readLine("Company IATA code:");
@@ -69,6 +69,6 @@ public class DecommissionAircraftUI extends AbstractUI {
 
     @Override
     public String headline() {
-        return "US071 - Decommission Aircraft";
+        return "Decommission Aircraft";
     }
 }

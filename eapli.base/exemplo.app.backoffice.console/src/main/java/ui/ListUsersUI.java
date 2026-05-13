@@ -25,7 +25,7 @@ public class ListUsersUI extends AbstractUI {
     @Override
     protected boolean doShow() {
         System.out.println("\n+--------------------------------------------+");
-        System.out.println("|      Backoffice User List (US033)          |");
+        System.out.println("|                 User List                  |");
         System.out.println("+--------------------------------------------+");
 
         final String header = String.format("%-22s | %-28s | %-22s | %-9s | %-8s | %-10s | %s",

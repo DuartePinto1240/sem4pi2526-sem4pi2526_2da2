@@ -1,7 +1,5 @@
 package domain;
 
-import domain.AirControlAreaCode;
-import domain.GeographicBoundary;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -11,89 +9,85 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for {@link WeatherData} aggregate root (US041).
  *
- * <p>Tests construction, invariants, and identity/equality. Follows AAA (NFR03).</p>
+ * <p>Tests construction invariants and sameAs semantics. Follows AAA (NFR03).</p>
  */
-public class WeatherDataTest {
+class WeatherDataTest {
 
     private static final AirControlAreaCode CODE = new AirControlAreaCode("LPPC");
     private static final GeographicBoundary BOUNDARY =
             new GeographicBoundary(37.0, 40.0, -9.0, -7.0);
-    private static final WeatherSubArea SUB_AREA = new WeatherSubArea(BOUNDARY);
-    private static final ObservationPeriod PERIOD = new ObservationPeriod(
+    private static final WeatherSubArea     SUB  = new WeatherSubArea(BOUNDARY);
+    private static final ObservationPeriod  PER  = new ObservationPeriod(
             LocalDateTime.of(2026, 5, 1, 8, 0),
             LocalDateTime.of(2026, 5, 1, 12, 0));
-    private static final WindCondition WIND = new WindCondition(90.0, 10.0);
+    private static final WindCondition      WIND = new WindCondition(90.0, 10.0);
 
-    // =========================================================================
     // Happy path
-    // =========================================================================
-
     @Test
-    public void ensureValidWeatherDataIsCreated() {
-        final WeatherData wd = new WeatherData(CODE, SUB_AREA, PERIOD, WIND);
-
-        assertEquals(CODE,     wd.areaCode());
-        assertEquals(SUB_AREA, wd.subArea());
-        assertEquals(PERIOD,   wd.period());
-        assertEquals(WIND,     wd.wind());
+    void ensureValidWeatherDataIsCreated() {
+        final WeatherData wd = new WeatherData(CODE, SUB, PER, WIND);
+        assertEquals(CODE, wd.areaCode());
+        assertEquals(SUB,  wd.subArea());
+        assertEquals(PER,  wd.period());
+        assertEquals(WIND, wd.wind());
     }
 
-    // =========================================================================
+    @Test
+    void ensureIdentityIsNullBeforePersist() {
+        // Before JPA assigns an ID the identity is null — that is expected
+        final WeatherData wd = new WeatherData(CODE, SUB, PER, WIND);
+        assertNull(wd.identity());
+    }
+
     // Null rejection
-    // =========================================================================
 
     @Test
-    public void ensureNullAreaCodeIsRejected() {
+    void ensureNullAreaCodeIsRejected() {
         assertThrows(IllegalArgumentException.class,
-                () -> new WeatherData(null, SUB_AREA, PERIOD, WIND));
+                () -> new WeatherData(null, SUB, PER, WIND));
     }
 
     @Test
-    public void ensureNullSubAreaIsRejected() {
+    void ensureNullSubAreaIsRejected() {
         assertThrows(IllegalArgumentException.class,
-                () -> new WeatherData(CODE, null, PERIOD, WIND));
+                () -> new WeatherData(CODE, null, PER, WIND));
     }
 
     @Test
-    public void ensureNullPeriodIsRejected() {
+    void ensureNullPeriodIsRejected() {
         assertThrows(IllegalArgumentException.class,
-                () -> new WeatherData(CODE, SUB_AREA, null, WIND));
+                () -> new WeatherData(CODE, SUB, null, WIND));
     }
 
     @Test
-    public void ensureNullWindIsRejected() {
+    void ensureNullWindIsRejected() {
         assertThrows(IllegalArgumentException.class,
-                () -> new WeatherData(CODE, SUB_AREA, PERIOD, null));
+                () -> new WeatherData(CODE, SUB, PER, null));
     }
 
-    // =========================================================================
     // sameAs
-    // =========================================================================
 
     @Test
-    public void ensureSameWeatherDataIsSameAs() {
-        final WeatherData wd1 = new WeatherData(CODE, SUB_AREA, PERIOD, WIND);
-        final WeatherData wd2 = new WeatherData(CODE, SUB_AREA, PERIOD, WIND);
-        assertTrue(wd1.sameAs(wd2));
+    void ensureSameDataIsSameAs() {
+        final WeatherData a = new WeatherData(CODE, SUB, PER, WIND);
+        final WeatherData b = new WeatherData(CODE, SUB, PER, WIND);
+        assertTrue(a.sameAs(b));
     }
 
     @Test
-    public void ensureDifferentAreaCodeIsNotSameAs() {
-        final WeatherData wd1 = new WeatherData(CODE, SUB_AREA, PERIOD, WIND);
-        final WeatherData wd2 = new WeatherData(
-                new AirControlAreaCode("LECM"), SUB_AREA, PERIOD, WIND);
-        assertFalse(wd1.sameAs(wd2));
+    void ensureDifferentAreaCodeIsNotSameAs() {
+        final WeatherData a = new WeatherData(CODE, SUB, PER, WIND);
+        final WeatherData b = new WeatherData(new AirControlAreaCode("LECM"), SUB, PER, WIND);
+        assertFalse(a.sameAs(b));
     }
 
     @Test
-    public void ensureNullIsNotSameAs() {
-        final WeatherData wd = new WeatherData(CODE, SUB_AREA, PERIOD, WIND);
-        assertFalse(wd.sameAs(null));
+    void ensureNullIsNotSameAs() {
+        assertFalse(new WeatherData(CODE, SUB, PER, WIND).sameAs(null));
     }
 
     @Test
-    public void ensureToStringContainsAreaCode() {
-        final WeatherData wd = new WeatherData(CODE, SUB_AREA, PERIOD, WIND);
-        assertTrue(wd.toString().contains("LPPC"));
+    void ensureToStringContainsAreaCode() {
+        assertTrue(new WeatherData(CODE, SUB, PER, WIND).toString().contains("LPPC"));
     }
 }
