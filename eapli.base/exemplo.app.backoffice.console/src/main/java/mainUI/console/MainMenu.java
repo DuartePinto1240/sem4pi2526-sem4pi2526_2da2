@@ -39,23 +39,16 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  0.  Exit                                ║");
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.ADMIN)) {
-            final String name = currentUserName();
-            System.out.printf( "  ║  Logged in : %-28s║%n", name);
-            System.out.printf( "  ║  Role      : %-28s║%n", "ADMINISTRATOR");
-            System.out.println("  ╠══════════════════════════════════════════╣");
+            printLoggedInHeader("ADMINISTRATOR");
             System.out.println("  ║  [ User Management ]                     ║");
             System.out.println("  ║  1.  Register User                       ║");
             System.out.println("  ║  2.  Enable/Disable User                 ║");
             System.out.println("  ║  3.  List Users                          ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
-            System.out.println("  ║  9.  Logout                              ║");
-            System.out.println("  ║  0.  Exit                                ║");
+            printLogoutExit();
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.BACKOFFICE_OPERATOR)) {
-            final String name = currentUserName();
-            System.out.printf( "  ║  Logged in : %-28s║%n", name);
-            System.out.printf( "  ║  Role      : %-28s║%n", "BACKOFFICE OPERATOR");
-            System.out.println("  ╠══════════════════════════════════════════╣");
+            printLoggedInHeader("BACKOFFICE OPERATOR");
             System.out.println("  ║  [ Company Management ]                  ║");
             System.out.println("  ║  1.  Register Air Transport Company      ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
@@ -66,44 +59,56 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  5.  Create Aircraft Model               ║");
             System.out.println("  ║  6.  Add Engine Model to Aircraft Model  ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
-            System.out.println("  ║  9.  Logout                              ║");
-            System.out.println("  ║  0.  Exit                                ║");
+            printLogoutExit();
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(
                 BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR)) {
-            final String name = currentUserName();
-            System.out.printf( "  ║  Logged in : %-28s║%n", name);
-            System.out.printf( "  ║  Role      : %-28s║%n", "ATCC");
-            System.out.println("  ╠══════════════════════════════════════════╣");
+            printLoggedInHeader("ATCC");
             System.out.println("  ║  [ Fleet Management ]                    ║");
             System.out.println("  ║  1.  Add Aircraft to Fleet               ║");
             System.out.println("  ║  2.  List Company Fleet                  ║");
             System.out.println("  ║  3.  Decommission Aircraft               ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
-            System.out.println("  ║  9.  Logout                              ║");
-            System.out.println("  ║  0.  Exit                                ║");
+            printLogoutExit();
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON)) {
-            final String name = currentUserName();
-            System.out.printf( "  ║  Logged in : %-28s║%n", name);
-            System.out.printf( "  ║  Role      : %-28s║%n", "WEATHER PERSON");
-            System.out.println("  ╠══════════════════════════════════════════╣");
+            printLoggedInHeader("WEATHER PERSON");
             System.out.println("  ║  [ Weather Service ]                     ║");
             System.out.println("  ║  1.  Register Weather Data               ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
-            System.out.println("  ║  9.  Logout                              ║");
-            System.out.println("  ║  0.  Exit                                ║");
+            printLogoutExit();
+
+        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.PILOT)) {
+            printLoggedInHeader("PILOT");
+            System.out.println("  ║  [ Flight Management ]                   ║");
+            System.out.println("  ║  1.  Import Flight Plan from File        ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            printLogoutExit();
+
+        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.FLIGHT_CONTROL_OPERATOR)) {
+            printLoggedInHeader("FLIGHT CONTROL OPERATOR");
+            System.out.println("  ║  [ Flight Control ]                      ║");
+            System.out.println("  ║  (options to be implemented in Sprint 3) ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
+            printLogoutExit();
 
         } else {
-            final String name = currentUserName();
-            System.out.printf( "  ║  Logged in : %-28s║%n", name);
-            System.out.printf( "  ║  Role      : %-28s║%n", "USER");
-            System.out.println("  ╠══════════════════════════════════════════╣");
-            System.out.println("  ║  9.  Logout                              ║");
-            System.out.println("  ║  0.  Exit                                ║");
+            printLoggedInHeader("USER");
+            printLogoutExit();
         }
 
         System.out.println("  ╚══════════════════════════════════════════╝");
+    }
+
+    private void printLoggedInHeader(final String roleLabel) {
+        System.out.printf("  ║  Logged in : %-28s║%n", currentUserName());
+        System.out.printf("  ║  Role      : %-28s║%n", roleLabel);
+        System.out.println("  ╠══════════════════════════════════════════╣");
+    }
+
+    private void printLogoutExit() {
+        System.out.println("  ║  9.  Logout                              ║");
+        System.out.println("  ║  0.  Exit                                ║");
     }
 
     private void handleOption(final int option) {
@@ -132,36 +137,44 @@ public class MainMenu extends AbstractUI {
                 case 4: new CreateEngineModelUI().show();           break;
                 case 5: new CreateAircraftModelUI().show();         break;
                 case 6: new AddEngineModelToAircraftUI().show();    break;
-                case 9: doLogout();                                 break;
-                case 0: doExit();                                   break;
+                case 9: doLogout();                                  break;
+                case 0: doExit();                                    break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(
                 BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR)) {
             switch (option) {
-                case 1: new AddAircraftToFleetUI().show();  break;
-                case 2: new ListCompanyFleetUI().show();    break;
-                case 3: new DecommissionAircraftUI().show();break;
+                case 1: new AddAircraftToFleetUI().show();   break;
+                case 2: new ListCompanyFleetUI().show();     break;
+                case 3: new DecommissionAircraftUI().show(); break;
+                case 9: doLogout();                          break;
+                case 0: doExit();                            break;
+                default: System.out.println("  >> Invalid option. Please try again.");
+            }
+
+        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON)) {
+            switch (option) {
+                case 1: new RegisterWeatherDataUI().show(); break;
                 case 9: doLogout();                         break;
                 case 0: doExit();                           break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 
-        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON)) {
-           switch (option) {
-               case 1: new RegisterWeatherDataUI().show(); break;
-               case 9: doLogout();                         break;
-               case 0: doExit();                           break;
-               default: System.out.println("  >> Invalid option. Please try again.");
-           }
+        } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.PILOT)
+                || authz.isAuthenticatedUserAuthorizedTo(BaseRoles.FLIGHT_CONTROL_OPERATOR)) {
+            switch (option) {
+                case 1: new ImportFlightPlanUI().show(); break;
+                case 9: doLogout(); break;
+                case 0: doExit();   break;
+                default: System.out.println("  >> Invalid option or insufficient permissions.");
+            }
 
         } else {
             switch (option) {
                 case 9: doLogout(); break;
                 case 0: doExit();   break;
-                default: System.out.println(
-                        "  >> Invalid option or insufficient permissions.");
+                default: System.out.println("  >> Invalid option or insufficient permissions.");
             }
         }
     }
@@ -174,20 +187,21 @@ public class MainMenu extends AbstractUI {
         final Optional<UserSession> result = loginController.login(email, pass);
 
         if (result.isPresent()) {
-            System.out.println("\n  >> Login successful! Welcome, "
-                    + currentUserName() + ".");
-            if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.ADMIN)) {
+            System.out.println("\n  >> Login successful! Welcome, " + currentUserName() + ".");
+            if      (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.ADMIN))
                 System.out.println("     Role: ADMINISTRATOR");
-            } else if (authz.isAuthenticatedUserAuthorizedTo(
-                    BaseRoles.BACKOFFICE_OPERATOR)) {
+            else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.BACKOFFICE_OPERATOR))
                 System.out.println("     Role: BACKOFFICE OPERATOR");
-            } else if (authz.isAuthenticatedUserAuthorizedTo(
-                    BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR)) {
+            else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR))
                 System.out.println("     Role: ATCC");
-            }
+            else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON))
+                System.out.println("     Role: WEATHER PERSON");
+            else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.PILOT))
+                System.out.println("     Role: PILOT");
+            else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.FLIGHT_CONTROL_OPERATOR))
+                System.out.println("     Role: FLIGHT CONTROL OPERATOR");
         } else {
-            System.out.println(
-                    "\n  >> Login failed: incorrect email/password or account inactive.");
+            System.out.println("\n  >> Login failed: incorrect email/password or account inactive.");
         }
     }
 
