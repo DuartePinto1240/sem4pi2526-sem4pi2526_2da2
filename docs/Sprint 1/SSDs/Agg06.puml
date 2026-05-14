@@ -1,33 +1,80 @@
 @startuml US011_Agg06_AirTransportCompany
-title Agg 6 · Air transport company\nInvariant: ATCC email unique; disabled cannot act
+title Agg 6 · Air Transport Company\nRegisto e gestão de colaboradores ATCC
 
-actor "BackofficeOp" as Op
-participant "AirTransportCompany [root]" as ATC
-participant "ATCC [E]" as ATCC
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBorderColor #534AB7
+skinparam sequenceLifeLineBorderColor #534AB7
 
-Op -> ATC : addCollaborator(email, name, position)
+actor "Backoffice Operator" as Op
+
+participant "RegisterAirTransport\nCompanyUI" as UI <<boundary>>
+participant "RegisterAirTransport\nCompanyController" as CTRL <<control>>
+participant "PersistenceContext" as PC <<registry>>
+participant "AirTransportCompany\nRepository" as REPO <<repository>>
+participant "AirTransportCompany\n[root]" as ATC <<aggregate root>>
+participant "IataCode [VO]" as IATA <<value object>>
+participant "IcaoCode [VO]" as ICAO <<value object>>
+
+' ─────────────────────────────
+' Register Company
+' ─────────────────────────────
+
+Op -> UI : doShow()
+UI -> Op : asks for companyName, iataCode, icaoCode
+Op -> UI : provides data
+
+UI -> CTRL : registerCompany(name, iata, icao)
+activate CTRL
+
+CTRL -> PC : getInstance()
+PC --> CTRL : persistenceContext
+
+CTRL -> REPO : existsByIata(iata)
+activate REPO
+REPO --> CTRL : false
+deactivate REPO
+
+CTRL -> REPO : existsByIcao(icao)
+activate REPO
+REPO --> CTRL : false
+deactivate REPO
+
+CTRL -> IATA : new IataCode(iata)
+activate IATA
+IATA --> CTRL : iataCode
+deactivate IATA
+
+CTRL -> ICAO : new IcaoCode(icao)
+activate ICAO
+ICAO --> CTRL : icaoCode
+deactivate ICAO
+
+CTRL -> ATC : new AirTransportCompany(name, iataCode, icaoCode)
 activate ATC
 
-ATC -> ATCC : existsByEmail(email)?
-activate ATCC
-ATCC --> ATC : false
-deactivate ATCC
+alt [iata or icao already exists]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> Op : show error "Company already exists"
+else [name, iata and icao unique]
+    ATC --> CTRL : company
+    deactivate ATC
 
-ATC -> ATCC : new ATCC(email, name, position)
-activate ATCC
+    CTRL -> REPO : save(company)
+    activate REPO
+    REPO --> CTRL : savedCompany
+    deactivate REPO
 
-alt [email already exists]
-    ATC --> Op : throw DuplicateCollaboratorException
-else [email unique]
-    ATC --> Op : CollaboratorAdded event
+    CTRL --> UI : savedCompany
+    deactivate CTRL
+
+    UI --> Op : show success "Company registered"
 end
 
-deactivate ATCC
-deactivate ATC
-
 note right of ATC
-  Invariant:
-  email de colaborador único
+  Invariants:
+  - companyName must be UNIQUE
+  - IataCode (2 letters) must be UNIQUE
+  - IcaoCode (2-3 letters) must be UNIQUE
 end note
 
 @enduml

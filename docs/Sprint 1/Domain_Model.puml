@@ -119,30 +119,84 @@ package "Aircraft" {
 ' ─────────────────────────────
 package "Air Transport Company" {
     class AirTransportCompany <<AggregateRoot>> {
-        + name : String
+        + companyName : String
     }
 
-    class CompanyCode <<ValueObject>> {
-        + iata : String
-        + icao : String
+    class IataCode <<ValueObject>> {
+        + code : String
+        ' 2 letters — UNIQUE
     }
 
-    class ATCC <<Entity>> {
-        + email : String
+    class IcaoCode <<ValueObject>> {
+        + code : String
+        ' 2-3 letters — UNIQUE
+    }
+
+    AirTransportCompany "1" *-- "1" IataCode
+    AirTransportCompany "1" *-- "1" IcaoCode
+}
+
+note right of "Air Transport Company.AirTransportCompany"
+  companyName, IataCode and IcaoCode
+  must be UNIQUE within the system
+end note
+
+"Aircraft.Aircraft" "0..*" --> "Air Transport Company.AirTransportCompany" : belongs to
+
+' ─────────────────────────────
+' AIR TRANSPORT COMPANY COLLABORATOR
+' ─────────────────────────────
+package "Air Transport Company Collaborator" {
+    class AirTransportCompanyCollaborator <<AggregateRoot>> {
         + name : String
-        + position : String
         + active : boolean
     }
 
-    class Pilot <<Entity>> {}
+    class CollaboratorId <<ValueObject>> {
+        + email : String
+    }
 
-    AirTransportCompany "1" *-- "1" CompanyCode
-    AirTransportCompany "1" *-- "0..*" ATCC
-    AirTransportCompany "1" *-- "0..*" Pilot
+    class CollaboratorPosition <<ValueObject>> {
+        + position : String
+    }
+
+    class CollaboratorPhoneNumber <<ValueObject>> {
+        + phone : String
+    }
+
+    AirTransportCompanyCollaborator "1" *-- "1" CollaboratorId
+    AirTransportCompanyCollaborator "1" *-- "1" CollaboratorPosition
+    AirTransportCompanyCollaborator "1" *-- "1" CollaboratorPhoneNumber
 }
 
-AirTransportCompany "1" --> "Aircraft.Aircraft" : owns
-Pilot --> "User.User"
+note right of "Air Transport Company Collaborator.AirTransportCompanyCollaborator"
+  Collaborator is an aggregate so login
+  can resolve the authenticated collaborator
+  directly without asking for the company.
+end note
+
+"Air Transport Company Collaborator.AirTransportCompanyCollaborator" "1" --> "Air Transport Company.AirTransportCompany" : assigned to
+
+' ─────────────────────────────
+' PILOT
+' ─────────────────────────────
+package "Pilot" {
+    class Pilot <<AggregateRoot>> {
+    }
+
+    class PilotId <<ValueObject>> {
+        + email : String
+    }
+
+    class PilotStatus <<ValueObject>> {
+        + status : enum {ACTIVE, INACTIVE}
+    }
+
+    Pilot "1" *-- "1" PilotId
+    Pilot "1" *-- "1" PilotStatus
+}
+
+Pilot "1" --> "Air Transport Company.AirTransportCompany" : employed by
 
 ' ─────────────────────────────
 ' AIR CONTROL AREA
@@ -200,58 +254,84 @@ package "Airport" {
 package "Flight Route" {
     class FlightRoute <<AggregateRoot>> {
         + active : boolean
+        + deactivationDate : LocalDate
+    }
+
+    class RouteDesignator <<ValueObject>> {
+        + designator : String
+        ' 2 letters + up to 4 numbers — UNIQUE
+    }
+
+    class FlightType <<ValueObject>> {
         + type : enum {REGULAR, CHARTER}
     }
 
-    class RouteCode <<ValueObject>> {
-        + airlineCode : String
-        + number : int
+    class ScheduledDates <<ValueObject>> {
+        + departureDateTime : LocalDateTime
+        + scheduledArrivalDateTime : LocalDateTime
+        ' used by CHARTER routes
     }
 
-    FlightRoute "1" *-- "1" RouteCode
+    class RecurringSchedule <<ValueObject>> {
+        ' used by REGULAR routes
+    }
+
+    class ScheduleEntry <<ValueObject>> {
+        + dayOfWeek : DayOfWeek
+        + departureTime : LocalTime
+        + scheduledArrivalTime : LocalTime
+    }
+
+    FlightRoute "1" *-- "1" RouteDesignator
+    FlightRoute "1" *-- "1" FlightType
+    FlightRoute "1" *-- "0..1" ScheduledDates
+    FlightRoute "1" *-- "0..1" RecurringSchedule
+    RecurringSchedule "1" *-- "1..*" ScheduleEntry
 }
 
-FlightRoute --> "Airport.Airport" : origin
-FlightRoute --> "Airport.Airport" : destination
-FlightRoute --> "Air Transport Company.AirTransportCompany" : owned by
+note right of "Flight Route.FlightRoute"
+  Mutual exclusivity:
+  - charter routes have ScheduledDates
+  - regular routes have RecurringSchedule
+  Cannot be deactivated if there are
+  planned flights after deactivation date
+end note
+
+FlightRoute "1" --> "Airport.Airport" : origin
+FlightRoute "1" --> "Airport.Airport" : destination
+FlightRoute "1" --> "Air Transport Company.AirTransportCompany" : owned by
 
 ' ─────────────────────────────
 ' FLIGHT
 ' ─────────────────────────────
 package "Flight" {
     class Flight <<AggregateRoot>> {
-        + type : enum {REGULAR, CHARTER}
     }
 
     class FlightDesignator <<ValueObject>> {
-        + airlineCode : String
-        + number : int
+        + airlineDesignator : String
+        + flightNumber : int
         + suffix : Character
+        ' UNIQUE within the system
     }
 
-    class FlightSchedule <<ValueObject>> {
+    class FlightOccurrence <<ValueObject>> {
         + departureDateTime : LocalDateTime
-        + scheduledArrival : LocalDateTime
-    }
-
-    class RecurringScheduleEntry <<ValueObject>> {
-        + dayOfWeek : DayOfWeek
-        + departureTime : LocalTime
     }
 
     Flight "1" *-- "1" FlightDesignator
-    Flight "1" *-- "0..1" FlightSchedule
-    Flight "1" *-- "0..*" RecurringScheduleEntry
+    Flight "1" *-- "1" FlightOccurrence
 }
 
-note on link
-  FlightSchedule used for CHARTER flights.\n
-  RecurringScheduleEntry used for REGULAR flights.
+note right of "Flight.Flight"
+  Flight is a concrete instance
+  of a FlightRoute. Schedule and type
+  belong to the route planning.
 end note
 
 "Flight.Flight" "0..*" --> "Flight Route.FlightRoute" : instance of
 "Flight.Flight" "0..*" --> "Aircraft.Aircraft" : assigned to
-"Flight.Flight" "0..*" --> "Air Transport Company.Pilot" : piloted by
+"Flight.Flight" "0..*" --> "Pilot.Pilot" : piloted by
 
 ' ─────────────────────────────
 ' FLIGHT PLAN
@@ -297,6 +377,8 @@ package "Flight Plan" {
 
 "Flight.Flight" "1" *-- "0..*" FlightPlan : has
 Segment --> "Airport.Airport" : optional reference
+FlightPlan "0..*" --> "Aircraft.Aircraft" : assigned aircraft
+FlightPlan "0..*" --> "Pilot.Pilot" : assigned pilot
 
 ' ─────────────────────────────
 ' WEATHER
