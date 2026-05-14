@@ -1,7 +1,11 @@
 package domain.aircraft;
 
 
+import domain.AirTransportCompany;
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Constructor;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class OperationalStatusTest {
@@ -45,5 +49,13 @@ class OperationalStatusTest {
     void ensureActiveAndDecommissionedAreNotEqual() {
         assertNotEquals(OperationalStatus.active(),
                 OperationalStatus.decommissioned());
+    }
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<OperationalStatus> ctor =
+                OperationalStatus.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final OperationalStatus instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 }

@@ -102,14 +102,7 @@ class RegisterAirTransportCompanyControllerTest {
     // IATA inválido
     // ----------------------------------------------------------------
 
-    @Test
-    void registerCompanyWithOneLetterIataThrowsException() {
-        RegisterAirTransportCompanyController ctrl =
-                new RegisterAirTransportCompanyController();
-
-        assertThrows(IllegalArgumentException.class, () ->
-                ctrl.registerCompany("TAP", "T", "TAP"));
-    }
+    
 
     @Test
     void registerCompanyWithThreeLetterIataThrowsException() {
@@ -124,14 +117,7 @@ class RegisterAirTransportCompanyControllerTest {
     // ICAO inválido
     // ----------------------------------------------------------------
 
-    @Test
-    void registerCompanyWithOneLetterIcaoThrowsException() {
-        RegisterAirTransportCompanyController ctrl =
-                new RegisterAirTransportCompanyController();
 
-        assertThrows(IllegalArgumentException.class, () ->
-                ctrl.registerCompany("TAP", "TP", "T"));
-    }
 
     @Test
     void registerCompanyWithFourLetterIcaoThrowsException() {

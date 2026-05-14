@@ -1,7 +1,7 @@
 package domain;
 
 import org.junit.jupiter.api.Test;
-
+import java.lang.reflect.Constructor;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -114,6 +114,13 @@ class ICAOCodeTest {
     @Test
     void ensureCompareToReturnsNegativeWhenLessThan() {
         assertTrue(new ICAOCode("EHAM").compareTo(new ICAOCode("LPPT")) < 0);
+    }
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<ICAOCode> ctor = ICAOCode.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final ICAOCode instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 
     @Test

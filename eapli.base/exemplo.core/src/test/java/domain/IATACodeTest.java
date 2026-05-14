@@ -1,7 +1,7 @@
 package domain;
 
 import org.junit.jupiter.api.Test;
-
+import java.lang.reflect.Constructor;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -102,6 +102,13 @@ class IATACodeTest {
     void ensureCodeIsEqualToItself() {
         final IATACode code = new IATACode("LIS");
         assertEquals(code, code);
+    }
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<IATACode> ctor = IATACode.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final IATACode instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 
     // toString

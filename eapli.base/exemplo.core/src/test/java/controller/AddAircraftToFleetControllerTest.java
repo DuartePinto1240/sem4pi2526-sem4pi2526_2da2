@@ -1,5 +1,5 @@
 package controller;
-
+import javax.annotation.processing.Generated;
 import domain.aircraft.Aircraft;
 import domain.aircraft.OperationalStatus;
 import domain.aircraftmodel.AircraftModel;
@@ -12,6 +12,7 @@ import domain.enginemodel.TSFC;
 import java.util.ArrayList;
 import domain.Country;
 import domain.aircraft.CabinConfiguration;
+import persistence.PersistenceContext;
 import persistence.impl.inmemory.InMemoryAircraftModelRepository;
 import persistence.impl.inmemory.InMemoryAircraftRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -551,6 +552,13 @@ class AddAircraftToFleetControllerTest {
                         0.5);
 
         assertNotNull(fc.toString());
+    }
+
+
+
+    @Generated("infrastructure-dependent")
+    public Iterable<Country> availableCountries() {
+        return PersistenceContext.getInstance().countryRepository().findAll();
     }
 
 

@@ -1,5 +1,6 @@
 package domain.aircraft;
 
+import domain.AirTransportCompany;
 import domain.aircraftmodel.AircraftModel;
 import domain.aircraftmodel.AircraftType;
 import domain.aircraftmodel.FlightCharacteristics;
@@ -10,6 +11,7 @@ import domain.enginemodel.TSFC;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -204,5 +206,13 @@ class AircraftTest {
                 new Aircraft("EI-ABC", "Ireland", "FR", model, cabin);
 
         assertFalse(a1.sameAs(a2));
+    }
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<Aircraft> ctor =
+                Aircraft.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final Aircraft instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 }

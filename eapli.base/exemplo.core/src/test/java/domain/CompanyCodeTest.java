@@ -1,6 +1,7 @@
 package domain;
 
 import org.junit.jupiter.api.Test;
+import java.lang.reflect.Constructor;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -171,5 +172,127 @@ class CompanyCodeTest {
         String result = code.toString();
         assertTrue(result.contains("TP"));
         assertTrue(result.contains("TAP"));
+    }
+    @Test
+    void iataGetterReturnsCorrectValue() {
+
+        CompanyCode code = new CompanyCode("TP", "TAP");
+
+        assertEquals("TP", code.iata());
+    }
+
+    @Test
+    void icaoGetterReturnsCorrectValue() {
+
+        CompanyCode code = new CompanyCode("TP", "TAP");
+
+        assertEquals("TAP", code.icao());
+    }
+
+    @Test
+    void equalsReturnsTrueForSameInstance() {
+
+        CompanyCode code = new CompanyCode("TP", "TAP");
+
+        assertEquals(code, code);
+    }
+
+    @Test
+    void equalsReturnsFalseForNull() {
+
+        CompanyCode code = new CompanyCode("TP", "TAP");
+
+        assertNotEquals(null, code);
+    }
+
+    @Test
+    void equalsReturnsFalseForDifferentType() {
+
+        CompanyCode code = new CompanyCode("TP", "TAP");
+
+        assertNotEquals(code, "not a code");
+    }
+
+    @Test
+    void compareToReturnsNegativeWhenIcaoIsSmaller() {
+
+        CompanyCode c1 = new CompanyCode("TP", "AAA");
+        CompanyCode c2 = new CompanyCode("TP", "BBB");
+
+        assertTrue(c1.compareTo(c2) < 0);
+    }
+
+    @Test
+    void compareToReturnsPositiveWhenIcaoIsLarger() {
+
+        CompanyCode c1 = new CompanyCode("TP", "ZZZ");
+        CompanyCode c2 = new CompanyCode("TP", "AAA");
+
+        assertTrue(c1.compareTo(c2) > 0);
+    }
+
+    @Test
+    void toStringIsNotBlank() {
+
+        CompanyCode code = new CompanyCode("TP", "TAP");
+
+        assertFalse(code.toString().isBlank());
+    }
+
+    @Test
+    void iataWithSpecialCharactersIsRejected() {
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new CompanyCode("T@", "TAP"));
+    }
+
+    @Test
+    void icaoWithSpecialCharactersIsRejected() {
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new CompanyCode("TP", "TA@"));
+    }
+
+    @Test
+    void iataWithSpacesIsRejected() {
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new CompanyCode(" T", "TAP"));
+    }
+
+    @Test
+    void icaoWithSpacesIsRejected() {
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new CompanyCode("TP", " TA"));
+    }
+
+    @Test
+    void compareToWithEqualIataUsesIcao() {
+
+        CompanyCode c1 = new CompanyCode("TP", "AAA");
+        CompanyCode c2 = new CompanyCode("TP", "BBB");
+
+        assertNotEquals(0, c1.compareTo(c2));
+    }
+
+    @Test
+    void hashCodeIsStable() {
+
+        CompanyCode code = new CompanyCode("TP", "TAP");
+
+        int first = code.hashCode();
+        int second = code.hashCode();
+
+        assertEquals(first, second);
+    }
+
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<CompanyCode> ctor =
+                CompanyCode.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final CompanyCode instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 }

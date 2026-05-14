@@ -1,6 +1,10 @@
 package domain.aircraft;
 
+import domain.AirTransportCompany;
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Constructor;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class CabinConfigurationTest {
@@ -73,5 +77,23 @@ class CabinConfigurationTest {
         final CabinConfiguration c1 = new CabinConfiguration(200, 20, 8, 6);
         final CabinConfiguration c2 = new CabinConfiguration(150, 20, 8, 6);
         assertNotEquals(c1, c2);
+    }
+    @Test
+    void ensureToStringContainsAllValues() {
+        final CabinConfiguration cabin = new CabinConfiguration(200, 20, 8, 6);
+        final String result = cabin.toString();
+        assertTrue(result.contains("200"));
+        assertTrue(result.contains("20"));
+        assertTrue(result.contains("8"));
+        assertTrue(result.contains("6"));
+    }
+
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<CabinConfiguration> ctor =
+                CabinConfiguration.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final CabinConfiguration instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 }

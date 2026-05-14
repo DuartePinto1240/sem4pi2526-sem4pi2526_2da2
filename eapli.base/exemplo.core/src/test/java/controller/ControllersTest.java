@@ -121,7 +121,7 @@ class ControllersTest {
         assertTrue(result.isPresent(), "Login must succeed with correct credentials");
     }
 
-    
+
 
     @Test
     void ensureLoginFailsWithUnknownEmail() {
