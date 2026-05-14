@@ -78,22 +78,42 @@ public class ImportFlightPlanController {
      * regardless of where the application is launched from.
      */
     private File resolveFlightPlansDir() {
-        // 1. Try working directory directly
+        // 1. Tentar primeiro o caminho relativo direto (funciona na maioria das IDEs)
         File candidate = new File(FOLDER_NAME);
-        if (candidate.exists()) return candidate;
+        if (candidate.exists() && candidate.isDirectory()) return candidate;
 
-        // 2. Try exemplo.core/flightplans relative to working directory
-        candidate = new File("exemplo.core" + File.separator + FOLDER_NAME);
-        if (candidate.exists()) return candidate;
+        // 2. Tentar via System Property (User Dir) - Caminho de execução
+        String userDir = System.getProperty("user.dir");
+        if (userDir != null) {
+            File dir = new File(userDir);
+            while (dir != null) {
+                // Tenta /flightplans
+                candidate = new File(dir, FOLDER_NAME);
+                if (candidate.exists() && candidate.isDirectory()) return candidate;
 
-        // 3. Walk up from working directory looking for the folder
-        File dir = new File(".").getAbsoluteFile();
-        while (dir != null) {
-            candidate = new File(dir, FOLDER_NAME);
-            if (candidate.exists() && candidate.isDirectory()) return candidate;
-            candidate = new File(dir, "exemplo.core" + File.separator + FOLDER_NAME);
-            if (candidate.exists() && candidate.isDirectory()) return candidate;
-            dir = dir.getParentFile();
+                // Tenta /exemplo.core/flightplans
+                candidate = new File(dir, "exemplo.core" + File.separator + FOLDER_NAME);
+                if (candidate.exists() && candidate.isDirectory()) return candidate;
+
+                dir = dir.getParentFile();
+            }
+        }
+
+        // 3. Fallback: Tentar localizar através da localização do código compilado
+        try {
+            File jarDir = new File(ImportFlightPlanController.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI()).getParentFile();
+            while (jarDir != null) {
+                candidate = new File(jarDir, FOLDER_NAME);
+                if (candidate.exists() && candidate.isDirectory()) return candidate;
+
+                candidate = new File(jarDir, "exemplo.core" + File.separator + FOLDER_NAME);
+                if (candidate.exists() && candidate.isDirectory()) return candidate;
+
+                jarDir = jarDir.getParentFile();
+            }
+        } catch (Exception ignored) {
+            // Se falhar, o loop acima ou o return null resolvem
         }
 
         return null;
