@@ -30,13 +30,15 @@ public class RegisterAirControlAreaUI extends AbstractUI {
         for (final AirControlArea area : existingAreas) {
             hasAreas = true;
             System.out.printf(
-                    " - %s | %s [ minLat: %.1f | maxLat: %.1f | minLon: %.1f | maxLat: %.1f]%n",
+                    " - %s | %s [ minLat: %.1f | maxLat: %.1f | minLon: %.1f | maxLat: %.1f | Alt: %.0f→%.0f m]%n",
                     area.identity(),
                     area.name(),
                     area.boundary().minLat(),
                     area.boundary().maxLat(),
                     area.boundary().minLon(),
-                    area.boundary().maxLon()
+                    area.boundary().maxLon(),
+                    area.boundary().minAltitude(),
+                    area.boundary().maxAltitude()
 
             );
         }
