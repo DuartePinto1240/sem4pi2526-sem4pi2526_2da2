@@ -1,6 +1,5 @@
 package persistence;
 
-import persistence.impl.inmemory.InMemoryAirTransportCompanyRepository;
 import persistence.impl.inmemory.InMemoryAircraftModelRepository;
 import persistence.impl.inmemory.InMemoryAircraftRepository;
 import persistence.impl.inmemory.InMemoryCountryRepository;
@@ -48,10 +47,10 @@ public class PersistenceContext {
         }
 
         this.userRepository               = new JpaUserRepository(persistenceUnit, extendedProps);
-        this.airTransportCompanyRepository= new InMemoryAirTransportCompanyRepository();
+        this.airTransportCompanyRepository = new JpaAirTransportCompanyRepository(persistenceUnit, extendedProps);
         this.engineModelRepository        = new JpaEngineModelRepository(persistenceUnit, extendedProps);
         this.airControlAreaRepository     = new JpaAirControlAreaRepository(persistenceUnit, extendedProps);
-        this.weatherDataRepository        = new JpaWeatherDataRepository(persistenceUnit,extendedProps);
+        this.weatherDataRepository        = new JpaWeatherDataRepository(persistenceUnit, extendedProps);
         this.airportRepository            = new JpaAirportRepository(persistenceUnit, extendedProps);
         this.countryRepository            = new InMemoryCountryRepository();
         this.aircraftModelRepository      = new InMemoryAircraftModelRepository();
@@ -66,36 +65,16 @@ public class PersistenceContext {
         return instance;
     }
 
-    public UserRepository userRepository() {
-        return userRepository;
-    }
-
-    public AirTransportCompanyRepository airTransportCompanyRepository() {
-        return airTransportCompanyRepository;
-    }
-
-    public EngineModelRepository engineModelRepository() {
-        return engineModelRepository;
-    }
-
-    public AirControlAreaRepository airControlAreaRepository() {
-        return airControlAreaRepository;
-    }
-
-    public WeatherDataRepository weatherDataRepository() { return weatherDataRepository; }
-    public AirportRepository airportRepository() { return airportRepository; }
-
-    public CountryRepository countryRepository() { return countryRepository; }
-
-    public AircraftModelRepository aircraftModelRepository() {
-        return aircraftModelRepository;
-    }
-
-    public AircraftRepository aircraftRepository() {
-        return aircraftRepository;
-    }
-
-    public FlightPlanRepository flightPlanRepository() { return flightPlanRepository; }
+    public UserRepository userRepository()                               { return userRepository;                }
+    public AirTransportCompanyRepository airTransportCompanyRepository() { return airTransportCompanyRepository; }
+    public EngineModelRepository engineModelRepository()                 { return engineModelRepository;         }
+    public AirControlAreaRepository airControlAreaRepository()           { return airControlAreaRepository;      }
+    public WeatherDataRepository weatherDataRepository()                 { return weatherDataRepository;         }
+    public AirportRepository airportRepository()                         { return airportRepository;             }
+    public CountryRepository countryRepository()                         { return countryRepository;             }
+    public AircraftModelRepository aircraftModelRepository()             { return aircraftModelRepository;       }
+    public AircraftRepository aircraftRepository()                       { return aircraftRepository;            }
+    public FlightPlanRepository flightPlanRepository()                   { return flightPlanRepository;          }
 
     private static Properties loadProperties() {
         final Properties props = new Properties();
