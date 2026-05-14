@@ -7,6 +7,8 @@ import repositories.AirTransportCompanyRepository;
 
 import java.util.Map;
 
+
+
 public class JpaAirTransportCompanyRepository
         extends JpaAutoTxRepository<AirTransportCompany, CompanyCode, CompanyCode>
         implements AirTransportCompanyRepository {

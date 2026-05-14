@@ -46,6 +46,7 @@ public class PersistenceContext {
             extendedProps.put(SCHEMA_KEY, schemaAction);
         }
 
+
         this.userRepository               = new JpaUserRepository(persistenceUnit, extendedProps);
         this.airTransportCompanyRepository = new JpaAirTransportCompanyRepository(persistenceUnit, extendedProps);
         this.engineModelRepository        = new JpaEngineModelRepository(persistenceUnit, extendedProps);
