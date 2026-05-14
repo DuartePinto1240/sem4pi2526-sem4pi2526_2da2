@@ -1,6 +1,5 @@
 package domain;
 
-import domain.GeographicBoundary;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -8,109 +7,140 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for {@link WeatherSubArea} (US041).
  *
- * <p>Covers: valid construction, null rejection, containment check,
- * overlap detection, and equality. Follows AAA convention (NFR03).</p>
  */
-public class WeatherSubAreaTest {
+class WeatherSubAreaTest {
 
-    // Parent area: Lat[36, 42] Lon[-10, -6]
+    // Shared fixtures
     private static final GeographicBoundary PARENT =
             new GeographicBoundary(36.0, 42.0, -10.0, -6.0);
 
-    // Sub-area fully inside the parent
     private static final GeographicBoundary INSIDE =
             new GeographicBoundary(37.0, 40.0, -9.0, -7.0);
+
+    private static final AltitudeRange ALT_LOW  = new AltitudeRange(0.0,    5000.0);
+    private static final AltitudeRange ALT_HIGH = new AltitudeRange(5000.0, 10000.0);
+    private static final AltitudeRange ALT_MID  = new AltitudeRange(3000.0, 8000.0);
 
     // Happy path
 
     @Test
-    public void ensureValidSubAreaIsCreated() {
-        final WeatherSubArea sa = new WeatherSubArea(INSIDE);
-        assertEquals(INSIDE, sa.subBoundary());
+    void ensureValidSubAreaIsCreated() {
+        final WeatherSubArea sa = new WeatherSubArea(INSIDE, ALT_LOW);
+        assertEquals(INSIDE,  sa.subBoundary());
+        assertEquals(ALT_LOW, sa.altitudeRange());
     }
 
     // Null rejection
+    @Test
+    void ensureNullBoundaryIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new WeatherSubArea(null, ALT_LOW));
+    }
 
     @Test
-    public void ensureNullBoundaryIsRejected() {
+    void ensureNullAltitudeRangeIsRejected() {
         assertThrows(IllegalArgumentException.class,
-                () -> new WeatherSubArea(null));
+                () -> new WeatherSubArea(INSIDE, null));
     }
 
     // isInsideBoundary
 
     @Test
-    public void ensureSubAreaInsideParentReturnsTrue() {
-        final WeatherSubArea sa = new WeatherSubArea(INSIDE);
-        assertTrue(sa.isInsideBoundary(PARENT));
+    void ensureSubAreaInsideParentReturnsTrue() {
+        assertTrue(new WeatherSubArea(INSIDE, ALT_LOW).isInsideBoundary(PARENT));
     }
 
     @Test
-    public void ensureSubAreaMatchingParentExactlyReturnsTrue() {
-        // Sub-area == parent boundary — allowed (covers the whole area)
-        final WeatherSubArea sa = new WeatherSubArea(PARENT);
-        assertTrue(sa.isInsideBoundary(PARENT));
+    void ensureSubAreaMatchingParentExactlyReturnsTrue() {
+        assertTrue(new WeatherSubArea(PARENT, ALT_LOW).isInsideBoundary(PARENT));
     }
 
     @Test
-    public void ensureSubAreaExceedingParentLatReturnsFalse() {
+    void ensureSubAreaExceedingParentLatReturnsFalse() {
         final GeographicBoundary outside = new GeographicBoundary(35.0, 40.0, -9.0, -7.0);
-        final WeatherSubArea sa = new WeatherSubArea(outside);
-        assertFalse(sa.isInsideBoundary(PARENT));
+        assertFalse(new WeatherSubArea(outside, ALT_LOW).isInsideBoundary(PARENT));
     }
 
     @Test
-    public void ensureSubAreaExceedingParentLonReturnsFalse() {
+    void ensureSubAreaExceedingParentLonReturnsFalse() {
         final GeographicBoundary outside = new GeographicBoundary(37.0, 40.0, -11.0, -7.0);
-        final WeatherSubArea sa = new WeatherSubArea(outside);
-        assertFalse(sa.isInsideBoundary(PARENT));
+        assertFalse(new WeatherSubArea(outside, ALT_LOW).isInsideBoundary(PARENT));
     }
 
     @Test
-    public void ensureIsInsideBoundaryWithNullReturnsFalse() {
-        final WeatherSubArea sa = new WeatherSubArea(INSIDE);
-        assertFalse(sa.isInsideBoundary(null));
+    void ensureIsInsideBoundaryWithNullReturnsFalse() {
+        assertFalse(new WeatherSubArea(INSIDE, ALT_LOW).isInsideBoundary(null));
     }
 
     // overlapsWith
 
     @Test
-    public void ensureOverlappingSubAreasAreDetected() {
+    void ensureGeographicAndAltitudeOverlapConflicts() {
+        // Same geographic overlap AND same altitude → conflict
         final GeographicBoundary b1 = new GeographicBoundary(37.0, 40.0, -9.0, -7.0);
         final GeographicBoundary b2 = new GeographicBoundary(39.0, 41.0, -8.0, -6.5);
-        final WeatherSubArea sa1 = new WeatherSubArea(b1);
-        final WeatherSubArea sa2 = new WeatherSubArea(b2);
-        assertTrue(sa1.overlapsWith(sa2));
+        assertTrue(new WeatherSubArea(b1, ALT_LOW).overlapsWith(
+                   new WeatherSubArea(b2, ALT_LOW)));
     }
 
     @Test
-    public void ensureNonOverlappingSubAreasAreNotDetected() {
-        final GeographicBoundary b1 = new GeographicBoundary(37.0, 38.5, -9.0, -8.0);
-        final GeographicBoundary b2 = new GeographicBoundary(39.0, 41.0, -7.5, -6.5);
-        final WeatherSubArea sa1 = new WeatherSubArea(b1);
-        final WeatherSubArea sa2 = new WeatherSubArea(b2);
+    void ensureGeographicOverlapWithAdjacentAltitudesDoesNotConflict() {
+        final WeatherSubArea sa1 = new WeatherSubArea(INSIDE, ALT_LOW);
+        final WeatherSubArea sa2 = new WeatherSubArea(INSIDE, ALT_HIGH);
         assertFalse(sa1.overlapsWith(sa2));
     }
 
     @Test
-    public void ensureOverlapWithNullReturnsFalse() {
-        final WeatherSubArea sa = new WeatherSubArea(INSIDE);
-        assertFalse(sa.overlapsWith(null));
+    void ensureGeographicOverlapWithOverlappingAltitudesConflicts() {
+        final WeatherSubArea sa1 = new WeatherSubArea(INSIDE, ALT_LOW);
+        final WeatherSubArea sa2 = new WeatherSubArea(INSIDE, ALT_MID);
+        assertTrue(sa1.overlapsWith(sa2));
+    }
+
+    @Test
+    void ensureDisjointGeographyWithOverlappingAltitudesDoesNotConflict() {
+        final GeographicBoundary b1 = new GeographicBoundary(37.0, 38.5, -9.0, -8.0);
+        final GeographicBoundary b2 = new GeographicBoundary(39.0, 41.0, -7.5, -6.5);
+        assertFalse(new WeatherSubArea(b1, ALT_MID).overlapsWith(
+                    new WeatherSubArea(b2, ALT_MID)));
+    }
+
+    @Test
+    void ensureNonOverlappingGeographyWithSameAltitudeDoesNotConflict() {
+        final GeographicBoundary b1 = new GeographicBoundary(37.0, 38.5, -9.0, -8.0);
+        final GeographicBoundary b2 = new GeographicBoundary(39.0, 41.0, -7.5, -6.5);
+        assertFalse(new WeatherSubArea(b1, ALT_LOW).overlapsWith(
+                    new WeatherSubArea(b2, ALT_LOW)));
+    }
+
+    @Test
+    void ensureOverlapWithNullReturnsFalse() {
+        assertFalse(new WeatherSubArea(INSIDE, ALT_LOW).overlapsWith(null));
     }
 
     // Equality
 
     @Test
-    public void ensureEqualSubAreasAreEqual() {
-        final WeatherSubArea sa1 = new WeatherSubArea(INSIDE);
-        final WeatherSubArea sa2 = new WeatherSubArea(INSIDE);
-        assertEquals(sa1, sa2);
+    void ensureEqualSubAreasAreEqual() {
+        assertEquals(new WeatherSubArea(INSIDE, ALT_LOW),
+                     new WeatherSubArea(INSIDE, ALT_LOW));
     }
 
     @Test
-    public void ensureDifferentBoundaryMakesNotEqual() {
-        final WeatherSubArea sa1 = new WeatherSubArea(INSIDE);
-        final WeatherSubArea sa2 = new WeatherSubArea(PARENT);
-        assertNotEquals(sa1, sa2);
+    void ensureDifferentBoundaryMakesNotEqual() {
+        assertNotEquals(new WeatherSubArea(INSIDE, ALT_LOW),
+                        new WeatherSubArea(PARENT, ALT_LOW));
+    }
+
+    @Test
+    void ensureDifferentAltitudeMakesNotEqual() {
+        assertNotEquals(new WeatherSubArea(INSIDE, ALT_LOW),
+                        new WeatherSubArea(INSIDE, ALT_HIGH));
+    }
+
+    @Test
+    void ensureToStringIsNotEmpty() {
+        final String s = new WeatherSubArea(INSIDE, ALT_LOW).toString();
+        assertFalse(s.isBlank());
     }
 }

@@ -29,13 +29,15 @@ public class WeatherData implements AggregateRoot<Long> {
     @Embedded
     private AirControlAreaCode areaCode;
 
-    /** The rectangular sub-area within the air control area. */
-    @Embedded
     @AttributeOverrides({
-            @AttributeOverride(name = "subBoundary.minLat", column = @Column(name = "minLat")),
-            @AttributeOverride(name = "subBoundary.maxLat", column = @Column(name = "maxLat")),
-            @AttributeOverride(name = "subBoundary.minLon", column = @Column(name = "minLon")),
-            @AttributeOverride(name = "subBoundary.maxLon", column = @Column(name = "maxLon"))
+            // campos de GeographicBoundary (via WeatherSubArea)
+            @AttributeOverride(name = "subBoundary.minLat",           column = @Column(name = "sub_min_lat")),
+            @AttributeOverride(name = "subBoundary.maxLat",           column = @Column(name = "sub_max_lat")),
+            @AttributeOverride(name = "subBoundary.minLon",           column = @Column(name = "sub_min_lon")),
+            @AttributeOverride(name = "subBoundary.maxLon",           column = @Column(name = "sub_max_lon")),
+            // campos de AltitudeRange (via WeatherSubArea)
+            @AttributeOverride(name = "altitudeRange.minAltitude",    column = @Column(name = "sub_min_alt")),
+            @AttributeOverride(name = "altitudeRange.maxAltitude",    column = @Column(name = "sub_max_alt"))
     })
     private WeatherSubArea subArea;
 

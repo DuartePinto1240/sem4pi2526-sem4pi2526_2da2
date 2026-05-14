@@ -20,6 +20,7 @@ import java.time.format.DateTimeParseException;
  *   <li>Show existing weather data sub-areas for that area so the user can
  *       see what is already covered and choose non-conflicting coordinates.</li>
  *   <li>User enters the sub-area bounding box (must lie inside the area).</li>
+ *   <li>User enters altitude range (must lie inside the area).</li>
  *   <li>User enters observation period start and end (end must be after start).</li>
  *   <li>User enters wind direction (0–359°) and speed (≥ 0 m/s).</li>
  *   <li>Delegate to {@link RegisterWeatherDataController} and report outcome.</li>
@@ -41,13 +42,15 @@ public class RegisterWeatherDataUI extends AbstractUI {
         boolean hasAreas = false;
         for (final AirControlArea area : ctrl.allAreas()) {
             hasAreas = true;
-            System.out.printf("  %-6s | %-20s | Lat[%.2f, %.2f]  Lon[%.2f, %.2f]%n",
+            System.out.printf("  %-6s | %-20s | Lat[%.2f, %.2f]  Lon[%.2f, %.2f] | Alt: %.0f→%.0f m%n",
                     area.identity().code(),
                     area.name(),
                     area.boundary().minLat(),
                     area.boundary().maxLat(),
                     area.boundary().minLon(),
-                    area.boundary().maxLon());
+                    area.boundary().maxLon(),
+                    area.boundary().minAltitude(),
+                    area.boundary().maxAltitude());
         }
         if (!hasAreas) {
             System.out.println("  No air control areas registered. Register one first.");
@@ -63,13 +66,15 @@ public class RegisterWeatherDataUI extends AbstractUI {
         for (final WeatherData wd : ctrl.existingWeatherDataForArea(areaCode)) {
             hasExisting = true;
             System.out.printf(
-                    "  [%d] SubArea Lat[%.2f, %.2f] Lon[%.2f, %.2f]  "
+                    "  [%d] SubArea Lat[%.2f, %.2f] Lon[%.2f, %.2f] Alt[%.0f,%.0f]m  "
                             + "Period: %s → %s  Wind: %.1f° / %.2f m/s%n",
                     wd.identity(),
                     wd.subArea().subBoundary().minLat(),
                     wd.subArea().subBoundary().maxLat(),
                     wd.subArea().subBoundary().minLon(),
                     wd.subArea().subBoundary().maxLon(),
+                    wd.subArea().altitudeRange().minAltitude(),
+                    wd.subArea().altitudeRange().maxAltitude(),
                     wd.period().startDateTime().format(DATETIME_FMT),
                     wd.period().endDateTime().format(DATETIME_FMT),
                     wd.wind().windDirection(),
@@ -85,6 +90,10 @@ public class RegisterWeatherDataUI extends AbstractUI {
         final double subMaxLat = Console.readDouble("  Sub-area max latitude: ");
         final double subMinLon = Console.readDouble("  Sub-area min longitude: ");
         final double subMaxLon = Console.readDouble("  Sub-area max longitude: ");
+
+        System.out.println("\nAltitude range (metres, 0–14000):");
+        final double minAlt = Console.readDouble("  Min altitude (m): ");
+        final double maxAlt = Console.readDouble("  Max altitude (m): ");
 
         // observation period
         System.out.println("\nObservation period (format: yyyy-MM-dd HH:mm):");
@@ -103,6 +112,7 @@ public class RegisterWeatherDataUI extends AbstractUI {
             final WeatherData result = ctrl.registerWeatherData(
                     areaCode,
                     subMinLat, subMaxLat, subMinLon, subMaxLon,
+                    minAlt, maxAlt,
                     start, end,
                     direction, speed);
             System.out.printf(

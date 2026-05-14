@@ -1,13 +1,6 @@
 package controller;
 
-import domain.AirControlArea;
-import domain.AirControlAreaCode;
-import domain.BaseRoles;
-import domain.GeographicBoundary;
-import domain.ObservationPeriod;
-import domain.WeatherData;
-import domain.WeatherSubArea;
-import domain.WindCondition;
+import domain.*;
 import eapli.framework.infrastructure.authz.application.AuthorizationService;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import persistence.PersistenceContext;
@@ -27,12 +20,13 @@ import java.time.LocalDateTime;
  *   <li>Only authenticated users with {@code WEATHER_PERSON} role may proceed.</li>
  *   <li>The referenced air control area must exist.</li>
  *   <li>The sub-area bounding box must lie entirely inside the area's boundary.</li>
+ *   <li>The altitude range must lie enterely inside area's range</li>
  *   <li>No conflicting weather record may already exist (same area, overlapping
- *       sub-area, overlapping period).</li>
+ *       sub-area, overlapping altitude range, overlapping period).</li>
  * </ol>
  *
  * <p>Value-object invariants (wind direction/speed bounds, period end &gt; start,
- * coordinate ranges) are enforced by the domain classes themselves.</p>
+ * coordinate ranges, altitude ranges) are enforced by the domain classes themselves.</p>
  */
 public class RegisterWeatherDataController {
 
@@ -100,6 +94,8 @@ public class RegisterWeatherDataController {
                                            final double subMaxLat,
                                            final double subMinLon,
                                            final double subMaxLon,
+                                           final double minAltitude,
+                                           final double maxAltitude,
                                            final LocalDateTime startDateTime,
                                            final LocalDateTime endDateTime,
                                            final double windDirection,
@@ -116,7 +112,8 @@ public class RegisterWeatherDataController {
         // 3 — build value objects (constructors validate their own invariants)
         final GeographicBoundary subBoundary =
                 new GeographicBoundary(subMinLat, subMaxLat, subMinLon, subMaxLon);
-        final WeatherSubArea subArea = new WeatherSubArea(subBoundary);
+        final AltitudeRange altRange = new AltitudeRange(minAltitude, maxAltitude);
+        final WeatherSubArea subArea = new WeatherSubArea(subBoundary, altRange);
 
         // 4 — sub-area must be inside the parent area
         if (!subArea.isInsideBoundary(area.boundary())) {
