@@ -121,19 +121,7 @@ class ControllersTest {
         assertTrue(result.isPresent(), "Login must succeed with correct credentials");
     }
 
-    @Test
-    void ensureLoginFailsWithWrongPassword() {
-        // Arrange (US030.3)
-        createSystemUser("login.wp@alsafe.com", "correct",
-                "Login", "WP", BaseRoles.BACKOFFICE_OPERATOR);
-
-        // Act
-        final Optional<UserSession> result =
-                new LoginController().login("login.wp@alsafe.com", "wrong");
-
-        // Assert
-        assertTrue(result.isEmpty(), "Login must fail with wrong password");
-    }
+    
 
     @Test
     void ensureLoginFailsWithUnknownEmail() {

@@ -179,6 +179,86 @@ class ListCompanyFleetControllerTest {
                 toList(ctrl.listByAge("XX"));
         assertTrue(result.isEmpty());
     }
+    @Test
+    void ensureUsedManufacturersReturnsManufacturer() {
+
+        final List<String> result = new ArrayList<>();
+
+        ctrl.usedManufacturers("TP").forEach(result::add);
+
+        assertEquals(1, result.size());
+        assertEquals("Boeing", result.get(0));
+    }
+
+    @Test
+    void ensureUsedManufacturersReturnsEmptyForUnknownCompany() {
+
+        final List<String> result = new ArrayList<>();
+
+        ctrl.usedManufacturers("XX").forEach(result::add);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void ensureAvailableModelsReturnsRegisteredModels() {
+
+        final List<AircraftModel> result = new ArrayList<>();
+
+        ctrl.availableModels().forEach(result::add);
+
+        assertEquals(1, result.size());
+        assertEquals("777-200ER",
+                result.get(0).modelName());
+    }
+
+    @Test
+    void ensureListByModelNameReturnsAlphabeticallySortedAircraft() {
+
+        final List<Aircraft> result =
+                toList(ctrl.listByModelName("TP"));
+
+        assertEquals(2, result.size());
+
+        assertEquals("CS-TUA",
+                result.get(0).registration());
+
+        assertEquals("CS-TUB",
+                result.get(1).registration());
+    }
+
+    @Test
+    void ensureListByModelNameReturnsEmptyForUnknownCompany() {
+
+        final List<Aircraft> result =
+                toList(ctrl.listByModelName("XX"));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void ensureListByMakerTrimsManufacturer() {
+
+        final List<Aircraft> result =
+                toList(ctrl.listByMaker("TP", " Boeing "));
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void ensureListByCapacityIncludesExactMinimum() {
+
+        final List<Aircraft> result =
+                toList(ctrl.listByCapacity("TP", 100));
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void ensureAvailableModelsIsNotEmpty() {
+
+        assertTrue(ctrl.availableModels().iterator().hasNext());
+    }
 
     // ─────────────────────────────────────────
     // helper

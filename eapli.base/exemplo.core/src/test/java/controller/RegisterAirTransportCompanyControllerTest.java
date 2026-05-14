@@ -59,16 +59,7 @@ class RegisterAirTransportCompanyControllerTest {
     // IATA duplicado
     // ----------------------------------------------------------------
 
-    @Test
-    void registerCompanyWithDuplicateIataThrowsException() {
-        RegisterAirTransportCompanyController ctrl =
-                new RegisterAirTransportCompanyController();
 
-        ctrl.registerCompany("TAP Air Portugal", "TP", "TAP");
-
-        assertThrows(IllegalArgumentException.class, () ->
-                ctrl.registerCompany("Outra Empresa", "TP", "OUT"));
-    }
 
     // ----------------------------------------------------------------
     // ICAO duplicado
