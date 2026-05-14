@@ -102,7 +102,7 @@ class RegisterAirTransportCompanyControllerTest {
     // IATA inválido
     // ----------------------------------------------------------------
 
-    
+
 
     @Test
     void registerCompanyWithThreeLetterIataThrowsException() {

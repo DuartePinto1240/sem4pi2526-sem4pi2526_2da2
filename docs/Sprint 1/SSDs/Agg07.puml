@@ -1,30 +1,131 @@
 @startuml US011_Agg07_FlightRoute
-title Agg 7 · Flight route\nInvariant: unique name; no deletion if future flights exist
+title Agg 7 · Flight Route\nCriação e desativação de rotas
 
-actor ATCC
-participant "FlightRoute [root]" as Route
-participant "FlightRepository" as Repo
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBorderColor #534AB7
+skinparam sequenceLifeLineBorderColor #534AB7
 
-ATCC -> Route : deactivateRoute(fromDate)
-activate Route
+actor "Air Transport\nCompany Collaborator" as ATCC
 
-Route -> Repo : hasFutureFlights(routeId, fromDate)?
-activate Repo
-Repo --> Route : true
-deactivate Repo
+participant "FlightRouteUI" as UI <<boundary>>
+participant "FlightRouteController" as CTRL <<control>>
+participant "PersistenceContext" as PC <<registry>>
+participant "FlightRouteRepository" as REPO <<repository>>
+participant "FlightRepository" as FLIGHT_REPO <<repository>>
+participant "FlightRoute [root]" as Route <<aggregate root>>
+participant "RouteDesignator [VO]" as RD <<value object>>
+participant "FlightType [VO]" as FT <<value object>>
+participant "ScheduledDates [VO]" as SD <<value object>>
+participant "RecurringSchedule [VO]" as RS <<value object>>
 
-alt [future flights exist]
-    Route --> ATCC : throw RouteHasActiveFlightsException
-else [no future flights]
-    Route --> ATCC : RouteDeactivated event
+' ─────────────────────────────
+' Create Flight Route
+' ─────────────────────────────
+
+ATCC -> UI : doShow()
+UI -> ATCC : asks for designator, type, origin, destination, schedule
+ATCC -> UI : provides data
+
+UI -> CTRL : createRoute(designator, type, origin, destination, schedule)
+activate CTRL
+
+CTRL -> PC : getInstance()
+PC --> CTRL : persistenceContext
+
+CTRL -> REPO : existsByDesignator(designator)
+activate REPO
+REPO --> CTRL : false
+deactivate REPO
+
+CTRL -> RD : new RouteDesignator(designator)
+activate RD
+RD --> CTRL : routeDesignator
+deactivate RD
+
+CTRL -> FT : new FlightType(type)
+activate FT
+FT --> CTRL : flightType
+deactivate FT
+
+alt [type == CHARTER]
+    CTRL -> SD : new ScheduledDates(departureDateTime, arrivalDateTime)
+    activate SD
+    SD --> CTRL : scheduledDates
+    deactivate SD
+    CTRL -> Route : new FlightRoute(designator, flightType, origin, destination, scheduledDates)
+else [type == REGULAR]
+    CTRL -> RS : new RecurringSchedule(entries)
+    activate RS
+    RS --> CTRL : recurringSchedule
+    deactivate RS
+    CTRL -> Route : new FlightRoute(designator, flightType, origin, destination, recurringSchedule)
 end
 
-deactivate Route
+activate Route
+
+alt [designator already exists]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> ATCC : show error "Route designator already exists"
+else [designator unique]
+    Route --> CTRL : route
+    deactivate Route
+
+    CTRL -> REPO : save(route)
+    activate REPO
+    REPO --> CTRL : savedRoute
+    deactivate REPO
+
+    CTRL --> UI : savedRoute
+    deactivate CTRL
+
+    UI --> ATCC : show success "Route created"
+end
+
+' ─────────────────────────────
+' Deactivate Flight Route
+' ─────────────────────────────
+
+ATCC -> UI : requestDeactivation(routeDesignator, fromDate)
+UI -> CTRL : deactivateRoute(routeDesignator, fromDate)
+activate CTRL
+
+CTRL -> REPO : ofIdentity(routeDesignator)
+activate REPO
+REPO --> CTRL : route
+deactivate REPO
+
+CTRL -> FLIGHT_REPO : hasFutureFlights(routeDesignator, fromDate)
+activate FLIGHT_REPO
+FLIGHT_REPO --> CTRL : result
+deactivate FLIGHT_REPO
+
+alt [future flights exist]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> ATCC : show error "Cannot deactivate — future flights exist"
+else [no future flights]
+    CTRL -> Route : deactivate(fromDate)
+    activate Route
+    Route --> CTRL : ok
+    deactivate Route
+
+    CTRL -> REPO : save(route)
+    activate REPO
+    REPO --> CTRL : savedRoute
+    deactivate REPO
+
+    CTRL --> UI : ok
+    deactivate CTRL
+    UI --> ATCC : show success "Route deactivated"
+end
 
 note right of Route
-  Invariant:
-  sem voos futuros
-  para desativar
+  Invariants:
+  - RouteDesignator must be UNIQUE
+  - CHARTER routes have ScheduledDates
+  - REGULAR routes have RecurringSchedule
+    (mutual exclusivity)
+  - Cannot deactivate if future
+    flights exist after fromDate
 end note
 
 @enduml

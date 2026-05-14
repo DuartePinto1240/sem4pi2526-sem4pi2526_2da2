@@ -1,36 +1,113 @@
 @startuml US011_Agg08_Flight
-title Agg 8 · Flight\nInvariant: designator unique; aircraft must be active
+title Agg 8 · Flight\nCriação de instância de voo a partir de uma rota
 
-actor Pilot
-participant "Flight [root]" as Flight
-participant "FlightRepo" as Repo
-participant "Aircraft" as Aircraft
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBorderColor #534AB7
+skinparam sequenceLifeLineBorderColor #534AB7
 
-Pilot -> Flight : createFlight(designator, routeId, aircraftId)
+actor "Air Transport\nCompany Collaborator" as ATCC
+
+participant "FlightUI" as UI <<boundary>>
+participant "FlightController" as CTRL <<control>>
+participant "PersistenceContext" as PC <<registry>>
+participant "FlightRepository" as FLIGHT_REPO <<repository>>
+participant "FlightRouteRepository" as ROUTE_REPO <<repository>>
+participant "AircraftRepository" as AIRCRAFT_REPO <<repository>>
+participant "PilotRepository" as PILOT_REPO <<repository>>
+participant "Flight [root]" as Flight <<aggregate root>>
+participant "FlightDesignator [VO]" as FD <<value object>>
+participant "FlightOccurrence [VO]" as FO <<value object>>
+
+ATCC -> UI : doShow()
+UI -> ATCC : asks for designator, routeDesignator,\naircraftRegistration, pilotEmail, departureDateTime
+ATCC -> UI : provides data
+
+UI -> CTRL : createFlight(designator, routeDesignator,\naircraftRegistration, pilotEmail, departureDateTime)
+activate CTRL
+
+CTRL -> PC : getInstance()
+PC --> CTRL : persistenceContext
+
+' ── Verify designator uniqueness ──────────────────────────────
+CTRL -> FLIGHT_REPO : existsByDesignator(designator)
+activate FLIGHT_REPO
+FLIGHT_REPO --> CTRL : false
+deactivate FLIGHT_REPO
+
+' ── Verify route exists ────────────────────────────────────────
+CTRL -> ROUTE_REPO : ofIdentity(routeDesignator)
+activate ROUTE_REPO
+ROUTE_REPO --> CTRL : Optional<FlightRoute>
+deactivate ROUTE_REPO
+
+' ── Verify aircraft is active ──────────────────────────────────
+CTRL -> AIRCRAFT_REPO : ofIdentity(aircraftRegistration)
+activate AIRCRAFT_REPO
+AIRCRAFT_REPO --> CTRL : Optional<Aircraft>
+deactivate AIRCRAFT_REPO
+
+' ── Verify pilot exists ────────────────────────────────────────
+CTRL -> PILOT_REPO : ofIdentity(pilotEmail)
+activate PILOT_REPO
+PILOT_REPO --> CTRL : Optional<Pilot>
+deactivate PILOT_REPO
+
+' ── Build value objects ────────────────────────────────────────
+CTRL -> FD : new FlightDesignator(designator)
+activate FD
+FD --> CTRL : flightDesignator
+deactivate FD
+
+CTRL -> FO : new FlightOccurrence(departureDateTime)
+activate FO
+FO --> CTRL : flightOccurrence
+deactivate FO
+
+' ── Create flight ──────────────────────────────────────────────
+CTRL -> Flight : new Flight(flightDesignator, flightOccurrence,\nroute, aircraft, pilot)
 activate Flight
 
-Flight -> Repo : existsByDesignator(designator)?
-activate Repo
-Repo --> Flight : false → ok
-deactivate Repo
+alt [designator already exists]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> ATCC : show error "Flight designator already exists"
 
-Flight -> Aircraft : isActive()
-activate Aircraft
-Aircraft --> Flight : false (decommissioned)
-deactivate Aircraft
+else [route not found]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> ATCC : show error "Route not found"
 
-alt [aircraft decommissioned]
-    Flight --> Pilot : throw AircraftNotActiveException
-else [aircraft active AND designator unique]
-    Flight --> Pilot : FlightCreated event
+else [aircraft decommissioned]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> ATCC : show error "Aircraft is not active"
+
+else [pilot not found or inactive]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> ATCC : show error "Pilot not found or inactive"
+
+else [all validations pass]
+    Flight --> CTRL : flight
+    deactivate Flight
+
+    CTRL -> FLIGHT_REPO : save(flight)
+    activate FLIGHT_REPO
+    FLIGHT_REPO --> CTRL : savedFlight
+    deactivate FLIGHT_REPO
+
+    CTRL --> UI : savedFlight
+    deactivate CTRL
+
+    UI --> ATCC : show success "Flight created"
 end
 
-deactivate Flight
-
 note right of Flight
-  Invariant:
-  designador único
-  aeronave ativa
+  Invariants:
+  - FlightDesignator must be UNIQUE
+  - Aircraft must be ACTIVE (not decommissioned)
+  - Route must exist and be active
+  - Pilot must be active and employed
+    by the route's company
+  - Flight is a concrete instance
+    of a FlightRoute — schedule and type
+    belong to the route, not the flight
 end note
 
 @enduml
