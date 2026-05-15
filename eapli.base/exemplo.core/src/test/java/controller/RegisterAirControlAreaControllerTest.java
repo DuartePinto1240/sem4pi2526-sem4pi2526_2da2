@@ -13,13 +13,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link RegisterAirControlAreaController} (US050).
- *
- * <p>Uses an {@link InMemoryAirControlAreaRepository} injected via reflection
- * to keep tests fast and independent of JPA/database concerns.</p>
- *
- * <p>Follows the AAA (Arrange-Act-Assert) convention as required by NFR03.
- * Coverage targets: all three business rules (unique code, unique name,
- * no boundary overlap), coordinate validation, and happy-path persistence.</p>
  */
 public class RegisterAirControlAreaControllerTest {
 

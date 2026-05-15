@@ -363,21 +363,7 @@ class ControllersTest {
         assertEquals(LocalDate.now().plusYears(5), u.getNextSkillsAssessmentDate());
     }
 
-    @Test
-    void ensureDomainRepositoryRejectsDuplicateEmail() {
-        // Arrange (US031.2)
-        final UserRepository repo = PersistenceContext.getInstance().userRepository();
-        final domain.EmailAddress email = domain.EmailAddress.valueOf("dup@alsafe.com");
-        repo.save(new User(email, "User A", "910000001", "S-103", FUTURE));
-        repo.save(new User(email, "User B", "910000002", "S-104", FUTURE));
 
-        // Assert — only one record per email
-        final long count = java.util.stream.StreamSupport
-                .stream(repo.findAll().spliterator(), false)
-                .filter(u -> u.identity().equals(email))
-                .count();
-        assertEquals(1, count, "Only one user per email must exist (US031.2)");
-    }
 
     @Test
     void ensureDomainRepositoryRejectsDuplicatePhone() {

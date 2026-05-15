@@ -8,19 +8,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link WeatherData} aggregate root (US041).
- *
- * <p>Tests construction invariants and sameAs semantics. Follows AAA (NFR03).</p>
  */
 class WeatherDataTest {
 
+    // Shared fixtures
     private static final AirControlAreaCode CODE = new AirControlAreaCode("LPPC");
-    private static final GeographicBoundary BOUNDARY =
-            new GeographicBoundary(37.0, 40.0, -9.0, -7.0);
-    private static final WeatherSubArea     SUB  = new WeatherSubArea(BOUNDARY);
-    private static final ObservationPeriod  PER  = new ObservationPeriod(
-            LocalDateTime.of(2026, 5, 1, 8, 0),
+
+    private static final WeatherSubArea SUB = new WeatherSubArea(
+            new GeographicBoundary(37.0, 40.0, -9.0, -7.0),
+            new AltitudeRange(0.0, 5000.0));
+
+    private static final ObservationPeriod PER = new ObservationPeriod(
+            LocalDateTime.of(2026, 5, 1,  8, 0),
             LocalDateTime.of(2026, 5, 1, 12, 0));
-    private static final WindCondition      WIND = new WindCondition(90.0, 10.0);
+
+    private static final WindCondition WIND = new WindCondition(90.0, 10.0);
 
     // Happy path
     @Test
@@ -34,12 +36,11 @@ class WeatherDataTest {
 
     @Test
     void ensureIdentityIsNullBeforePersist() {
-        // Before JPA assigns an ID the identity is null — that is expected
-        final WeatherData wd = new WeatherData(CODE, SUB, PER, WIND);
-        assertNull(wd.identity());
+        // JPA assigns the id on first persist — before that it is null
+        assertNull(new WeatherData(CODE, SUB, PER, WIND).identity());
     }
 
-    // Null rejection
+    //Null rejection
 
     @Test
     void ensureNullAreaCodeIsRejected() {
@@ -69,21 +70,33 @@ class WeatherDataTest {
 
     @Test
     void ensureSameDataIsSameAs() {
-        final WeatherData a = new WeatherData(CODE, SUB, PER, WIND);
-        final WeatherData b = new WeatherData(CODE, SUB, PER, WIND);
-        assertTrue(a.sameAs(b));
+        assertTrue(new WeatherData(CODE, SUB, PER, WIND)
+                .sameAs(new WeatherData(CODE, SUB, PER, WIND)));
     }
 
     @Test
     void ensureDifferentAreaCodeIsNotSameAs() {
-        final WeatherData a = new WeatherData(CODE, SUB, PER, WIND);
-        final WeatherData b = new WeatherData(new AirControlAreaCode("LECM"), SUB, PER, WIND);
-        assertFalse(a.sameAs(b));
+        assertFalse(new WeatherData(CODE, SUB, PER, WIND)
+                .sameAs(new WeatherData(new AirControlAreaCode("LECM"), SUB, PER, WIND)));
+    }
+
+    @Test
+    void ensureDifferentSubAreaIsNotSameAs() {
+        final WeatherSubArea otherSub = new WeatherSubArea(
+                new GeographicBoundary(37.0, 40.0, -9.0, -7.0),
+                new AltitudeRange(5000.0, 10000.0)); // different altitude
+        assertFalse(new WeatherData(CODE, SUB, PER, WIND)
+                .sameAs(new WeatherData(CODE, otherSub, PER, WIND)));
     }
 
     @Test
     void ensureNullIsNotSameAs() {
         assertFalse(new WeatherData(CODE, SUB, PER, WIND).sameAs(null));
+    }
+
+    @Test
+    void ensureNonWeatherDataIsNotSameAs() {
+        assertFalse(new WeatherData(CODE, SUB, PER, WIND).sameAs("not a WeatherData"));
     }
 
     @Test

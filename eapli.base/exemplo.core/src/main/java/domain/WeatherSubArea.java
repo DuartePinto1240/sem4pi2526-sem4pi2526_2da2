@@ -12,20 +12,9 @@ import java.util.Objects;
  * Value Object representing the rectangular sub-area within an Air Control Area
  * to which a weather observation applies.
  *
- * <p>Following the professor's clarification, weather data applies to rectangular
- * sub-areas of an air control area (not to the whole area). Each sub-area is
- * defined by a geographic bounding box that <strong>must fit inside</strong>
- * the parent air control area's boundary.</p>
- *
  * <p>The {@link GeographicBoundary} class is reused to represent the bounding
  * box of the sub-area, ensuring coordinate validation is consistent across
  * the project.</p>
- *
- * <p><b>Simplification note (MVP):</b> altitude layering (the "paralelepípedo"
- * the professor described) is not modelled in this sprint. Weather data is
- * treated as applying uniformly throughout the vertical extent of the sub-area.
- * This simplification is safe for MVP purposes and can be extended by adding
- * {@code minAltitude}/{@code maxAltitude} fields to this class in a future sprint.</p>
  */
 @Embeddable
 public class WeatherSubArea implements ValueObject {
@@ -33,21 +22,30 @@ public class WeatherSubArea implements ValueObject {
     @Embedded
     private GeographicBoundary subBoundary;
 
+    @Embedded
+    private AltitudeRange altitudeRange;
+
     /**
      * Creates a new WeatherSubArea.
      *
      * @param subBoundary the rectangular bounding box of this sub-area; must not be null
+     * @param altitudeRange the altitude range; must not be null
      * @throws IllegalArgumentException if subBoundary is null
      */
-    public WeatherSubArea(final GeographicBoundary subBoundary) {
+    public WeatherSubArea(final GeographicBoundary subBoundary, final AltitudeRange altitudeRange) {
         Preconditions.nonNull(subBoundary, "Sub-area boundary must not be null");
+        Preconditions.nonNull(altitudeRange,  "Altitude range must not be null");
         this.subBoundary = subBoundary;
+        this.altitudeRange = altitudeRange;
     }
 
     /** @return the geographic bounding box of this sub-area */
     public GeographicBoundary subBoundary() {
         return subBoundary;
     }
+
+    /** @return the altitude range of this sub-area */
+    public AltitudeRange altitudeRange() { return altitudeRange; }
 
     /**
      * Returns {@code true} if this sub-area lies entirely inside the given parent boundary.
@@ -76,24 +74,26 @@ public class WeatherSubArea implements ValueObject {
      */
     public boolean overlapsWith(final WeatherSubArea other) {
         if (other == null) return false;
-        return this.subBoundary.overlapsWith(other.subBoundary);
+        return this.subBoundary.overlapsWith(other.subBoundary)
+                && this.altitudeRange.overlapsWith(other.altitudeRange);
     }
 
     @Override
     public boolean equals(final Object o) {
-        if (this == o) return true;
         if (!(o instanceof WeatherSubArea)) return false;
-        return Objects.equals(subBoundary, ((WeatherSubArea) o).subBoundary);
+        final WeatherSubArea that = (WeatherSubArea) o;
+        return Objects.equals(subBoundary, that.subBoundary)
+                && Objects.equals(altitudeRange, that.altitudeRange);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(subBoundary);
+        return Objects.hash(subBoundary, altitudeRange);
     }
 
     @Override
     public String toString() {
-        return "SubArea[" + subBoundary + "]";
+        return "SubArea[" + subBoundary + ", " + altitudeRange + "]";
     }
 
     /** No-arg constructor required by JPA. */
