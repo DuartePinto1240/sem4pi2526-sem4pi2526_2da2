@@ -59,6 +59,12 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  5.  Create Aircraft Model               ║");
             System.out.println("  ║  6.  Add Engine Model to Aircraft Model  ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  [ Collaborator Management ]             ║");
+            System.out.println("  ║  7.  Add Customer's Collaborator         ║");
+            System.out.println("  ║  8.  List Customer's Collaborators       ║");
+            System.out.println("  ║  9.  Edit Customer's Collaborator        ║");
+            System.out.println("  ║  10. Disable Customer's Collaborator     ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(
@@ -137,7 +143,11 @@ public class MainMenu extends AbstractUI {
                 case 4: new CreateEngineModelUI().show();           break;
                 case 5: new CreateAircraftModelUI().show();         break;
                 case 6: new AddEngineModelToAircraftUI().show();    break;
-                case 9: doLogout();                                  break;
+                case 7: new AddCollaboratorUI().show();             break;
+                case 8: new ListCollaboratorsUI().show();           break;
+                case 9: new EditCollaboratorUI().show();            break;
+                case 10: new DisableCollaboratorUI().show();        break;
+                case 99: doLogout();                                 break;
                 case 0: doExit();                                    break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
