@@ -15,7 +15,7 @@ public class JpaAirTransportCompanyRepository
 
     public JpaAirTransportCompanyRepository(final String persistenceUnitName,
                                             final Map<String, Object> props) {
-        super(persistenceUnitName, props, "AirTransportCompany");
+        super(persistenceUnitName, props, "companyCode");
     }
 
     @Override

@@ -23,7 +23,7 @@ import java.util.Objects;
 public class Collaborator {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(name = "COLLAB_EMAIL", nullable = false)

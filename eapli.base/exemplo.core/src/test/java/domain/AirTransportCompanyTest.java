@@ -28,7 +28,6 @@ class AirTransportCompanyTest {
     }
 
 
-
     @Test
     void lowercaseCodesAreAcceptedAndConverted() {
         AirTransportCompany company =
@@ -143,6 +142,7 @@ class AirTransportCompanyTest {
         assertTrue(result.contains("TP"));
         assertTrue(result.contains("TAP"));
     }
+
     @Test
     void companyCodeGetterReturnsCorrectCode() {
 
@@ -186,7 +186,6 @@ class AirTransportCompanyTest {
     }
 
 
-
     @Test
     void companyWithTrimmedNameIsAccepted() {
 
@@ -228,6 +227,7 @@ class AirTransportCompanyTest {
 
         assertEquals(company.identity(), code);
     }
+
     @Test
     void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
         final Constructor<AirTransportCompany> ctor =
@@ -237,4 +237,167 @@ class AirTransportCompanyTest {
         assertNotNull(instance);
     }
 
+// ── Collaborator management (US061–US064) ─────────────────────
+
+    @Test
+    void ensureAddCollaboratorSuccessfully() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+
+        // Act
+        company.addCollaborator("joao@tap.pt", "João Silva", "Manager");
+
+        // Assert — US061
+        assertTrue(company.findCollaboratorByEmail("joao@tap.pt").isPresent());
+    }
+
+    @Test
+    void ensureNewCollaboratorIsActive() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+
+        // Act
+        company.addCollaborator("joao@tap.pt", "João Silva", "Manager");
+
+        // Assert — US061.5
+        assertTrue(company.findCollaboratorByEmail("joao@tap.pt").get().isActive());
+    }
+
+    @Test
+    void ensureAddDuplicateEmailCollaboratorThrows() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("joao@tap.pt", "João Silva", "Manager");
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class,
+                () -> company.addCollaborator("joao@tap.pt", "Other Person", "Analyst"));
+    }
+
+    @Test
+    void ensureListActiveCollaboratorsExcludesDisabled() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("active@tap.pt", "Active", "Manager");
+        company.addCollaborator("disabled@tap.pt", "Disabled", "Analyst");
+        company.disableCollaborator("disabled@tap.pt");
+
+        // Act
+        final var list = company.listActiveCollaborators();
+
+        // Assert — US062
+        assertEquals(1, list.size());
+        assertEquals("active@tap.pt", list.get(0).email);
+    }
+
+    @Test
+    void ensureListActiveCollaboratorsIsEmptyWhenAllDisabled() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("only@tap.pt", "Only", "Manager");
+        company.disableCollaborator("only@tap.pt");
+
+        // Act & Assert — US062
+        assertTrue(company.listActiveCollaborators().isEmpty());
+    }
+
+    @Test
+    void ensureUpdateCollaboratorEmailSuccessfully() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("old@tap.pt", "João", "Manager");
+
+        // Act — US063
+        company.updateCollaboratorEmail("old@tap.pt", "new@tap.pt");
+
+        // Assert
+        assertFalse(company.findCollaboratorByEmail("old@tap.pt").isPresent());
+        assertTrue(company.findCollaboratorByEmail("new@tap.pt").isPresent());
+    }
+
+    @Test
+    void ensureUpdateCollaboratorEmailForNonExistentThrows() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+
+        // Act & Assert — US063
+        assertThrows(IllegalArgumentException.class,
+                () -> company.updateCollaboratorEmail("ghost@tap.pt", "new@tap.pt"));
+    }
+
+    @Test
+    void ensureNameIsUnchangedAfterEmailUpdate() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("joao@tap.pt", "João Silva", "Manager");
+
+        // Act — US063: only email changes
+        company.updateCollaboratorEmail("joao@tap.pt", "joao.new@tap.pt");
+
+        // Assert — name immutable
+        assertEquals("João Silva",
+                company.findCollaboratorByEmail("joao.new@tap.pt").get().name());
+    }
+
+    @Test
+    void ensurePositionIsUnchangedAfterEmailUpdate() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("joao@tap.pt", "João Silva", "Manager");
+
+        // Act — US063: only email changes
+        company.updateCollaboratorEmail("joao@tap.pt", "joao.new@tap.pt");
+
+        // Assert — position immutable
+        assertEquals("Manager",
+                company.findCollaboratorByEmail("joao.new@tap.pt").get().position());
+    }
+
+    @Test
+    void ensureDisableCollaboratorSetsActiveFalse() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("joao@tap.pt", "João", "Manager");
+
+        // Act — US064
+        company.disableCollaborator("joao@tap.pt");
+
+        // Assert
+        assertFalse(company.findCollaboratorByEmail("joao@tap.pt").get().isActive());
+    }
+
+    @Test
+    void ensureDisableCollaboratorIsIdempotent() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("joao@tap.pt", "João", "Manager");
+        company.disableCollaborator("joao@tap.pt");
+
+        // Act & Assert — US064.5
+        assertDoesNotThrow(() -> company.disableCollaborator("joao@tap.pt"));
+    }
+
+    @Test
+    void ensureDisableCollaboratorForNonExistentThrows() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class,
+                () -> company.disableCollaborator("ghost@tap.pt"));
+    }
+
+    @Test
+    void ensureCollaboratorRecordRetainedAfterDisable() {
+        // Arrange
+        final AirTransportCompany company = buildCompany();
+        company.addCollaborator("joao@tap.pt", "João", "Manager");
+
+        // Act — US064 soft delete
+        company.disableCollaborator("joao@tap.pt");
+
+        // Assert: record still exists, just inactive
+        assertTrue(company.findCollaboratorByEmail("joao@tap.pt").isPresent());
+        assertFalse(company.findCollaboratorByEmail("joao@tap.pt").get().isActive());
+    }
 }

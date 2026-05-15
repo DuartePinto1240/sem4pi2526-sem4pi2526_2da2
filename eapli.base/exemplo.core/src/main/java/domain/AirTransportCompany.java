@@ -88,14 +88,7 @@ public class AirTransportCompany implements AggregateRoot<CompanyCode> {
 
         for (Collaborator collaborator : collaborators) {
             if (collaborator.isActive()) {
-                activeCollaborators.add(
-                        new CollaboratorDTO(
-                                collaborator.name(),
-                                collaborator.email(),
-                                collaborator.position(),
-                                collaborator.isActive()
-                        )
-                );
+                activeCollaborators.add(CollaboratorDTO.from(collaborator));
             }
         }
 
