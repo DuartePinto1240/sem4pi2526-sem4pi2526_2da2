@@ -3,13 +3,14 @@ package controller;
 import domain.AirControlArea;
 import domain.AirTransportCompany;
 import domain.BaseRoles;
-import domain.Collaborator;
+import domain.EmailAddress;
 import dto.CollaboratorDTO;
 import dto.CustomerDTO;
 import eapli.framework.infrastructure.authz.application.AuthorizationService;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import persistence.PersistenceContext;
 import repositories.CustomerRepository;
+import repositories.UserRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +26,19 @@ public class ListCollaboratorsController {
 
     private final AuthorizationService authz;
     private final CustomerRepository   customerRepo;
+    private final UserRepository       userRepo;
 
     public ListCollaboratorsController() {
         this.authz        = AuthzRegistry.authorizationService();
         this.customerRepo = PersistenceContext.getInstance().customerRepository();
+        this.userRepo     = PersistenceContext.getInstance().userRepository();
+    }
+
+    /** Package-private test constructor — bypasses PersistenceContext. */
+    ListCollaboratorsController(final CustomerRepository customerRepo) {
+        this.authz        = AuthzRegistry.authorizationService();
+        this.customerRepo = customerRepo;
+        this.userRepo     = null;
     }
 
     /** Returns all customers for the selection list. */
@@ -47,11 +57,7 @@ public class ListCollaboratorsController {
 
     /**
      * Returns active collaborators of the selected customer (US062).
-     * Matches the sequence diagram:
-     *   CTRL -> CREPO : findById(customerId, customerType)
-     *   CTRL -> CUSTOMER : listActiveCollaborators()
-     *
-     * Filtering stays in the aggregate — the controller never filters.
+     * Enriches each DTO with the phone number from the User aggregate.
      */
     public List<CollaboratorDTO> listCollaborators(final String customerId,
                                                    final CustomerDTO.CustomerType customerType) {
@@ -61,12 +67,20 @@ public class ListCollaboratorsController {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Customer not found: " + customerId));
 
-        List<Collaborator> collaborators;
-
+        final List<CollaboratorDTO> dtos;
         if (aggregate instanceof AirTransportCompany) {
-            return ((AirTransportCompany) aggregate).listActiveCollaborators();
+            dtos = ((AirTransportCompany) aggregate).listActiveCollaborators();
         } else {
-            return ((AirControlArea) aggregate).listActiveCollaborators();
+            dtos = ((AirControlArea) aggregate).listActiveCollaborators();
         }
+
+        // Enrich with phone number from UserRepository if available
+        if (userRepo == null) return dtos;
+        return dtos.stream().map(dto -> {
+            final String phone = userRepo.findByEmail(EmailAddress.valueOf(dto.email))
+                    .map(u -> u.getPhoneNumber())
+                    .orElse("N/A");
+            return new CollaboratorDTO(dto.email, dto.name, dto.position, dto.active, phone);
+        }).collect(Collectors.toList());
     }
 }

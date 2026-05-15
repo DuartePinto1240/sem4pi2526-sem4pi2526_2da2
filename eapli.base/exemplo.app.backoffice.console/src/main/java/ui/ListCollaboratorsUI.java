@@ -40,9 +40,12 @@ public class ListCollaboratorsUI extends AbstractUI {
             if (list.isEmpty()) {
                 System.out.println("\n>> No active collaborators found.");
             } else {
-                System.out.printf("%n%-30s | %-25s | %-20s%n", "EMAIL", "NAME", "POSITION");
-                System.out.println("-".repeat(80));
-                list.forEach(c -> System.out.println("  " + c));
+                System.out.printf("%n%-30s | %-25s | %-20s | %-12s%n",
+                        "EMAIL", "NAME", "POSITION", "PHONE");
+                System.out.println("-".repeat(95));
+                list.forEach(c -> System.out.printf(
+                        "  %-30s | %-25s | %-20s | %-12s%n",
+                        c.email, c.name, c.position, c.phoneNumber));
             }
         } catch (final IllegalArgumentException e) {
             System.out.println("\n>> ERROR: " + e.getMessage());
