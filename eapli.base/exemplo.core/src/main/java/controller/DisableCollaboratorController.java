@@ -41,6 +41,14 @@ public class DisableCollaboratorController {
         this.customerRepo = PersistenceContext.getInstance().customerRepository();
     }
 
+    /** Package-private test constructor — bypasses PersistenceContext. */
+    DisableCollaboratorController(final CustomerRepository customerRepo,
+                                  final UserRepository userRepo) {
+        this.authz        = AuthzRegistry.authorizationService();
+        this.userRepo     = userRepo;
+        this.customerRepo = customerRepo;
+    }
+
     /** Returns all customers for the selection list. */
     public List<CustomerDTO> getAvailableCustomers() {
         authz.ensureAuthenticatedUserHasAnyOf(BaseRoles.BACKOFFICE_OPERATOR);
