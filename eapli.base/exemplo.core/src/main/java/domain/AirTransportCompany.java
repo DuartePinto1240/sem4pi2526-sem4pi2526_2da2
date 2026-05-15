@@ -7,6 +7,10 @@ import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
 @Entity
 @Table(name = "AIR_TRANSPORT_COMPANY")
 public class AirTransportCompany implements AggregateRoot<CompanyCode> {
@@ -15,6 +19,8 @@ public class AirTransportCompany implements AggregateRoot<CompanyCode> {
     private CompanyCode companyCode;
 
     private String name;
+
+    private List<Collaborator> collaborators = new ArrayList<>();
 
     public AirTransportCompany(final String name,
                                final String iata,
@@ -52,4 +58,35 @@ public class AirTransportCompany implements AggregateRoot<CompanyCode> {
     protected AirTransportCompany() {
         // for ORM
     }
+
+
+    public void addCollaborator(final String email,
+                                final String name,
+                                final String position) {
+        if (findCollaboratorByEmail(email).isPresent()) {
+            throw new IllegalArgumentException(
+                    "A collaborator with email '" + email
+                            + "' already exists in company " + this.name);
+        }
+        final Collaborator c = new Collaborator(email, name, position);
+        collaborators.add(c);
+    }
+
+
+    // Helper function
+    public Optional<Collaborator> findCollaboratorByEmail(final String email) {
+        if (email == null) return Optional.empty();
+
+        final String collaboratorNormalized = email.trim().toLowerCase();
+
+        for (Collaborator c : collaborators) {
+            if (c.email().equals(collaboratorNormalized)) {
+                return Optional.of(c);
+            }
+        }
+
+        return Optional.empty();
+    }
+
+
 }

@@ -1,5 +1,6 @@
 package domain;
 
+import dto.CollaboratorDTO;
 import eapli.framework.domain.model.AggregateRoot;
 import eapli.framework.validations.Preconditions;
 
@@ -8,6 +9,10 @@ import jakarta.persistence.Embedded;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Aggregate Root representing an Air Control Area in the AISafe system (US050).
@@ -38,6 +43,8 @@ public class AirControlArea implements AggregateRoot<AirControlAreaCode> {
     /** Geographic bounding box defining the spatial extent of this area. */
     @Embedded
     private GeographicBoundary boundary;
+
+    private List<Collaborator> collaborators = new ArrayList<>();
 
     /**
      * Creates a new Air Control Area.
@@ -91,4 +98,36 @@ public class AirControlArea implements AggregateRoot<AirControlAreaCode> {
     /** No-arg constructor required by JPA. */
     protected AirControlArea() {
     }
+
+
+    /**
+     * Adds a new Flight Control Operator collaborator to this area.
+     * Same invariants as AirTransportCompany.addCollaborator().
+     *
+     * @param email    unique within this area
+     * @param name     immutable after creation
+     * @param position immutable after creation
+     * @throws IllegalArgumentException if email already exists in this area
+     */
+    public void addCollaborator(final String email,
+                                final String name,
+                                final String position) {
+        if (findCollaboratorByEmail(email).isPresent()) {
+            throw new IllegalArgumentException(
+                    "A collaborator with email '" + email + "' already exists in area " + this.name);
+        }
+        final Collaborator c = new Collaborator(email, name, position);
+        collaborators.add(c);
+    }
+
+
+    // Helper function
+    public Optional<Collaborator> findCollaboratorByEmail(final String email) {
+        if (email == null) return Optional.empty();
+        final String normalised = email.trim().toLowerCase();
+        return collaborators.stream()
+                .filter(c -> c.email().equals(normalised))
+                .findFirst();
+    }
+
 }
