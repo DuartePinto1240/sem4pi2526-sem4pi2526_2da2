@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Application-layer controller for – Edit a Customer's Collaborator.
+ * Application-layer controller for US063 – Edit a Customer's Collaborator.
  *
  * Only email and phone number are editable. Name and position are structurally
  * immutable — {@link domain.Collaborator} has no setters for them.
@@ -54,7 +54,7 @@ public class EditCollaboratorController {
         return result;
     }
 
-    /** Returns active collaborators for the selection list. */
+    /** Returns active collaborators for the selection list, enriched with phone. */
     public List<CollaboratorDTO> listCollaborators(final String customerId,
                                                    final CustomerDTO.CustomerType customerType) {
         authz.ensureAuthenticatedUserHasAnyOf(BaseRoles.BACKOFFICE_OPERATOR);
@@ -62,15 +62,24 @@ public class EditCollaboratorController {
         final Object aggregate = customerRepo.findById(customerId, customerType)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found: " + customerId));
 
+        final List<CollaboratorDTO> dtos;
         if (aggregate instanceof AirTransportCompany) {
-            return ((AirTransportCompany) aggregate).listActiveCollaborators();
+            dtos = ((AirTransportCompany) aggregate).listActiveCollaborators();
         } else {
-            return ((AirControlArea) aggregate).listActiveCollaborators();
+            dtos = ((AirControlArea) aggregate).listActiveCollaborators();
         }
+
+        // Enrich with phone from UserRepository so the UI can show current value
+        return dtos.stream().map(dto -> {
+            final String phone = userRepo.findByEmail(EmailAddress.valueOf(dto.email))
+                    .map(u -> u.getPhoneNumber())
+                    .orElse("N/A");
+            return new CollaboratorDTO(dto.email, dto.name, dto.position, dto.active, phone);
+        }).collect(java.util.stream.Collectors.toList());
     }
 
     /**
-     * Edits a collaborator's email and/or phone number.
+     * Edits a collaborator's email and/or phone number (US063).
      *
      * Matches the sequence diagram branches:
      *   newEmail != currentEmail → uniqueness check → update User email
@@ -104,18 +113,22 @@ public class EditCollaboratorController {
 
             // Step 4a: update User aggregate email
             // Since EmailAddress is the @EmbeddedId, we delete + re-insert
-            final User user = userRepo.ofIdentity(EmailAddress.valueOf(currentEmail))
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "User not found for email: " + currentEmail));
-            userRepo.delete(user);
-            final User updated = new User(
-                    EmailAddress.valueOf(newEmail),
-                    user.getName(),
-                    newPhone,
-                    user.getStaffNumber(),
-                    user.getSecurityClearanceExpiry());
-            updated.setRole(user.getRole());
-            userRepo.save(updated);
+            final java.util.Optional<User> existingUser =
+                    userRepo.ofIdentity(EmailAddress.valueOf(currentEmail));
+
+            if (existingUser.isPresent()) {
+                final User user = existingUser.get();
+                userRepo.delete(user);
+                final User updated = new User(
+                        EmailAddress.valueOf(newEmail),
+                        user.getName(),
+                        newPhone,
+                        user.getStaffNumber(),
+                        user.getSecurityClearanceExpiry());
+                updated.setRole(user.getRole());
+                userRepo.save(updated);
+            }
+            // If no domain User exists (created before this feature), skip User update
 
             // Step 4b: propagate new email to collaborator entity inside aggregate
             final Object aggregate = customerRepo.findById(customerId, customerType)
@@ -133,11 +146,14 @@ public class EditCollaboratorController {
 
         } else {
             // Step 5: phone-only change — update User only, no aggregate needed
-            final User user = userRepo.ofIdentity(EmailAddress.valueOf(currentEmail))
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "User not found for email: " + currentEmail));
-            user.updatePhoneNumber(newPhone);
-            userRepo.save(user);
+            final java.util.Optional<User> existingUser =
+                    userRepo.ofIdentity(EmailAddress.valueOf(currentEmail));
+            if (existingUser.isPresent()) {
+                final User user = existingUser.get();
+                user.updatePhoneNumber(newPhone);
+                userRepo.save(user);
+            }
+            // If no domain User exists, nothing to update for phone
         }
     }
 }

@@ -14,8 +14,9 @@ public class EditCollaboratorUI extends AbstractUI {
     protected boolean doShow() {
         final EditCollaboratorController ctrl = new EditCollaboratorController();
 
-        System.out.println("\n--- Edit Customer's Collaborator (US063) ---");
+        System.out.println("\n--- Edit Customer's Collaborator ---");
         System.out.println("  Note: only email and phone number may be changed.");
+        System.out.println("  (Press Enter to keep the current value)");
 
         final List<CustomerDTO> customers = ctrl.getAvailableCustomers();
         if (customers.isEmpty()) {
@@ -58,20 +59,36 @@ public class EditCollaboratorUI extends AbstractUI {
         }
         final CollaboratorDTO target = collaborators.get(ci);
 
-        System.out.printf("%nCurrent email: %s%n", target.email);
-        final String newEmail = Console.readLine("New email (Enter to keep current):");
-        final String newPhone = Console.readLine("New phone (9 digits):");
+        // Show current values and prompt — Enter keeps current
+        System.out.printf("%nCurrent email : %s%n", target.email);
+        final String inputEmail = Console.readLine("New email     (Enter to keep):");
+        System.out.printf("Current phone : %s%n", target.phoneNumber);
+        final String inputPhone = Console.readLine("New phone     (Enter to keep):");
 
-        final String resolvedEmail = (newEmail == null || newEmail.isBlank())
-                ? target.email : newEmail.trim();
+        final String resolvedEmail = (inputEmail == null || inputEmail.isBlank())
+                ? target.email : inputEmail.trim();
+        final String resolvedPhone = (inputPhone == null || inputPhone.isBlank())
+                ? target.phoneNumber : inputPhone.trim();
+
+        // Check if anything actually changed
+        final boolean emailChanged = !resolvedEmail.equalsIgnoreCase(target.email);
+        final boolean phoneChanged = !resolvedPhone.equals(target.phoneNumber);
+
+        if (!emailChanged && !phoneChanged) {
+            System.out.println("\n>> No changes made to the collaborator.");
+            return false;
+        }
 
         try {
             ctrl.editCollaborator(
                     selected.identity, selected.type,
-                    target.email, resolvedEmail, newPhone);
+                    target.email, resolvedEmail, resolvedPhone);
             System.out.println("\n>> Collaborator updated successfully.");
         } catch (final IllegalArgumentException e) {
             System.out.println("\n>> ERROR: " + e.getMessage());
+        } catch (final Exception e) {
+            System.out.println("\n>> ERROR: Could not update collaborator. "
+                    + "Please check that email and phone number are unique.");
         }
 
         return false;
