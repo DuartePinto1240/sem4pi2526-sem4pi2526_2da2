@@ -1,10 +1,16 @@
 package domain;
 
+import dto.CollaboratorDTO;
 import eapli.framework.domain.model.AggregateRoot;
 import eapli.framework.validations.Preconditions;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinColumns;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 import java.util.ArrayList;
@@ -20,6 +26,11 @@ public class AirTransportCompany implements AggregateRoot<CompanyCode> {
 
     private String name;
 
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumns({
+            @JoinColumn(name = "COMPANY_IATA", referencedColumnName = "iata"),
+            @JoinColumn(name = "COMPANY_ICAO", referencedColumnName = "icao")
+    })
     private List<Collaborator> collaborators = new ArrayList<>();
 
     public AirTransportCompany(final String name,
@@ -71,6 +82,49 @@ public class AirTransportCompany implements AggregateRoot<CompanyCode> {
         final Collaborator c = new Collaborator(email, name, position);
         collaborators.add(c);
     }
+
+    public List<CollaboratorDTO> listActiveCollaborators() {
+        List<CollaboratorDTO> activeCollaborators = new ArrayList<>();
+
+        for (Collaborator collaborator : collaborators) {
+            if (collaborator.isActive()) {
+                activeCollaborators.add(
+                        new CollaboratorDTO(
+                                collaborator.name(),
+                                collaborator.email(),
+                                collaborator.position(),
+                                collaborator.isActive()
+                        )
+                );
+            }
+        }
+
+        return activeCollaborators;
+    }
+
+    public void updateCollaboratorEmail(final String oldEmail, final String newEmail) {
+        Optional<Collaborator> collaborator = findCollaboratorByEmail(oldEmail);
+
+        if (collaborator.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No collaborator with email '" + oldEmail + "' in company " + name);
+        }
+
+        Collaborator c = collaborator.get();
+        c.updateEmail(newEmail);
+    }
+
+    public void disableCollaborator(final String email) {
+        Optional<Collaborator> collaborator = findCollaboratorByEmail(email);
+
+        if (collaborator.isPresent()) {
+            collaborator.get().disable();
+        } else {
+            throw new IllegalArgumentException(
+                    "No collaborator with email '" + email + "' in area " + name);
+        }
+    }
+
 
 
     // Helper function

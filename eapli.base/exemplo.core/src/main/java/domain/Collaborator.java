@@ -1,18 +1,16 @@
 package domain;
 
-import eapli.framework.domain.model.ValueObject;
 import eapli.framework.validations.Preconditions;
-import jakarta.persistence.Embeddable;
-import jakarta.persistence.Column;
+import jakarta.persistence.*;
 
 import java.util.Objects;
 
 /**
- * Embeddable entity representing a collaborator of a customer.
+ * Entity representing a collaborator of a customer (US061–US064).
  *
- * A collaborator is owned by its customer aggregate root (AirTransportCompany
- * or AirControlArea). It references the system User by email only — no direct
- * Java reference crosses aggregate boundaries.
+ * Owned by its customer aggregate root (AirTransportCompany or AirControlArea)
+ * via a @OneToMany relationship. References the system User by email only —
+ * no direct Java reference crosses aggregate boundaries.
  *
  * Invariants enforced here:
  *   - email, name and position must not be blank.
@@ -20,8 +18,13 @@ import java.util.Objects;
  *   - disable() is idempotent.
  *   - name and position are immutable after creation.
  */
-@Embeddable
-public class Collaborator implements ValueObject {
+@Entity
+@Table(name = "COLLABORATOR")
+public class Collaborator {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "COLLAB_EMAIL", nullable = false)
     private String email;
@@ -55,6 +58,28 @@ public class Collaborator implements ValueObject {
         this.position = position.trim();
         this.active   = true; // always active on creation
     }
+
+    /**
+     * Disables this collaborator.
+     * Idempotent: calling this on an already-disabled collaborator is safe.
+     */
+    public void disable() {
+        this.active = false;
+    }
+
+    /**
+     * Updates the email of this collaborator.
+     * Called by the customer aggregate when the Backoffice Operator changes the
+     * collaborator's email. The controller is responsible for also
+     * updating the associated User aggregate.
+     *
+     * @param newEmail must not be blank
+     */
+    public void updateEmail(final String newEmail) {
+        Preconditions.nonEmpty(newEmail, "New email must not be empty");
+        this.email = newEmail.trim().toLowerCase();
+    }
+
 
     // name and position have NO setters — immutable after creation
 

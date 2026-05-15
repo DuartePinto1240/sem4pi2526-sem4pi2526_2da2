@@ -55,7 +55,7 @@ public class PersistenceContext {
         this.aircraftModelRepository      = new InMemoryAircraftModelRepository();
         this.aircraftRepository           = new InMemoryAircraftRepository();
         this.flightPlanRepository         = new InMemoryFlightPlanRepository();
-        this.customerRepository           = new InMemoryCustomerRepository();
+        this.customerRepository           = new JpaCustomerRepository(persistenceUnit, extendedProps);
     }
 
     public static synchronized PersistenceContext getInstance() {
