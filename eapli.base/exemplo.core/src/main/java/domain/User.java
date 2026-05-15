@@ -129,6 +129,14 @@ public final class User implements AggregateRoot<EmailAddress> {
         this.nextSkillsAssessmentDate = date;
     }
 
+    /** Updates the phone number. Used by EditCollaboratorController. */
+    public void updatePhoneNumber(final String phone) {
+        if (phone == null || !phone.matches("\\d{9}")) {
+            throw new IllegalArgumentException("Phone number must contain exactly 9 digits.");
+        }
+        this.phoneNumber = phone;
+    }
+
     public boolean   isActive()                    { return active; }
     public String    getRole()                     { return role; }
     public String    getName()                     { return name; }
