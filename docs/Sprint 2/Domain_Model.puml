@@ -219,6 +219,8 @@ package "Pilot" {
 }
 
 Pilot "1" --> "Air Transport Company.AirTransportCompany" : employed by
+"Pilot.Pilot" "1" --> "0..*" "Flight Plan.FlightPlan" : create
+
 
 ' ─────────────────────────────
 ' AIR CONTROL AREA
@@ -228,18 +230,19 @@ package "Air Control Area" {
         + name : String
     }
 
-    class AreaCode <<ValueObject>> {
+    class AirControlAreaCode <<ValueObject>> {
         + code : String
     }
 
     class GeographicBoundary <<ValueObject>> {
-        + minLatitude : double
-        + maxLatitude : double
-        + minLongitude : double
-        + maxLongitude : double
+        + minLat : double
+        + maxLat : double
+        + minLon : double
+        + maxLon : double
+        + maxAltitude : double
     }
 
-    AirControlArea "1" *-- "1" AreaCode
+    AirControlArea "1" *-- "1" AirControlAreaCode
     AirControlArea "1" *-- "1" GeographicBoundary
 }
 
@@ -248,33 +251,44 @@ package "Air Control Area" {
 ' ─────────────────────────────
 package "Airport" {
     class Airport <<AggregateRoot>> {
-        + name : String
+        + name : AirportName
         + town : String
-        + altitude : double
     }
 
-    class AirportCode <<ValueObject>> {
-        + iata : String
+    class ICAOCode <<ValueObject>> {
         + icao : String
     }
 
-    class Coordinates <<ValueObject>> {
+    class IATACode <<ValueObject>> {
+        + iata : String
+    }
+
+    class AirportName <<ValueObject>> {
+        + name : String
+    }
+
+    class AirportCoordinates <<ValueObject>> {
         + latitude : double
         + longitude : double
     }
 
-    class AirportCountry <<ValueObject>> {
-        + name : String
-        ' selected from a predefined list
+    class Elevation <<ValueObject>> {
+        + metres : double
     }
 
-    Airport "1" *-- "1" AirportCode
-    Airport "1" *-- "1" Coordinates
-    Airport "1" *-- "1" AirportCountry
+    class Country <<ValueObject>> {
+        + name : String
+    }
+
+    Airport "1" *-- "1" ICAOCode
+    Airport "1" *-- "1" IATACode
+    Airport "1" *-- "1" AirportName
+    Airport "1" *-- "1" AirportCoordinates
+    Airport "1" *-- "1" Elevation
+    Airport "1" *-- "1" Country
 }
 
-"Airport.Airport" "0..*" --> "Air Control Area.AirControlArea" : belongs to
-
+"Airport.Airport" "0..*" --> "1" "Air Control Area.AirControlArea" : belongs to\n(via AirControlAreaCode)
 ' ─────────────────────────────
 ' FLIGHT ROUTE
 ' ─────────────────────────────
@@ -366,58 +380,55 @@ package "Flight Plan" {
         + rawText : String
     }
 
-    class Segment <<Entity>> {
-        + width : double
-    }
-
-    class CoordinatesVO <<ValueObject>> {
-        + latitude : double
-        + longitude : double
-    }
-
-    class WindCondition <<ValueObject>> {
-        + directionAngle : double
-        + speedMs : double
-    }
-
-    class AltitudeSlot <<ValueObject>> {
-        + minAltitude : double
-        + maxAltitude : double
-        + width : double
-    }
-
     FlightPlan "1" *-- "1" DslSource
-    FlightPlan "1" *-- "1..*" Segment
-    Segment "1" *-- "1" WindCondition
-    Segment "1" *-- "1..*" AltitudeSlot
-    Segment "1" *-- "2" CoordinatesVO
+
 }
 
 "Flight.Flight" "1" *-- "0..*" FlightPlan : has
-Segment --> "Airport.Airport" : optional reference
-FlightPlan "0..*" --> "Aircraft.Aircraft" : assigned aircraft
-FlightPlan "0..*" --> "Pilot.Pilot" : assigned pilot
+FlightPlan "0..*" --> "Aircraft.Aircraft" : assigned
 
 ' ─────────────────────────────
 ' WEATHER
 ' ─────────────────────────────
 package "Weather" {
     class WeatherData <<AggregateRoot>> {
-        + date : LocalDate
+        - id : Long
     }
 
-    class WeatherCondition <<ValueObject>> {
-        + temperature : double
-        + pressure : double
-        + windSpeed : double
-        + windDirection : double
+    class WeatherSubArea <<ValueObject>> {
     }
 
-    WeatherData "1" *-- "1" WeatherCondition
+    class GeographicBoundary <<ValueObject>> {
+        - minLat : double
+        - maxLat : double
+        - minLon : double
+        - maxLon : double
+    }
+
+    class AltitudeRange <<ValueObject>> {
+        - minAltitude : double
+        - maxAltitude : double
+    }
+
+    class ObservationPeriod <<ValueObject>> {
+        - startDateTime : LocalDateTime
+        - endDateTime : LocalDateTime
+    }
+
+    class WindCondition <<ValueObject>> {
+        - windDirection : double
+        - windSpeed : double
+    }
+
+    WeatherData "1" *-- "1" WeatherSubArea
+    WeatherData "1" *-- "1" ObservationPeriod
+    WeatherData "1" *-- "1" WindCondition
+
+    WeatherSubArea "1" *-- "1" GeographicBoundary
+    WeatherSubArea "1" *-- "1" AltitudeRange
 }
 
-WeatherData --> "Air Control Area.AirControlArea" : for area
-
+WeatherData --> "Air Control Area.AirControlArea" : identified by >
 ' ─────────────────────────────
 ' SIMULATION
 ' ─────────────────────────────
