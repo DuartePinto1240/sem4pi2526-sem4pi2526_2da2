@@ -3,90 +3,83 @@ skinparam classAttributeIconSize 0
 
 package "UI Layer" {
   class DecommissionAircraftUI <<boundary>> {
-    + doShow() : void
+    + doShow() : boolean
+    + headline() : String
   }
 }
 
 package "Application Layer" {
   class DecommissionAircraftController <<control>> {
-    - authorizationService : AuthorizationService
-    - decommissionAircraftService : DecommissionAircraftService
-    + DecommissionAircraftController(authz, svc)
-    + decommissionAircraft(registration : String) : void
-  }
-
-  class DecommissionAircraftService <<service>> {
-    - aircraftRepository : AircraftRepository
-    - userSessionService : UserSessionService
-    + DecommissionAircraftService(aircraftRepo, sessionSvc)
-    + decommissionAircraft(registration : AircraftRegistration) : void
+    - aircraftRepo : AircraftRepository
+    + DecommissionAircraftController()
+    + DecommissionAircraftController(aircraftRepo : AircraftRepository)
+    + activeAircraftOfCompany(companyIata : String) : Iterable<Aircraft>
+    + decommissionAircraft(registration : String, companyIata : String) : Aircraft
   }
 }
 
 package "Domain Layer" {
   class Aircraft <<entity>> <<AggregateRoot>> {
-    - registration : AircraftRegistration
-    - company : AirTransportCompany
+    - registration : String
+    - countryOfRegistration : String
+    - companyIata : String
+    - aircraftModelId : Long
     - cabinConfiguration : CabinConfiguration
-    - crewCount : int
     - operationalStatus : OperationalStatus
-    + Aircraft(registration, company,\n cabinConfig, crewCount)
-    + identity() : AircraftRegistration
-    + company() : AirTransportCompany
+    - registrationDate : LocalDate
+    + Aircraft(registration, countryOfRegistration,\n companyIata, model, cabinConfiguration)
+    + identity() : String
+    + registration() : String
+    + companyIata() : String
     + operationalStatus() : OperationalStatus
     + decommission() : void
-    + isActive() : boolean
+    + ageInYears() : int
   }
 
-  enum OperationalStatus <<ValueObject>> {
+  class OperationalStatus <<ValueObject>> <<Embeddable>> {
+    - status : Status
+    + {static} active() : OperationalStatus
+    + {static} decommissioned() : OperationalStatus
+    + isActive() : boolean
+    + isDecommissioned() : boolean
+    + status() : Status
+  }
+
+  enum Status {
     ACTIVE
     DECOMMISSIONED
   }
 
-  class AircraftRegistration <<ValueObject>> <<EmbeddedId>> {
-    - registration : String
-    + AircraftRegistration(registration : String)
-    + registration() : String
-  }
-
   interface AircraftRepository <<Repository>> {
+    + ofIdentity(registration : String) : Optional<Aircraft>
+    + findByCompanyIata(companyIata : String) : Iterable<Aircraft>
     + save(aircraft : Aircraft) : Aircraft
-    + ofIdentity(reg : AircraftRegistration) : Optional<Aircraft>
-    + findActiveByCompany(company : AirTransportCompany) : Iterable<Aircraft>
-    + hasPendingFlights(reg : AircraftRegistration) : boolean
-  }
-
-  class UserSessionService <<service>> {
-    + currentUserCompany() : AirTransportCompany
+    + existsByRegistration(registration : String) : boolean
+    + containsOfIdentity(registration : String) : boolean
+    + findAll() : Iterable<Aircraft>
+    + count() : long
   }
 }
 
 package "Infrastructure Layer" {
-  class JpaAircraftRepository <<infrastructure>> {
+  class InMemoryAircraftRepository <<infrastructure>> {
+    - store : List<Aircraft>
+    + ofIdentity(registration : String) : Optional<Aircraft>
+    + findByCompanyIata(companyIata : String) : Iterable<Aircraft>
     + save(aircraft : Aircraft) : Aircraft
-    + ofIdentity(reg : AircraftRegistration) : Optional<Aircraft>
-    + findActiveByCompany(company : AirTransportCompany) : Iterable<Aircraft>
-    + hasPendingFlights(reg : AircraftRegistration) : boolean
+    + existsByRegistration(registration : String) : boolean
+    + containsOfIdentity(registration : String) : boolean
+    + findAll() : Iterable<Aircraft>
+    + count() : long
   }
 }
 
 DecommissionAircraftUI --> DecommissionAircraftController
-DecommissionAircraftController --> DecommissionAircraftService
-DecommissionAircraftController --> AuthorizationService
+DecommissionAircraftController --> AircraftRepository
 
-DecommissionAircraftService --> AircraftRepository
-DecommissionAircraftService --> UserSessionService
-
-Aircraft *-- AircraftRegistration
 Aircraft *-- OperationalStatus
+OperationalStatus *-- Status
 
-JpaAircraftRepository ..|> AircraftRepository
-
-note on link
-  hasPendingFlights() queries
-  FlightPlan records for any
-  non-terminal status associated
-  with the given registration
-end note
+InMemoryAircraftRepository ..|> AircraftRepository
 
 @enduml

@@ -3,24 +3,21 @@ skinparam classAttributeIconSize 0
 
 package "UI Layer" {
   class CreateAirportUI <<boundary>> {
-    + doShow() : void
+    + doShow() : boolean
+    + headline() : String
   }
 }
 
 package "Application Layer" {
   class CreateAirportController <<control>> {
-    - authorizationService : AuthorizationService
-    - createAirportService : CreateAirportService
-    + CreateAirportController(authz, svc)
-    + createAirport(icao : String, iata : String,\n name : String, town : String,\n country : String, lat : double,\n lon : double, elevation : int,\n areaCode : String) : AirportDTO
-  }
-
-  class CreateAirportService <<service>> {
-    - airportRepository : AirportRepository
-    - airControlAreaRepository : AirControlAreaRepository
-    - airportFactory : AirportFactory
-    + CreateAirportService(airportRepo, areaRepo, factory)
-    + createAirport(icao : ICAOCode, iata : IATACode,\n name : AirportName, town : String,\n country : String,\n coordinates : AirportCoordinates,\n elevation : Elevation,\n areaCode : AirControlAreaCode) : Airport
+    - airportRepo : AirportRepository
+    - areaRepo : AirControlAreaRepository
+    - countryRepo : CountryRepository
+    + CreateAirportController()
+    + CreateAirportController(airportRepo, areaRepo, countryRepo)
+    + allAreas() : Iterable<AirControlArea>
+    + allCountries() : Iterable<Country>
+    + createAirport(icao : String, iata : String,\n name : String, town : String,\n countryName : String, latitude : double,\n longitude : double, elevationM : double,\n areaCode : String) : Airport
   }
 }
 
@@ -30,39 +27,39 @@ package "Domain Layer" {
     - iataCode : IATACode
     - name : AirportName
     - town : String
-    - country : String
+    - country : Country
     - coordinates : AirportCoordinates
     - elevation : Elevation
-    - areaCode : AirControlAreaCode
-    + Airport(icao, iata, name, town,\n country, coordinates,\n elevation, areaCode)
+    - airControlAreaCode : AirControlAreaCode
+    + Airport(icao, iata, name, town,\n country, coordinates,\n elevation, airControlAreaCode)
     + identity() : ICAOCode
     + iataCode() : IATACode
     + name() : AirportName
+    + town() : String
+    + country() : Country
     + coordinates() : AirportCoordinates
     + elevation() : Elevation
-    + areaCode() : AirControlAreaCode
-  }
-
-  class AirportFactory <<factory>> {
-    + create(icao : ICAOCode, iata : IATACode,\n name : AirportName, town : String,\n country : String,\n coordinates : AirportCoordinates,\n elevation : Elevation,\n areaCode : AirControlAreaCode) : Airport
+    + airControlAreaCode() : AirControlAreaCode
+    + sameAs(other : Object) : boolean
   }
 
   class ICAOCode <<ValueObject>> <<EmbeddedId>> {
-    - code : String
-    + ICAOCode(code : String)
+    - icao : String
+    + ICAOCode(icao : String)
     + code() : String
+    + compareTo(other : ICAOCode) : int
   }
 
   class IATACode <<ValueObject>> {
-    - code : String
-    + IATACode(code : String)
+    - iata : String
+    + IATACode(iata : String)
     + code() : String
   }
 
   class AirportName <<ValueObject>> {
     - name : String
     + AirportName(name : String)
-    + name() : String
+    + value() : String
   }
 
   class AirportCoordinates <<ValueObject>> {
@@ -71,12 +68,19 @@ package "Domain Layer" {
     + AirportCoordinates(latitude : double, longitude : double)
     + latitude() : double
     + longitude() : double
+    + isWithinBoundary(boundary : GeographicBoundary) : boolean
   }
 
   class Elevation <<ValueObject>> {
-    - meters : int
-    + Elevation(meters : int)
-    + meters() : int
+    - metres : double
+    + Elevation(metres : double)
+    + metres() : double
+  }
+
+  class Country <<ValueObject>> {
+    - name : String
+    + Country(name : String)
+    + name() : String
   }
 
   class AirControlAreaCode <<ValueObject>> {
@@ -91,48 +95,68 @@ package "Domain Layer" {
     + containsOfIdentity(icao : ICAOCode) : boolean
     + existsByIATACode(iata : IATACode) : boolean
     + findAll() : Iterable<Airport>
+    + delete(airport : Airport) : void
+    + deleteOfIdentity(icao : ICAOCode) : void
+    + count() : long
   }
 
   interface AirControlAreaRepository <<Repository>> {
     + ofIdentity(code : AirControlAreaCode) : Optional<AirControlArea>
+    + findAll() : Iterable<AirControlArea>
+  }
+
+  interface CountryRepository <<Repository>> {
+    + findAll() : Iterable<Country>
+    + findByName(name : String) : Optional<Country>
   }
 }
 
 package "Infrastructure Layer" {
   class JpaAirportRepository <<infrastructure>> {
+    + JpaAirportRepository(persistenceUnitName, extendedProperties)
+    + JpaAirportRepository(autoTx : TransactionalContext)
+    + findAll() : Iterable<Airport>
+    + existsByIATACode(iata : IATACode) : boolean
+  }
+
+  class InMemoryAirportRepository <<infrastructure>> {
+    - airports : List<Airport>
+    + findAll() : Iterable<Airport>
+    + existsByIATACode(iata : IATACode) : boolean
     + save(airport : Airport) : Airport
     + ofIdentity(icao : ICAOCode) : Optional<Airport>
     + containsOfIdentity(icao : ICAOCode) : boolean
-    + existsByIATACode(iata : IATACode) : boolean
-    + findAll() : Iterable<Airport>
+    + delete(airport : Airport) : void
+    + deleteOfIdentity(icao : ICAOCode) : void
+    + count() : long
   }
 }
 
 package "Bootstrap" {
-  class MasterDataBootstrap <<bootstrap>> {
-    + execute() : void
+  class AirportBootstrapper <<bootstrap>> {
+    + execute() : boolean
+    - register(ctrl, icao, iata, name, town,\n country, lat, lon, elevation, areaCode) : void
   }
 }
 
-CreateAirportUI --> CreateAirportController
-CreateAirportController --> CreateAirportService
-CreateAirportController --> AuthorizationService
+CreateAirportUI --> CreateAirportController : uses
 
-CreateAirportService --> AirportFactory
-CreateAirportService --> AirportRepository
-CreateAirportService --> AirControlAreaRepository
-
-AirportFactory ..> Airport : <<creates>>
+CreateAirportController --> AirportRepository : uses
+CreateAirportController --> AirControlAreaRepository : uses
+CreateAirportController --> CountryRepository : uses
+CreateAirportController ..> Airport : <<creates>>
 
 Airport *-- ICAOCode
 Airport *-- IATACode
 Airport *-- AirportName
+Airport *-- Country
 Airport *-- AirportCoordinates
 Airport *-- Elevation
 Airport *-- AirControlAreaCode
 
 JpaAirportRepository ..|> AirportRepository
+InMemoryAirportRepository ..|> AirportRepository
 
-MasterDataBootstrap --> CreateAirportService : <<uses>>
+AirportBootstrapper --> CreateAirportController : <<uses>>
 
 @enduml

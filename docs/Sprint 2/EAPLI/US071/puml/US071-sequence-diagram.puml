@@ -2,77 +2,76 @@
 actor "Air Transport Company\nCollaborator" as ATCC
 participant DecommissionAircraftUI as UI <<boundary>>
 participant DecommissionAircraftController as CTRL <<control>>
-participant AuthorizationService as AUTHZ <<service>>
-participant DecommissionAircraftService as SVC <<service>>
 participant AircraftRepository as REPO <<repository>>
 participant "aircraft:Aircraft" as AIRCRAFT <<entity>>
 
 ATCC -> UI : doShow()
-UI -> REPO : findActiveByCompany(collaboratorCompany)
-REPO --> UI : activeAircraftList
-UI -> ATCC : displays list of active aircraft
 
-ATCC -> UI : selects aircraft registration
+UI -> ATCC : prompts for company IATA code
+ATCC -> UI : enters companyIata
 
-UI -> CTRL : decommissionAircraft(registration)
+UI -> CTRL : activeAircraftOfCompany(companyIata)
+activate CTRL
+  CTRL -> REPO : findByCompanyIata(companyIata)
+  activate REPO
+  REPO --> CTRL : Iterable<Aircraft>
+  deactivate REPO
 
-CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(AIR_TRANSPORT_COMPANY_COLLABORATOR)
-activate AUTHZ
-AUTHZ --> CTRL : ok (or throws UnauthorizedException)
-deactivate AUTHZ
+  loop for each aircraft
+    CTRL -> AIRCRAFT : operationalStatus().isActive()
+    AIRCRAFT --> CTRL : boolean
+  end
 
-CTRL -> SVC : decommissionAircraft(AircraftRegistration(registration))
-activate SVC
+  CTRL --> UI : Iterable<Aircraft> (active only)
+deactivate CTRL
 
-SVC -> REPO : ofIdentity(AircraftRegistration(registration))
-activate REPO
-REPO --> SVC : Optional<Aircraft>
-deactivate REPO
+alt no active aircraft found
+  UI --> ATCC : "No active aircraft found for company"
+else active aircraft exist
+  UI --> ATCC : displays numbered list of active aircraft
 
-alt aircraft not found
-  SVC --> CTRL : throws IllegalArgumentException
-  CTRL --> UI : error
-  UI --> ATCC : "Aircraft not found"
-else aircraft found
+  ATCC -> UI : selects aircraft by number
+  ATCC -> UI : confirms with "yes"
 
-  SVC -> AIRCRAFT : company()
-  AIRCRAFT --> SVC : aircraftCompany
+  UI -> CTRL : decommissionAircraft(registration, companyIata)
+  activate CTRL
 
-  alt aircraft belongs to a different company
-    SVC --> CTRL : throws IllegalStateException
-    CTRL --> UI : error
-    UI --> ATCC : "Aircraft does not belong to your company"
-  else aircraft belongs to collaborator's company
-
-    SVC -> REPO : hasPendingFlights(AircraftRegistration)
+    CTRL -> REPO : ofIdentity(registration)
     activate REPO
-    REPO --> SVC : boolean
+    REPO --> CTRL : Optional<Aircraft>
     deactivate REPO
 
-    alt has pending flights
-      SVC --> CTRL : throws IllegalStateException
-      CTRL --> UI : error
-      UI --> ATCC : "Cannot decommission: aircraft has pending flights"
-    else no pending flights
+    alt aircraft not found
+      CTRL --> UI : throws IllegalArgumentException
+      UI --> ATCC : "Aircraft with registration '...' not found."
+    else aircraft found
 
-      SVC -> AIRCRAFT : decommission()
-      activate AIRCRAFT
-      AIRCRAFT -> AIRCRAFT : setOperationalStatus(DECOMMISSIONED)
-      AIRCRAFT --> SVC : ok (or throws IllegalStateException\nif already DECOMMISSIONED)
-      deactivate AIRCRAFT
+      CTRL -> AIRCRAFT : companyIata()
+      AIRCRAFT --> CTRL : aircraftCompanyIata
 
-      SVC -> REPO : save(aircraft)
-      activate REPO
-      REPO --> SVC : aircraft (persisted)
-      deactivate REPO
+      alt aircraft belongs to a different company
+        CTRL --> UI : throws IllegalArgumentException
+        UI --> ATCC : "Aircraft '...' does not belong to company '...'."
+      else aircraft belongs to collaborator's company
 
-      SVC --> CTRL : ok
-      deactivate SVC
+        CTRL -> AIRCRAFT : decommission()
+        activate AIRCRAFT
+          AIRCRAFT -> AIRCRAFT : Preconditions.ensure(isActive(), ...)
+          note right: throws IllegalArgumentException\nif already DECOMMISSIONED
+          AIRCRAFT -> AIRCRAFT : operationalStatus = OperationalStatus.decommissioned()
+          AIRCRAFT --> CTRL : ok
+        deactivate AIRCRAFT
 
-      CTRL --> UI : success
-      UI --> ATCC : "Aircraft decommissioned successfully"
+        CTRL -> REPO : save(aircraft)
+        activate REPO
+        REPO --> CTRL : aircraft (persisted)
+        deactivate REPO
+
+        CTRL --> UI : Aircraft (decommissioned)
+        UI --> ATCC : "Aircraft '...' has been decommissioned successfully.\n   Status: DECOMMISSIONED"
+      end
     end
-  end
+  deactivate CTRL
 end
 
 @enduml
