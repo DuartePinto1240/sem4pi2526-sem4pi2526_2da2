@@ -52,8 +52,8 @@ public class PersistenceContext {
         this.weatherDataRepository        = new JpaWeatherDataRepository(persistenceUnit, extendedProps);
         this.airportRepository            = new JpaAirportRepository(persistenceUnit, extendedProps);
         this.countryRepository            = new InMemoryCountryRepository();
-        this.aircraftModelRepository      = new InMemoryAircraftModelRepository();
-        this.aircraftRepository           = new InMemoryAircraftRepository();
+        this.aircraftModelRepository      = new JpaAircraftModelRepository(persistenceUnit, extendedProps);
+        this.aircraftRepository           = new JpaAircraftRepository(persistenceUnit, extendedProps);
         this.flightPlanRepository         = new InMemoryFlightPlanRepository();
         this.customerRepository           = new JpaCustomerRepository(persistenceUnit, extendedProps);
     }
