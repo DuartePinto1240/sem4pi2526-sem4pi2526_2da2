@@ -1,0 +1,50 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "C Simulation Layer" {
+  class ViolationDetector <<service>> {
+    +check_safety_violations(states, n, threshold): int
+    +euclidean_distance(p1, p2): double
+    +log_violation(step, i, j, pos1, pos2): void
+    +terminate_all_processes(states, n): void
+  }
+  class ViolationEvent <<data>> {
+    +time_step: int
+    +flight_id_1: int
+    +flight_id_2: int
+    +lat1: double
+    +lon1: double
+    +alt1: double
+    +lat2: double
+    +lon2: double
+    +alt2: double
+    +separation_m: double
+  }
+  class Position <<data>> {
+    +latitude: double
+    +longitude: double
+    +altitude: double
+    +time_step: int
+    +flight_id: int
+  }
+  class FlightState <<data>> {
+    +pid: pid_t
+    +flight_id: int
+    +active: int
+    +current: Position
+    +history[MAX_STEPS]: Position
+  }
+  class SignalHandler <<service>> {
+    +handle_sigusr1(sig): void
+    +handle_sigterm(sig): void
+    +register_handlers(): void
+  }
+}
+
+ViolationDetector ..> ViolationEvent : creates
+ViolationDetector ..> FlightState    : reads
+ViolationDetector ..> Position       : reads
+FlightState        ..> Position      : contains
+SignalHandler      ..> FlightState   : updates active
+
+@enduml

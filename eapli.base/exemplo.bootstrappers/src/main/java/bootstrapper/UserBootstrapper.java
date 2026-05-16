@@ -31,6 +31,13 @@ public class UserBootstrapper implements Action {
     private static final String ATCC_PHONE     = "910000001";
     private static final String ATCC_STAFF     = "STAFF-ATCC-001";
 
+    private static final String BO_EMAIL     = "backoffice@alsafe.com";
+    private static final String BO_PASSWORD  = "Backoffice1";
+    private static final String BO_FIRSTNAME = "Backoffice";
+    private static final String BO_LASTNAME  = "Operator";
+    private static final String BO_PHONE     = "910000002";
+    private static final String BO_STAFF     = "STAFF-BO-001";
+
     @Override
     public boolean execute() {
         loadValidDomains();
@@ -38,6 +45,8 @@ public class UserBootstrapper implements Action {
         createAdminDomainUser();
         createAtccSystemUser();
         createAtccDomainUser();
+        createBackofficeOperatorSystemUser();
+        createBackofficeOperatorDomainUser();
         return true;
     }
 
@@ -118,6 +127,44 @@ public class UserBootstrapper implements Action {
             repo.save(atcc);
         } catch (final Exception e) {
             System.err.println("[Bootstrap] ERROR creating ATCC user: "
+                    + e.getMessage());
+        }
+    }
+
+    private void createBackofficeOperatorSystemUser() {
+        try {
+            final UserManagementService svc = AuthzRegistry.userService();
+            final Set<Role> roles = new HashSet<>();
+            roles.add(BaseRoles.BACKOFFICE_OPERATOR);
+            svc.registerNewUser(
+                    BO_EMAIL,
+                    BO_PASSWORD,
+                    BO_FIRSTNAME,
+                    BO_LASTNAME,
+                    BO_EMAIL,
+                    roles);
+        } catch (final Exception e) {
+            // already exists
+        }
+    }
+
+    private void createBackofficeOperatorDomainUser() {
+        try {
+            final UserRepository repo =
+                    PersistenceContext.getInstance().userRepository();
+            final EmailAddress emailVO = EmailAddress.valueOf(BO_EMAIL);
+            if (repo.ofIdentity(emailVO).isPresent()) return;
+
+            final User bo = new User(
+                    emailVO,
+                    BO_FIRSTNAME + " " + BO_LASTNAME,
+                    BO_PHONE,
+                    BO_STAFF,
+                    LocalDate.now().plusYears(10));
+            bo.setRole(BaseRoles.BACKOFFICE_OPERATOR.toString());
+            repo.save(bo);
+        } catch (final Exception e) {
+            System.err.println("[Bootstrap] ERROR creating Backoffice Operator: "
                     + e.getMessage());
         }
     }
