@@ -72,36 +72,50 @@ double compute_distance(const Position *p1, const Position *p2) {
 }
 
 /* ─────────────────────────────────────────
- * Read Position Updates
+ * Step Synchronization
+ *
+ *   1. Send a 1-byte token to every active flight (step pipe).
+ *      This unblocks each child from its read(pipe_step) call.
+ *   2. Read one Position struct from each active flight (pos pipe).
+ *      Block until every active flight has replied.
+ *
+ * The parent never advances to step N+1 until every active child
+ * has delivered its position for step N.
  * ───────────────────────────────────────── */
 
-int read_all_positions(FlightState *states, int num_flights) {
-    int updates = 0;
+int synchronize_step(FlightState *states, int num_flights, int step) {
+    char token = (char)(step & 0xFF);
+    for (int i = 0; i < num_flights; i++) {
+        if (!states[i].active) continue;
+        ssize_t w = write(states[i].pipe_step, &token, 1);
+        if (w < 0) {
+            perror("[MAIN] write step token error");
+            states[i].active = 0;
+        }
+    }
 
+    int updates = 0;
     for (int i = 0; i < num_flights; i++) {
         if (!states[i].active) continue;
 
         Position pos;
-        ssize_t bytes = read(states[i].pipe_fd,
+        ssize_t bytes = read(states[i].pipe_read,
                              &pos, sizeof(Position));
 
-        if (bytes == sizeof(Position)) {
-            /* store in history */
+        if (bytes == (ssize_t)sizeof(Position)) {
             if (states[i].history_count < MAX_HISTORY) {
                 states[i].history[states[i].history_count++] =
                         states[i].current;
             }
             states[i].current = pos;
             updates++;
-
         } else if (bytes == 0) {
-            /* pipe closed — flight finished */
             states[i].active = 0;
-            close(states[i].pipe_fd);
+            close(states[i].pipe_read);
+            close(states[i].pipe_step);
             printf("[MAIN] Flight %d finished\n", states[i].flight_id);
-
         } else {
-            perror("[MAIN] read error");
+            perror("[MAIN] read position error");
             states[i].active = 0;
         }
     }
@@ -250,11 +264,17 @@ int start_simulation(const SimulationConfig *config,
     /* initialise states */
     memset(states, 0, sizeof(FlightState) * config->num_flights);
 
-    /* create pipes and fork one process per flight */
+    /* create two pipes per flight and fork */
     for (int i = 0; i < config->num_flights; i++) {
-        int fd[2];
-        if (pipe(fd) < 0) {
-            perror("[MAIN] pipe error");
+        int pos_pipe[2];
+        int step_pipe[2];
+
+        if (pipe(pos_pipe) < 0) {
+            perror("[MAIN] pipe (pos) error");
+            return -1;
+        }
+        if (pipe(step_pipe) < 0) {
+            perror("[MAIN] pipe (step) error");
             return -1;
         }
 
@@ -265,19 +285,23 @@ int start_simulation(const SimulationConfig *config,
         }
 
         if (pid == 0) {
-            /* child process */
-            close(fd[0]); /* close read end */
-            execute_flight(i, fd[1],
+            close(pos_pipe[0]);
+            close(step_pipe[1]);
+            execute_flight(i,
+                           pos_pipe[1],   /* write positions */
+                           step_pipe[0],  /* read step tokens */
                            config->total_steps,
                            config->time_step_seconds);
             /* execute_flight calls exit() — never returns */
         }
 
-        /* parent process */
-        close(fd[1]); /* close write end */
+        /* parent — close child-side ends */
+        close(pos_pipe[1]);
+        close(step_pipe[0]);
         states[i].flight_id     = i;
         states[i].pid           = pid;
-        states[i].pipe_fd       = fd[0];
+        states[i].pipe_read     = pos_pipe[0];
+        states[i].pipe_step     = step_pipe[1];
         states[i].active        = 1;
         states[i].history_count = 0;
         states[i].violated      = 0;
@@ -289,8 +313,11 @@ int start_simulation(const SimulationConfig *config,
     for (int step = 0; step < config->total_steps; step++) {
         printf("[MAIN] --- Time step %d ---\n", step);
 
-        /* read position updates from all flights */
-        read_all_positions(states, config->num_flights);
+        /* send step token and collect all positions before continuing */
+        int updates = synchronize_step(states, config->num_flights, step);
+        printf("[MAIN] Step %d: received %d position update(s)\n",
+               step, updates);
+        (void) updates;
 
         /* check for safety violations */
         double timestamp = step * config->time_step_seconds;
@@ -310,14 +337,22 @@ int start_simulation(const SimulationConfig *config,
             printf("[MAIN] Max violations reached — aborting.\n");
             for (int i = 0; i < config->num_flights; i++) {
                 if (states[i].active) {
+                    close(states[i].pipe_step); /* unblock child */
                     kill(states[i].pid, SIGTERM);
                     report->flight_statuses[i] = 2;
+                    states[i].active = 0;
                 }
             }
             break;
         }
 
         (void) violations;
+    }
+
+    /* close remaining step pipes so children can exit cleanly */
+    for (int i = 0; i < config->num_flights; i++) {
+        if (states[i].active)
+            close(states[i].pipe_step);
     }
 
     /* wait for all child processes */

@@ -84,6 +84,7 @@ Position compute_next_position(int flight_id,
 
 void execute_flight(int flight_id,
                     int pipe_write,
+                    int pipe_step,
                     int total_steps,
                     int time_step_seconds) {
 
@@ -109,6 +110,18 @@ void execute_flight(int flight_id,
             sigusr1_received = 0;
         }
 
+        /* Wait for the step token from the parent.
+         * Blocks here until the parent signals it is ready
+         * to receive this step's position update. */
+        char token;
+        ssize_t bytes = read(pipe_step, &token, 1);
+        if (bytes <= 0) {
+            /* pipe closed — parent aborted */
+            printf("[FLIGHT %d] Step pipe closed — exiting\n",
+                   flight_id);
+            break;
+        }
+
         /* compute next position */
         Position pos = compute_next_position(
                 flight_id, step, total_steps);
@@ -131,6 +144,7 @@ void execute_flight(int flight_id,
     }
 
     close(pipe_write);
+    close(pipe_step);
     printf("[FLIGHT %d] Finished\n", flight_id);
     exit(0);
 }

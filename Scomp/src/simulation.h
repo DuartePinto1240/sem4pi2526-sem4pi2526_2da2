@@ -35,7 +35,8 @@ typedef struct {
 typedef struct {
     int           flight_id;
     pid_t         pid;
-    int           pipe_fd;          /* read end of pipe from child */
+    int           pipe_read;        /* read end of pipe from child */
+    int           pipe_step;        /* parent writes step tokens to child */
     Position      current;
     Position      history[MAX_HISTORY];
     int           history_count;
@@ -87,9 +88,11 @@ int start_simulation(const SimulationConfig *config,
                      FlightState *states,
                      SimulationReport *report);
 
-/* Read position updates from all active flight pipes.
- * Returns the number of updates read. */
-int read_all_positions(FlightState *states, int num_flights);
+/* Send a step token to all active flight processes,
+ * then block until every active flight has replied with its
+ * position update for that step.
+ * Returns the number of position updates received. */
+int synchronize_step(FlightState *states, int num_flights, int step);
 
 /* Check for safety violations among all current positions.
  * Returns the number of new violations detected. */

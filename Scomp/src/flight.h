@@ -8,14 +8,16 @@
  * ───────────────────────────────────────── */
 
 /* Entry point for a child flight process.
- * Reads the flight plan, computes positions step by step,
- * and sends position updates to the parent via pipe.
- * flight_id  — unique identifier of this flight
- * pipe_write — write end of the pipe to the parent
+ * Reads a step token from the parent before sending each
+ * position update — synchronization barrier.
+ * flight_id   — unique identifier of this flight
+ * pipe_write  — write end of the position pipe to the parent
+ * pipe_step   — read end of the step-token pipe from the parent
  * total_steps — number of simulation steps to execute
- * time_step  — duration of each step in seconds */
+ * time_step   — duration of each step in seconds */
 void execute_flight(int flight_id,
                     int pipe_write,
+                    int pipe_step,
                     int total_steps,
                     int time_step_seconds);
 
