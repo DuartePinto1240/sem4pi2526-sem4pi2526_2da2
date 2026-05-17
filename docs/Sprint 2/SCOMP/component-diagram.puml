@@ -1,0 +1,61 @@
+@startuml scomp-component-diagram
+skinparam componentStyle rectangle
+skinparam defaultFontSize 12
+skinparam ArrowFontSize 11
+
+title AISafe SCOMP — Component Diagram (Sprint 2)
+
+node "Main Process\n(parent)" as MAIN {
+  component "main.c\n(entry point)" as MAIN_C
+  component "simulation.c\n(orchestration)" as SIM
+  component "report.c\n(US109)" as REPORT
+
+  MAIN_C --> SIM : start_simulation()
+  SIM --> REPORT : write_report()
+}
+
+node "Flight Process i\n(child, one per flight)" as CHILD {
+  component "flight.c\n(execute_flight)" as FLIGHT
+  component "SIGUSR1 handler\n(violation notify)" as SIG1
+  component "SIGTERM handler\n(abort cleanup)" as SIGT
+
+  FLIGHT --> SIG1 : signal()
+  FLIGHT --> SIGT : signal()
+}
+
+database "simulation_report_\n<timestamp>.txt" as REPORT_FILE
+
+queue "Position Pipe\n(child → parent)\nbinary Position struct" as PIPE_POS
+queue "Step Token Pipe\n(parent → child)\n1-byte token" as PIPE_STEP
+
+SIM --> PIPE_STEP : write token\n(synchronize_step)
+PIPE_STEP --> FLIGHT : read token\n(blocks until parent ready)
+
+FLIGHT --> PIPE_POS : write Position\n(position update sent)
+PIPE_POS --> SIM : read Position\n(synchronize_step)
+
+SIM --> CHILD : fork() × num_flights
+SIM -right-> CHILD : kill(SIGUSR1)\nviolation detected
+SIM -right-> CHILD : kill(SIGTERM)\nmax violations reached
+
+REPORT --> REPORT_FILE : fwrite
+
+note right of SIM
+  **US100** — fork + pipes + validate params
+  **US101** — store history + predict violations
+  **US102** — check current distances + SIGUSR1
+  **US103** — step token barrier (parent waits
+             for all children before advancing)
+  **US109** — aggregate data → write report file
+end note
+
+note right of CHILD
+  Each child:
+  1. Waits for step token
+  2. Computes next position
+  3. Writes Position to pipe
+  4. Sleeps time_step_seconds
+  Repeats for total_steps
+end note
+
+@enduml
