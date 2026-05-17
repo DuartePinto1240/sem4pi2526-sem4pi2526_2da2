@@ -3,10 +3,6 @@
 
 #include "simulation.h"
 
-/* ─────────────────────────────────────────
- * Function Declarations
- * ───────────────────────────────────────── */
-
 /* Entry point for a child flight process.
  * Reads a step token from the parent before sending each
  * position update — synchronization barrier.
@@ -23,9 +19,7 @@ void execute_flight(int flight_id,
 
 /* Compute the next position of a flight based on simplified physics.
  * Uses linear interpolation between a start and end point. */
-Position compute_next_position(int flight_id,
-                               int step,
-                               int total_steps);
+Position compute_next_position(int flight_id, int step, int total_steps);
 
 /* Signal handler for SIGUSR1 — called when a safety violation
  * is detected by the parent process. */
@@ -35,4 +29,4 @@ void handle_sigusr1(int sig);
  * the simulation due to too many violations. */
 void handle_sigterm(int sig);
 
-#endif /* FLIGHT_H */
+#endif
