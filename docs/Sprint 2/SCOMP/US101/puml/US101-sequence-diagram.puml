@@ -1,0 +1,45 @@
+@startuml US101-sequence-diagram
+title US101 — C Layer: Capture and Process Flight Movements
+
+participant "main_process" as MAIN
+participant "flight_process_i" as FPi
+participant "flight_process_j" as FPj
+
+loop [for each time step]
+
+    note over FPi, FPj
+      Each child computes its next position
+      and writes it to its pipe — US101.1
+    end note
+
+    FPi -> FPi : compute_next_position()
+    FPi -> MAIN : write(pipe_fd, &pos)  [position update sent]
+
+    FPj -> FPj : compute_next_position()
+    FPj -> MAIN : write(pipe_fd, &pos)  [position update sent]
+
+    note over MAIN
+      read_all_positions():
+      history[history_count++] = current
+      current = pos  — US101.2
+    end note
+
+    MAIN -> MAIN : read_all_positions(states, num_flights)
+
+    note over MAIN
+      check_predicted_violations():
+      extrapolate next_i and next_j
+      from history and current — US101.3
+    end note
+
+    MAIN -> MAIN : check_predicted_violations(states, n, threshold, report, ts)
+
+    alt [predicted distance < 2 × threshold]
+        MAIN -> MAIN : log predicted violation warning
+    end
+
+    MAIN -> MAIN : check_safety_violations(...)   [US102]
+
+end
+
+@enduml

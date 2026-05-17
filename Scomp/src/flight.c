@@ -6,28 +6,23 @@
 #include <signal.h>
 #include <math.h>
 
-/* ─────────────────────────────────────────
- * Global state for signal handling
- * ───────────────────────────────────────── */
+// Global state for signal handling
 
 static volatile sig_atomic_t sigusr1_received = 0;
 static volatile sig_atomic_t sigterm_received  = 0;
 
-/* ─────────────────────────────────────────
- * Signal handlers
- * ───────────────────────────────────────── */
+// Signal handlers
 
 void handle_sigusr1(int sig) {
     (void) sig;
     sigusr1_received = 1;
-    /* block other signals while handling — US102 requirement */
+    // block other signals while handling
     sigset_t mask;
     sigemptyset(&mask);
     sigaddset(&mask, SIGUSR1);
     sigprocmask(SIG_BLOCK, &mask, NULL);
 
-    write(STDOUT_FILENO,
-          "[FLIGHT] Safety violation detected!\n", 37);
+    write(STDOUT_FILENO,"[FLIGHT] Safety violation detected!\n", 37);
 
     sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
@@ -35,22 +30,16 @@ void handle_sigusr1(int sig) {
 void handle_sigterm(int sig) {
     (void) sig;
     sigterm_received = 1;
-    write(STDOUT_FILENO,
-          "[FLIGHT] Termination signal received. Cleaning up.\n", 51);
+    write(STDOUT_FILENO,"[FLIGHT] Termination signal received. Cleaning up.\n", 51);
 }
 
-/* ─────────────────────────────────────────
- * Position computation
- * ───────────────────────────────────────── */
+// Position computation
 
-Position compute_next_position(int flight_id,
-                               int step,
-                               int total_steps) {
+Position compute_next_position(int flight_id, int step, int total_steps) {
     Position pos;
 
     /* Simplified flight paths — each flight has a
-     * predefined start and end coordinate.
-     * In a real system this would read from the flight plan. */
+     * predefined start and end coordinate. */
 
     double start_lat, start_lon, start_alt;
     double end_lat,   end_lon,   end_alt;
@@ -66,9 +55,7 @@ Position compute_next_position(int flight_id,
     end_lon   = -9.1359;
     end_alt   = 10000.0;
 
-    double t = (total_steps > 1)
-               ? (double) step / (double)(total_steps - 1)
-               : 0.0;
+    double t = (total_steps > 1) ? (double) step / (double)(total_steps - 1) : 0.0;
 
     pos.latitude  = start_lat + t * (end_lat  - start_lat);
     pos.longitude = start_lon + t * (end_lon  - start_lon);
@@ -78,16 +65,11 @@ Position compute_next_position(int flight_id,
     return pos;
 }
 
-/* ─────────────────────────────────────────
- * Flight process entry point
- * ───────────────────────────────────────── */
+// Flight process entry point
 
-void execute_flight(int flight_id,
-                    int pipe_write,
-                    int total_steps,
-                    int time_step_seconds) {
+void execute_flight(int flight_id, int pipe_write, int total_steps, int time_step_seconds) {
 
-    /* register signal handlers */
+    // register signal handlers
     signal(SIGUSR1, handle_sigusr1);
     signal(SIGTERM, handle_sigterm);
 
@@ -95,38 +77,33 @@ void execute_flight(int flight_id,
 
     for (int step = 0; step < total_steps; step++) {
 
-        /* check if we received a termination signal */
+        // check if we received a termination signal
         if (sigterm_received) {
-            printf("[FLIGHT %d] Aborting at step %d\n",
-                   flight_id, step);
+            printf("[FLIGHT %d] Aborting at step %d\n", flight_id, step);
             break;
         }
 
-        /* notify of violation if received */
+        // notify of violation if received
         if (sigusr1_received) {
             printf("[FLIGHT %d] Violation notified at step %d\n",
                    flight_id, step);
             sigusr1_received = 0;
         }
 
-        /* compute next position */
-        Position pos = compute_next_position(
-                flight_id, step, total_steps);
+        // compute next position
+        Position pos = compute_next_position(flight_id, step, total_steps);
 
-        /* send position update to parent via pipe */
-        ssize_t written = write(pipe_write,
-                                &pos, sizeof(Position));
+        // send position update to parent via pipe
+        ssize_t written = write(pipe_write, &pos, sizeof(Position));
         if (written < 0) {
             perror("[FLIGHT] write error");
             break;
         }
 
-         printf("[FLIGHT %d] Step %d — position update sent:"
-               " lat=%.4f lon=%.4f alt=%.1f\n",
-               flight_id, step,
-               pos.latitude, pos.longitude, pos.altitude);
+         printf("[FLIGHT %d] Step %d — position update sent: lat=%.4f lon=%.4f alt=%.1f\n",
+               flight_id, step, pos.latitude, pos.longitude, pos.altitude);
 
-        /* wait for next time step */
+        // wait for next time step
         sleep(time_step_seconds);
     }
 
