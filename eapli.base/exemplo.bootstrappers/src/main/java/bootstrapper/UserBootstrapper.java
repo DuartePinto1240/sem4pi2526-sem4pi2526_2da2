@@ -38,6 +38,13 @@ public class UserBootstrapper implements Action {
     private static final String BO_PHONE     = "910000002";
     private static final String BO_STAFF     = "STAFF-BO-001";
 
+    private static final String PILOT_EMAIL     = "pilot@alsafe.com";
+    private static final String PILOT_PASSWORD  = "Pilot1234";
+    private static final String PILOT_FIRSTNAME = "AlSafe";
+    private static final String PILOT_LASTNAME  = "Pilot";
+    private static final String PILOT_PHONE     = "910000003";
+    private static final String PILOT_STAFF     = "STAFF-PILOT-001";
+
     @Override
     public boolean execute() {
         loadValidDomains();
@@ -47,6 +54,8 @@ public class UserBootstrapper implements Action {
         createAtccDomainUser();
         createBackofficeOperatorSystemUser();
         createBackofficeOperatorDomainUser();
+        createPilotSystemUser();
+        createPilotDomainUser();
         return true;
     }
 
@@ -165,6 +174,43 @@ public class UserBootstrapper implements Action {
             repo.save(bo);
         } catch (final Exception e) {
             System.err.println("[Bootstrap] ERROR creating Backoffice Operator: "
+                    + e.getMessage());
+        }
+    }
+
+    private void createPilotSystemUser() {
+        try {
+            final UserManagementService svc = AuthzRegistry.userService();
+            final Set<Role> roles = new HashSet<>();
+            roles.add(BaseRoles.PILOT);
+            svc.registerNewUser(
+                    PILOT_EMAIL,
+                    PILOT_PASSWORD,
+                    PILOT_FIRSTNAME,
+                    PILOT_LASTNAME,
+                    PILOT_EMAIL,
+                    roles);
+        } catch (final Exception e) {
+            // already exists
+        }
+    }
+
+    private void createPilotDomainUser() {
+        try {
+            final UserRepository repo =
+                    PersistenceContext.getInstance().userRepository();
+            final EmailAddress emailVO = EmailAddress.valueOf(PILOT_EMAIL);
+            if (repo.ofIdentity(emailVO).isPresent()) return;
+
+            final User pilot = new User(
+                    emailVO,
+                    PILOT_FIRSTNAME + " " + PILOT_LASTNAME,
+                    PILOT_PHONE,
+                    PILOT_STAFF,
+                    LocalDate.now().plusYears(10));
+            repo.save(pilot);
+        } catch (final Exception e) {
+            System.err.println("[Bootstrap] ERROR creating Pilot: "
                     + e.getMessage());
         }
     }
