@@ -6,31 +6,21 @@
 #include <string.h>
 #include <time.h>
 
-/* ─────────────────────────────────────────
- * Print usage instructions
- * ───────────────────────────────────────── */
+// Print usage instructions
 
 static void print_usage(const char *prog) {
-    fprintf(stderr,
-            "Usage: %s <num_flights> <total_steps> "
-            "<time_step_sec> <safety_threshold_m> "
+    fprintf(stderr,"Usage: %s <num_flights> <total_steps> <time_step_sec> <safety_threshold_m> "
             "<max_violations>\n", prog);
     fprintf(stderr, "Example: %s 3 10 1 50000 5\n", prog);
 }
 
-/* ─────────────────────────────────────────
- * Generate report filename with timestamp
- * ───────────────────────────────────────── */
+// Generate report filename with timestamp
 
-
-
-/* ─────────────────────────────────────────
- * Entry point
- * ───────────────────────────────────────── */
+// Entry point
 
 int main(int argc, char *argv[]) {
 
-    /* parse arguments */
+    // parse arguments
     if (argc != 6) {
         print_usage(argv[0]);
         return EXIT_FAILURE;
@@ -53,19 +43,19 @@ int main(int argc, char *argv[]) {
     printf("  Max violations : %d\n", config.max_violations);
     printf("========================================\n\n");
 
-    /* validate parameters */
+    // validate parameters
     if (validate_parameters(&config) != 0) {
         fprintf(stderr, "[ERROR] Invalid simulation parameters.\n");
         return EXIT_FAILURE;
     }
 
-    /* allocate state and report */
-    FlightState     states[MAX_FLIGHTS];
+    // allocate state and report
+    FlightState states[MAX_FLIGHTS];
     SimulationReport report;
     memset(states, 0, sizeof(states));
     memset(&report, 0, sizeof(report));
 
-    /* run simulation */
+    // run simulation
     printf("[MAIN] Starting simulation...\n\n");
     int result = start_simulation(&config, states, &report);
 
@@ -75,7 +65,7 @@ int main(int argc, char *argv[]) {
     }
 
 
-    /* write report to file */
+    // write report to file
     char filename[128];
     make_report_filename(filename, sizeof(filename));
     print_report_summary(&report);

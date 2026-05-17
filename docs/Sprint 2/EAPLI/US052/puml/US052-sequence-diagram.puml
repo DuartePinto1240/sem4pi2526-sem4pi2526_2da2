@@ -3,76 +3,102 @@ actor "Backoffice Operator" as BO
 participant CreateAirportUI as UI <<boundary>>
 participant CreateAirportController as CTRL <<control>>
 participant AuthorizationService as AUTHZ <<service>>
-participant CreateAirportService as SVC <<service>>
 participant AirControlAreaRepository as AREA_REPO <<repository>>
+participant CountryRepository as COUNTRY_REPO <<repository>>
 participant AirportRepository as REPO <<repository>>
-participant AirportFactory as FACTORY <<factory>>
-participant "airport:Airport" as AIRPORT <<entity>>
+participant Airport as AIRPORT <<entity>>
 
 BO -> UI : doShow()
-UI -> BO : requests ICAO code, IATA code, name,\ntown, country, coordinates,\nelevation, area code
+UI -> CTRL : allAreas()
+activate CTRL
+CTRL -> AREA_REPO : findAll()
+activate AREA_REPO
+AREA_REPO --> CTRL : Iterable<AirControlArea>
+deactivate AREA_REPO
+CTRL --> UI : Iterable<AirControlArea>
+deactivate CTRL
 
+UI --> BO : displays area list with bounding boxes
+BO -> UI : selects area
+
+UI -> CTRL : allCountries()
+activate CTRL
+CTRL -> COUNTRY_REPO : findAll()
+activate COUNTRY_REPO
+COUNTRY_REPO --> CTRL : Iterable<Country>
+deactivate COUNTRY_REPO
+CTRL --> UI : Iterable<Country>
+deactivate CTRL
+
+UI --> BO : requests ICAO code, IATA code, name,\ntown, country, coordinates, elevation
 BO -> UI : provides data
 
-UI -> CTRL : createAirport(icao, iata, name, town,\n country, lat, lon, elevation, areaCode)
+UI -> CTRL : createAirport(icao, iata, name, town,\n countryName, latitude, longitude, elevationM, areaCode)
+activate CTRL
 
 CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(BACKOFFICE_OPERATOR)
 activate AUTHZ
 AUTHZ --> CTRL : ok (or throws UnauthorizedException)
 deactivate AUTHZ
 
-CTRL -> SVC : createAirport(icao, iata, name, town,\n country, coordinates, elevation, areaCode)
-activate SVC
+CTRL -> COUNTRY_REPO : findByName(countryName)
+activate COUNTRY_REPO
+COUNTRY_REPO --> CTRL : Optional<Country>
+deactivate COUNTRY_REPO
 
-SVC -> AREA_REPO : ofIdentity(AirControlAreaCode(areaCode))
-activate AREA_REPO
-AREA_REPO --> SVC : Optional<AirControlArea>
-deactivate AREA_REPO
+alt country not found
+  CTRL --> UI : throws IllegalArgumentException
+  UI --> BO : "Country not in system"
+else country found
 
-alt area not found
-  SVC --> CTRL : throws IllegalArgumentException
-  CTRL --> UI : error
-  UI --> BO : "Air control area does not exist"
-else area found
-
-  SVC -> REPO : ofIdentity(ICAOCode(icao))
+  CTRL -> REPO : containsOfIdentity(ICAOCode)
   activate REPO
-  REPO --> SVC : Optional<Airport>
+  REPO --> CTRL : boolean
   deactivate REPO
 
   alt ICAO already exists
-    SVC --> CTRL : throws IllegalStateException
-    CTRL --> UI : error
+    CTRL --> UI : throws IllegalArgumentException
     UI --> BO : "ICAO code already in use"
   else ICAO is unique
 
-    SVC -> REPO : existsByIATACode(IATACode(iata))
+    CTRL -> REPO : existsByIATACode(IATACode)
     activate REPO
-    REPO --> SVC : boolean
+    REPO --> CTRL : boolean
     deactivate REPO
 
     alt IATA already exists
-      SVC --> CTRL : throws IllegalStateException
-      CTRL --> UI : error
+      CTRL --> UI : throws IllegalArgumentException
       UI --> BO : "IATA code already in use"
     else IATA is unique
 
-      SVC -> FACTORY : create(icao, iata, name, town,\n country, coordinates, elevation, areaCode)
-      activate FACTORY
-      FACTORY -> AIRPORT ** : new Airport(ICAOCode, IATACode,\n AirportName, town, country,\n AirportCoordinates, Elevation,\n AirControlAreaCode)
-      FACTORY --> SVC : airport
-      deactivate FACTORY
+      CTRL -> AREA_REPO : ofIdentity(AirControlAreaCode)
+      activate AREA_REPO
+      AREA_REPO --> CTRL : Optional<AirControlArea>
+      deactivate AREA_REPO
 
-      SVC -> REPO : save(airport)
-      activate REPO
-      REPO --> SVC : airport (persisted)
-      deactivate REPO
+      alt area not found
+        CTRL --> UI : throws IllegalArgumentException
+        UI --> BO : "Air control area does not exist"
+      else area found
 
-      SVC --> CTRL : airport
-      deactivate SVC
+        alt coordinates outside area boundary
+          CTRL --> UI : throws IllegalArgumentException
+          UI --> BO : "Coordinates outside area boundary"
+        else coordinates valid
 
-      CTRL --> UI : success
-      UI --> BO : "Airport registered successfully"
+          CTRL -> AIRPORT ** : new Airport(ICAOCode, IATACode, AirportName,\n town, Country, AirportCoordinates,\n Elevation, AirControlAreaCode)
+
+          CTRL -> REPO : save(airport)
+          activate REPO
+          REPO --> CTRL : airport (persisted)
+          deactivate REPO
+
+          CTRL --> UI : airport
+          deactivate CTRL
+
+          UI --> BO : "Airport registered successfully"
+        end
+      end
     end
   end
 end

@@ -3,52 +3,67 @@ actor "Backoffice Operator" as BO
 participant RegisterAirControlAreaUI as UI <<boundary>>
 participant RegisterAirControlAreaController as CTRL <<control>>
 participant AuthorizationService as AUTHZ <<service>>
-participant RegisterAirControlAreaService as SVC <<service>>
 participant AirControlAreaRepository as REPO <<repository>>
-participant AirControlAreaFactory as FACTORY <<factory>>
-participant "area:AirControlArea" as AREA <<entity>>
+participant AirControlArea as AREA <<entity>>
 
 BO -> UI : doShow()
-UI -> BO : requests area code, name\nand boundary coordinates
 
-BO -> UI : provides data
+UI -> CTRL : allAreas()
+CTRL -> REPO : findAll()
+REPO --> CTRL : Iterable<AirControlArea>
+CTRL --> UI : Iterable<AirControlArea>
+UI --> BO : displays existing areas
 
-UI -> CTRL : registerAirControlArea(code, name, coordinates)
+BO -> UI : provides code, name,\nminLat, maxLat, minLon, maxLon
+
+UI -> CTRL : registerAirControlArea(\n  code, name,\n  minLat, maxLat, minLon, maxLon)
 
 CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(BACKOFFICE_OPERATOR)
 activate AUTHZ
 AUTHZ --> CTRL : ok (or throws UnauthorizedException)
 deactivate AUTHZ
 
-CTRL -> SVC : registerAirControlArea(code, name, boundary)
-activate SVC
-
-SVC -> REPO : ofIdentity(AirControlAreaCode(code))
+CTRL -> REPO : containsOfIdentity(AirControlAreaCode(code))
 activate REPO
-REPO --> SVC : Optional<AirControlArea>
+REPO --> CTRL : boolean
 deactivate REPO
 
 alt area code already exists
-  SVC --> CTRL : throws IllegalStateException
-  CTRL --> UI : error
+  CTRL --> UI : throws IllegalArgumentException
   UI --> BO : "Area code already exists"
 else area code is unique
-  SVC -> FACTORY : create(code, name, boundary)
-  activate FACTORY
-  FACTORY -> AREA ** : new AirControlArea(AirControlAreaCode,\n AreaName, GeographicBoundary)
-  FACTORY --> SVC : area
-  deactivate FACTORY
 
-  SVC -> REPO : save(area)
+  CTRL -> REPO : existsByName(name)
   activate REPO
-  REPO --> SVC : area (persisted)
+  REPO --> CTRL : boolean
   deactivate REPO
 
-  SVC --> CTRL : area
-  deactivate SVC
+  alt area name already exists
+    CTRL --> UI : throws IllegalArgumentException
+    UI --> BO : "Area name already exists"
+  else area name is unique
 
-  CTRL --> UI : success
-  UI --> BO : "Air control area registered successfully"
+    CTRL -> REPO : existsOverlappingBoundary(boundary)
+    activate REPO
+    REPO --> CTRL : boolean
+    deactivate REPO
+
+    alt boundary overlaps existing area
+      CTRL --> UI : throws IllegalArgumentException
+      UI --> BO : "Boundary overlaps existing area"
+    else boundary is valid
+
+      CTRL -> AREA ** : new AirControlArea(code, name, boundary)
+
+      CTRL -> REPO : save(area)
+      activate REPO
+      REPO --> CTRL : area (persisted)
+      deactivate REPO
+
+      CTRL --> UI : AirControlArea
+      UI --> BO : "Air control area registered successfully"
+    end
+  end
 end
 
 @enduml

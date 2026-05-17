@@ -138,7 +138,7 @@ void test_no_violation_at_exact_threshold() {
 
     SimulationReport report;
     memset(&report, 0, sizeof(report));
-    
+
 
     int violations = check_safety_violations(
             states, 2, 500.0, &report, 0.0);
