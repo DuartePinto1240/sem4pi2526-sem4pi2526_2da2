@@ -1,0 +1,59 @@
+@startuml
+actor Administrator
+participant RegisterUserUI as UI <<boundary>>
+participant RegisterUserController as CTRL <<control>>
+participant ValidEmailDomains as VED <<utility>>
+participant AuthzRegistry as REG <<registry>>
+participant UserManagementService as SVC <<service>>
+participant "domainUser:User" as USER <<domain>>
+participant PersistenceContext as PCON <<singleton>>
+participant UserRepository as REPO <<repository>>
+
+Administrator -> UI : doShow()
+UI -> Administrator : requests user data (field by field)
+
+note right of UI
+  Each field validated immediately with retry.
+  Email: format + domain + uniqueness.
+  Phone: 9 digits + uniqueness.
+  Staff: uniqueness.
+  Clearance: valid future date.
+end note
+
+Administrator -> UI : name, email, phone, staffNumber, password, clearanceExpiry
+UI -> VED : isValid(email)
+VED --> UI : true
+UI -> PCON : getInstance().userRepository()
+PCON --> UI : repo
+UI -> REPO : ofIdentity(email) [uniqueness check]
+REPO --> UI : empty
+
+UI -> CTRL : registerUser(email, name, phone, password, staffNumber, clearanceExpiry)
+activate CTRL
+
+' Step 1: Create SystemUser via framework
+CTRL -> REG : userService()
+REG --> CTRL : svc
+CTRL -> SVC : registerNewUser(email, password, firstName, lastName, email, {BACKOFFICE_OPERATOR})
+note right of CTRL
+  name split into firstName/lastName
+  (framework requires both non-empty)
+end note
+SVC --> CTRL : SystemUser (handles auth + role)
+
+' Step 2: Create domain User
+CTRL -> REPO : ofIdentity(email) [duplicate check]
+REPO --> CTRL : empty
+CTRL -> USER : new User(email, name, phone, staffNumber, clearanceExpiry)
+activate USER
+USER -> USER : validate all invariants
+USER -> USER : role = "BACKOFFICE_OPERATOR"
+USER -> USER : nextSkillsAssessmentDate = today + 5 years
+USER --> CTRL : domainUser
+deactivate USER
+CTRL -> REPO : save(domainUser)
+CTRL --> UI : domainUser
+deactivate CTRL
+
+UI --> Administrator : displays success\n(name, email, role, clearance, assessment)
+@enduml

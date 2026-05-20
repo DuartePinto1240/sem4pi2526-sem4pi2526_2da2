@@ -1,0 +1,134 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI Layer" {
+  class RegisterWeatherDataUI <<boundary>> {
+    + doShow() : boolean
+    + headline() : String
+  }
+}
+
+package "Application Layer" {
+  class RegisterWeatherDataController <<control>> {
+    - authz : AuthorizationService
+    - areaRepo : AirControlAreaRepository
+    - weatherRepo : WeatherDataRepository
+    + RegisterWeatherDataController()
+    + RegisterWeatherDataController(authz, areaRepo, weatherRepo)
+    + allAreas() : Iterable<AirControlArea>
+    + existingWeatherDataForArea(areaCode : String) : Iterable<WeatherData>
+    + registerWeatherData(areaCode : String,\n  subMinLat : double, subMaxLat : double,\n  subMinLon : double, subMaxLon : double,\n  minAltitude : double, maxAltitude : double,\n  startDateTime : LocalDateTime,\n  endDateTime : LocalDateTime,\n  windDirection : double,\n  windSpeed : double) : WeatherData
+  }
+}
+
+package "Domain Layer" {
+
+  class WeatherData <<entity>> <<AggregateRoot>> {
+    - id : Long
+    - areaCode : AirControlAreaCode
+    - subArea : WeatherSubArea
+    - period : ObservationPeriod
+    - wind : WindCondition
+    + WeatherData(areaCode, subArea, period, wind)
+    + identity() : Long
+    + sameAs(other : Object) : boolean
+    + areaCode() : AirControlAreaCode
+    + subArea() : WeatherSubArea
+    + period() : ObservationPeriod
+    + wind() : WindCondition
+  }
+
+  class WeatherSubArea <<ValueObject>> {
+    - subBoundary : GeographicBoundary
+    - altitudeRange : AltitudeRange
+    + WeatherSubArea(subBoundary, altitudeRange)
+    + subBoundary() : GeographicBoundary
+    + altitudeRange() : AltitudeRange
+    + isInsideBoundary(parent : GeographicBoundary) : boolean
+    + overlapsWith(other : WeatherSubArea) : boolean
+  }
+
+  class GeographicBoundary <<ValueObject>> {
+    - minLat : double
+    - maxLat : double
+    - minLon : double
+    - maxLon : double
+    + GeographicBoundary(minLat, maxLat, minLon, maxLon)
+    + overlapsWith(other : GeographicBoundary) : boolean
+  }
+
+  class AltitudeRange <<ValueObject>> {
+    - minAltitude : double
+    - maxAltitude : double
+    + AltitudeRange(minAltitude, maxAltitude)
+    + minAltitude() : double
+    + maxAltitude() : double
+    + overlapsWith(other : AltitudeRange) : boolean
+  }
+
+  class ObservationPeriod <<ValueObject>> {
+    - startDateTime : LocalDateTime
+    - endDateTime : LocalDateTime
+    + ObservationPeriod(startDateTime, endDateTime)
+    + startDateTime() : LocalDateTime
+    + endDateTime() : LocalDateTime
+    + overlapsWith(other : ObservationPeriod) : boolean
+  }
+
+  class WindCondition <<ValueObject>> {
+    - windDirection : double
+    - windSpeed : double
+    + WindCondition(windDirection : double, windSpeed : double)
+    + windDirection() : double
+    + windSpeed() : double
+  }
+
+  class AirControlAreaCode <<ValueObject>> {
+    - code : String
+    + AirControlAreaCode(code : String)
+    + code() : String
+  }
+
+  interface WeatherDataRepository <<Repository>> {
+    + save(wd : WeatherData) : WeatherData
+    + findByArea(areaCode : AirControlAreaCode) : Iterable<WeatherData>
+    + ofIdentity(id : Long) : Optional<WeatherData>
+    + existsConflicting(areaCode : AirControlAreaCode,\n  subArea : WeatherSubArea,\n  period : ObservationPeriod) : boolean
+  }
+
+  interface AirControlAreaRepository <<Repository>> {
+    + ofIdentity(code : AirControlAreaCode) : Optional<AirControlArea>
+    + findAll() : Iterable<AirControlArea>
+  }
+}
+
+package "Infrastructure Layer" {
+  class JpaWeatherDataRepository <<infrastructure>> {
+    + findByArea(areaCode : AirControlAreaCode) : Iterable<WeatherData>
+    + existsConflicting(...) : boolean
+  }
+  class InMemoryWeatherDataRepository <<infrastructure>> {
+    + findByArea(areaCode : AirControlAreaCode) : Iterable<WeatherData>
+    + existsConflicting(...) : boolean
+  }
+}
+
+RegisterWeatherDataUI --> RegisterWeatherDataController
+
+RegisterWeatherDataController --> AuthorizationService
+RegisterWeatherDataController --> AirControlAreaRepository
+RegisterWeatherDataController --> WeatherDataRepository
+RegisterWeatherDataController ..> WeatherData : <<creates via new>>
+
+WeatherData *-- AirControlAreaCode
+WeatherData *-- WeatherSubArea
+WeatherData *-- ObservationPeriod
+WeatherData *-- WindCondition
+
+WeatherSubArea *-- GeographicBoundary
+WeatherSubArea *-- AltitudeRange
+
+JpaWeatherDataRepository ..|> WeatherDataRepository
+InMemoryWeatherDataRepository ..|> WeatherDataRepository
+
+@enduml

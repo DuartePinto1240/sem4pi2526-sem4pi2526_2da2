@@ -1,0 +1,99 @@
+@startuml SD_US057
+skinparam monochrome true
+skinparam shadowing false
+autonumber
+
+actor "Backoffice Operator" as Op
+participant ":AddEngineModelToAircraftUI" as UI
+participant ":AddEngineModelToAircraftController" as Ctrl
+participant "aircraftRepo:AircraftModelRepository" as AircraftRepo
+participant "engineRepo:EngineModelRepository" as EngineRepo
+participant "aircraft:AircraftModel" as Aircraft
+
+Op -> UI : Selects "Add Engine Model to Aircraft Model"
+activate UI
+
+UI -> Ctrl : getAircraftModels()
+activate Ctrl
+Ctrl -> AircraftRepo : findAll()
+activate AircraftRepo
+AircraftRepo --> Ctrl : aircraftModels
+deactivate AircraftRepo
+Ctrl --> UI : aircraftModels
+deactivate Ctrl
+
+UI --> Op : Presents list of aircraft models
+Op -> UI : Selects aircraft model (aircraftModelId)
+
+UI -> Ctrl : getCompatibleEngines(aircraftModelId)
+activate Ctrl
+Ctrl -> AircraftRepo : findById(aircraftModelId)
+activate AircraftRepo
+AircraftRepo --> Ctrl : aircraftModel
+deactivate AircraftRepo
+Ctrl -> EngineRepo : findByMotorizationType(aircraftModel.motorizationType())
+activate EngineRepo
+EngineRepo --> Ctrl : compatibleEngines
+deactivate EngineRepo
+Ctrl --> UI : compatibleEngines (excluding already certified)
+deactivate Ctrl
+
+UI --> Op : Presents compatible engine models
+Op -> UI : Selects engine model (engineModelId)
+
+UI -> Ctrl : addEngineModelToAircraft(aircraftModelId, engineModelId)
+activate Ctrl
+
+Ctrl -> AircraftRepo : findById(aircraftModelId)
+activate AircraftRepo
+AircraftRepo --> Ctrl : aircraftModel
+deactivate AircraftRepo
+
+Ctrl -> EngineRepo : findById(engineModelId)
+activate EngineRepo
+EngineRepo --> Ctrl : engineModel
+deactivate EngineRepo
+
+alt engineModel not found
+    Ctrl --> UI : throw EntityNotFoundException
+    UI --> Op : Error: engine model does not exist
+else
+
+    Ctrl -> Aircraft : addCertifiedEngine(engineModel)
+    activate Aircraft
+
+    note right of Aircraft
+        Enforces US057.2: engine motorization type
+        must match existing certified engines.
+        Enforces US057.3: engine model must not
+        already be in certifiedEngines list.
+    end note
+
+    alt engine type incompatible
+        Aircraft --> Ctrl : throw EngineTypeIncompatibleException
+        Ctrl --> UI : throw EngineTypeIncompatibleException
+        UI --> Op : Error: incompatible engine type
+    else engine already certified
+        Aircraft --> Ctrl : throw DuplicateEngineException
+        Ctrl --> UI : throw DuplicateEngineException
+        UI --> Op : Error: engine model already certified
+    else
+        Aircraft --> Ctrl : ok
+        deactivate Aircraft
+
+        Ctrl -> AircraftRepo : save(aircraftModel)
+        activate AircraftRepo
+        AircraftRepo --> Ctrl : savedModel
+        deactivate AircraftRepo
+
+        Ctrl --> UI : savedModel
+        deactivate Ctrl
+
+        UI --> Op : Confirms successful association
+    end
+
+end
+
+deactivate UI
+
+@enduml

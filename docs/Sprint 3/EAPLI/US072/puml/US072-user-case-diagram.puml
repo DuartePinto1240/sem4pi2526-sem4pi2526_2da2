@@ -1,0 +1,46 @@
+@startuml
+left to right direction
+
+actor "Air Transport Company\nCollaborator (ATCC)" as ATCC
+
+rectangle "Air Companies Configuration Module" {
+  usecase "List Company Fleet" as UC_List
+  usecase "Validate Authorization" as UC_Authz
+  usecase "Retrieve Company Identity" as UC_Company
+  usecase "Filter Aircraft by Company" as UC_Filter
+  usecase "Display Aircraft List" as UC_Display
+  usecase "Handle Empty Fleet" as UC_Empty
+}
+
+ATCC --> UC_List
+
+UC_List ..> UC_Authz : <<include>>
+UC_List ..> UC_Company : <<include>>
+UC_List ..> UC_Filter : <<include>>
+UC_Filter ..> UC_Display : <<include>>
+UC_Filter ..> UC_Empty : <<extend>>
+
+note bottom of UC_Authz
+  Verified by
+  AuthorizationService
+  Role: ATCC
+end note
+
+note bottom of UC_Company
+  Company identity
+  retrieved from
+  current session
+end note
+
+note bottom of UC_Filter
+  Only aircraft belonging
+  to the ATCC's own
+  company are returned
+end note
+
+note bottom of UC_Empty
+  Extended when
+  no aircraft exist
+  in the fleet
+end note
+@enduml

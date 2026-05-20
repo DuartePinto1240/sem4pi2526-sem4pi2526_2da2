@@ -1,0 +1,102 @@
+@startuml SD_US063
+title US063 – Edit a Customer's Collaborator\n(Sequence Diagram)
+
+skinparam sequence {
+    ActorBorderColor #534AB7
+    ActorBackgroundColor #D0C8F8
+    ParticipantBorderColor #0F6E56
+    ParticipantBackgroundColor #C2EAD8
+    LifeLineBorderColor #854F0B
+    NoteBackgroundColor #FAE8C0
+    NoteBorderColor #854F0B
+    ArrowColor #333333
+}
+
+actor "Backoffice Operator" as BO
+participant "EditCollaboratorUI" as UI
+participant "EditCollaboratorController" as CTRL
+participant "CustomerRepository" as CREPO
+participant "UserRepository" as UREPO
+participant "AirTransportCompany\n/ AirControlArea" as CUSTOMER
+participant "User" as USER
+
+BO -> UI : requests to edit a collaborator
+activate UI
+
+UI -> CTRL : getAvailableCustomers()
+activate CTRL
+CTRL -> CREPO : findAllAirTransportCompanies()
+CREPO --> CTRL : List<AirTransportCompany>
+CTRL -> CREPO : findAllAirControlAreas()
+CREPO --> CTRL : List<AirControlArea>
+CTRL --> UI : List<CustomerDTO>
+deactivate CTRL
+
+UI --> BO : displays customer list
+BO -> UI : selects customer
+
+UI -> CTRL : listCollaborators(customerId, customerType)
+activate CTRL
+CTRL -> CREPO : findById(customerId, customerType)
+CREPO --> CTRL : customerAggregate
+CTRL -> CUSTOMER : listActiveCollaborators()
+CUSTOMER --> CTRL : List<CollaboratorDTO>
+CTRL --> UI : List<CollaboratorDTO>
+deactivate CTRL
+
+UI --> BO : displays active collaborator list
+
+BO -> UI : selects collaborator +\nsubmits (newEmail, newPhone)
+
+UI -> CTRL : editCollaborator(customerId, customerType,\n  currentEmail, newEmail, newPhone)
+activate CTRL
+
+alt newEmail != currentEmail
+
+    CTRL -> UREPO : findByEmail(newEmail)
+    UREPO --> CTRL : result
+
+    alt new email already taken
+        CTRL --> UI : error("Email already registered")
+        UI --> BO : shows error message
+
+    else new email is unique
+
+        CTRL -> UREPO : findByEmail(currentEmail)
+        UREPO --> CTRL : user
+        CTRL -> USER : updateEmail(newEmail)
+        activate USER
+        USER --> CTRL : user (updated)
+        deactivate USER
+        CTRL -> UREPO : save(user)
+
+        CTRL -> CREPO : findById(customerId, customerType)
+        CREPO --> CTRL : customer
+        CTRL -> CUSTOMER : updateCollaboratorEmail(currentEmail, newEmail)
+        activate CUSTOMER
+        CUSTOMER --> CTRL : collaborator (updated)
+        deactivate CUSTOMER
+        CTRL -> CREPO : save(customerAggregate)
+
+        CTRL --> UI : success
+        UI --> BO : "Collaborator updated successfully"
+    end
+
+else only phone changed (email unchanged)
+
+    CTRL -> UREPO : findByEmail(currentEmail)
+    UREPO --> CTRL : user
+    CTRL -> USER : updatePhoneNumber(newPhone)
+    activate USER
+    USER --> CTRL : user (updated)
+    deactivate USER
+    CTRL -> UREPO : save(user)
+
+    CTRL --> UI : success
+    UI --> BO : "Collaborator updated successfully"
+end
+
+deactivate CTRL
+deactivate UI
+
+@enduml

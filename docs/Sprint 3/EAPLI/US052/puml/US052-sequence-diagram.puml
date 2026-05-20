@@ -1,0 +1,106 @@
+@startuml US052-sequence-diagram
+actor "Backoffice Operator" as BO
+participant CreateAirportUI as UI <<boundary>>
+participant CreateAirportController as CTRL <<control>>
+participant AuthorizationService as AUTHZ <<service>>
+participant AirControlAreaRepository as AREA_REPO <<repository>>
+participant CountryRepository as COUNTRY_REPO <<repository>>
+participant AirportRepository as REPO <<repository>>
+participant Airport as AIRPORT <<entity>>
+
+BO -> UI : doShow()
+UI -> CTRL : allAreas()
+activate CTRL
+CTRL -> AREA_REPO : findAll()
+activate AREA_REPO
+AREA_REPO --> CTRL : Iterable<AirControlArea>
+deactivate AREA_REPO
+CTRL --> UI : Iterable<AirControlArea>
+deactivate CTRL
+
+UI --> BO : displays area list with bounding boxes
+BO -> UI : selects area
+
+UI -> CTRL : allCountries()
+activate CTRL
+CTRL -> COUNTRY_REPO : findAll()
+activate COUNTRY_REPO
+COUNTRY_REPO --> CTRL : Iterable<Country>
+deactivate COUNTRY_REPO
+CTRL --> UI : Iterable<Country>
+deactivate CTRL
+
+UI --> BO : requests ICAO code, IATA code, name,\ntown, country, coordinates, elevation
+BO -> UI : provides data
+
+UI -> CTRL : createAirport(icao, iata, name, town,\n countryName, latitude, longitude, elevationM, areaCode)
+activate CTRL
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(BACKOFFICE_OPERATOR)
+activate AUTHZ
+AUTHZ --> CTRL : ok (or throws UnauthorizedException)
+deactivate AUTHZ
+
+CTRL -> COUNTRY_REPO : findByName(countryName)
+activate COUNTRY_REPO
+COUNTRY_REPO --> CTRL : Optional<Country>
+deactivate COUNTRY_REPO
+
+alt country not found
+  CTRL --> UI : throws IllegalArgumentException
+  UI --> BO : "Country not in system"
+else country found
+
+  CTRL -> REPO : containsOfIdentity(ICAOCode)
+  activate REPO
+  REPO --> CTRL : boolean
+  deactivate REPO
+
+  alt ICAO already exists
+    CTRL --> UI : throws IllegalArgumentException
+    UI --> BO : "ICAO code already in use"
+  else ICAO is unique
+
+    CTRL -> REPO : existsByIATACode(IATACode)
+    activate REPO
+    REPO --> CTRL : boolean
+    deactivate REPO
+
+    alt IATA already exists
+      CTRL --> UI : throws IllegalArgumentException
+      UI --> BO : "IATA code already in use"
+    else IATA is unique
+
+      CTRL -> AREA_REPO : ofIdentity(AirControlAreaCode)
+      activate AREA_REPO
+      AREA_REPO --> CTRL : Optional<AirControlArea>
+      deactivate AREA_REPO
+
+      alt area not found
+        CTRL --> UI : throws IllegalArgumentException
+        UI --> BO : "Air control area does not exist"
+      else area found
+
+        alt coordinates outside area boundary
+          CTRL --> UI : throws IllegalArgumentException
+          UI --> BO : "Coordinates outside area boundary"
+        else coordinates valid
+
+          CTRL -> AIRPORT ** : new Airport(ICAOCode, IATACode, AirportName,\n town, Country, AirportCoordinates,\n Elevation, AirControlAreaCode)
+
+          CTRL -> REPO : save(airport)
+          activate REPO
+          REPO --> CTRL : airport (persisted)
+          deactivate REPO
+
+          CTRL --> UI : airport
+          deactivate CTRL
+
+          UI --> BO : "Airport registered successfully"
+        end
+      end
+    end
+  end
+end
+
+@enduml

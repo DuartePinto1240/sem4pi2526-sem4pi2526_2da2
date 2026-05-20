@@ -1,0 +1,110 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class RegisterUserUI <<boundary>> {
+    +doShow(): boolean
+    -readName(): String
+    -readEmail(): String
+    -readPhone(): String
+    -readStaffNumber(): String
+    -readPassword(): String
+    -readClearanceDate(): LocalDate
+  }
+}
+
+package "Application" {
+  class RegisterUserController <<control>> {
+    -userSvc: UserManagementService
+    -repo: UserRepository
+    +registerUser(email, name, phone, password, staff, clearance): User
+    +registerAdmin(email, name, phone, password, staff, clearance): User
+  }
+}
+
+package "Infrastructure.Authz" {
+  class AuthzRegistry <<registry>> {
+    {static} +userService(): UserManagementService
+  }
+  class UserManagementService <<service>> {
+    +registerNewUser(username, password, firstName, lastName, email, roles): SystemUser
+  }
+  class SystemUser <<aggregate root>> {
+    -username: Username
+    -password: Password
+    -roles: RoleSet
+    -active: boolean
+  }
+}
+
+package "Domain" {
+  class User <<aggregate root>> {
+    -email: EmailAddress
+    -name: String
+    -phoneNumber: String
+    -staffNumber: String
+    -active: boolean
+    -role: String
+    -securityClearanceExpiry: LocalDate
+    -nextSkillsAssessmentDate: LocalDate
+    +markAsAdmin()
+    +isActive(): boolean
+    +getRole(): String
+    +updateSecurityClearance(LocalDate)
+    +updateSkillsAssessment(LocalDate)
+  }
+  class EmailAddress <<value object>> {
+    -address: String
+    +valueOf(String): EmailAddress
+  }
+  class ValidEmailDomains <<utility>> {
+    +register(String)
+    +isValid(String): boolean
+    +getAll(): Set<String>
+  }
+  class BaseRoles <<utility>> {
+    {static} +ADMIN: Role
+    {static} +BACKOFFICE_OPERATOR: Role
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +getInstance(): PersistenceContext
+    +userRepository(): UserRepository
+  }
+  interface UserRepository <<repository>> {
+    +save(user): User
+    +ofIdentity(EmailAddress): Optional<User>
+    +findAll(): Iterable<User>
+  }
+}
+
+RegisterUserUI ..> RegisterUserController
+RegisterUserUI ..> ValidEmailDomains : checks domain
+RegisterUserController ..> AuthzRegistry : userService()
+RegisterUserController ..> UserManagementService : registerNewUser()
+RegisterUserController ..> ValidEmailDomains : validates
+RegisterUserController ..> PersistenceContext
+RegisterUserController ..> User : creates
+RegisterUserController ..> BaseRoles : assigns roles
+UserManagementService ..> SystemUser : creates
+PersistenceContext ..> UserRepository
+User *-- EmailAddress
+
+note right of RegisterUserController
+  Two-step registration:
+  1. Create SystemUser via framework
+     (authentication + role assignment)
+  2. Create domain User in our repo
+     (phone, staff, clearance, assessment)
+  Linked by email address.
+end note
+
+note right of User
+  Does NOT hold password or admin flag.
+  Authentication delegated to SystemUser.
+  role field is display-only string.
+  nextSkillsAssessmentDate auto = today+5yr
+end note
+@enduml

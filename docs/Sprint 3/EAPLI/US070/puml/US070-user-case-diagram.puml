@@ -1,0 +1,50 @@
+@startuml
+left to right direction
+
+actor "Air Transport Company\nCollaborator (ATCC)" as ATCC
+
+rectangle "Air Companies Configuration Module" {
+  usecase "Add Aircraft to Fleet" as UC_Add
+  usecase "Validate Authorization" as UC_Authz
+  usecase "Validate Registration Number" as UC_Reg
+  usecase "Check Registration Uniqueness" as UC_UniqueReg
+  usecase "Validate Aircraft Model" as UC_Model
+  usecase "Validate Cabin Configuration" as UC_Cabin
+  usecase "Check Seats vs Model Capacity" as UC_Seats
+  usecase "Set Operational Status" as UC_Status
+  usecase "Persist Aircraft" as UC_Persist
+}
+
+ATCC --> UC_Add
+
+UC_Add ..> UC_Authz : <<include>>
+UC_Add ..> UC_Reg : <<include>>
+UC_Add ..> UC_Model : <<include>>
+UC_Add ..> UC_Cabin : <<include>>
+UC_Add ..> UC_Status : <<include>>
+UC_Add ..> UC_Persist : <<include>>
+UC_Reg ..> UC_UniqueReg : <<include>>
+UC_Cabin ..> UC_Seats : <<include>>
+
+note bottom of UC_Authz
+  Verified by
+  AuthorizationService
+  Role: ATCC
+end note
+
+note bottom of UC_Reg
+  Must be non-empty
+  and globally unique
+end note
+
+note bottom of UC_Seats
+  totalSeats <=
+  model.maxCapacity
+end note
+
+note bottom of UC_Status
+  Status set to
+  ACTIVE upon
+  registration
+end note
+@enduml

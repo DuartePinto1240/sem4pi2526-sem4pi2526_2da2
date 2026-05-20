@@ -1,0 +1,74 @@
+@startuml CD_US062
+title US062 – List Customer's Collaborators\n(Class Diagram)
+
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor<<AggregateRoot>> #D0C8F8
+    BorderColor<<AggregateRoot>>     #534AB7
+    BackgroundColor<<Entity>>        #C2EAD8
+    BorderColor<<Entity>>            #0F6E56
+    BackgroundColor<<ValueObject>>   #FAE8C0
+    BorderColor<<ValueObject>>       #854F0B
+    BackgroundColor<<Controller>>    #FADADD
+    BorderColor<<Controller>>        #A03040
+    BackgroundColor<<Repository>>    #D8EAF8
+    BorderColor<<Repository>>        #1A5276
+    BackgroundColor<<Interface>>     #EDEDED
+    BorderColor<<Interface>>         #555555
+}
+
+'Presentation
+package "Presentation" {
+    class ListCollaboratorsUI {
+        + run() : void
+        - displayCustomerList(customers : List<CustomerDTO>) : void
+        - displayCollaborators(collaborators : List<CollaboratorDTO>) : void
+        - showError(message : String) : void
+    }
+}
+
+'Application
+package "Application" {
+    class ListCollaboratorsController <<Controller>> {
+        - customerRepository : CustomerRepository
+        + getAvailableCustomers() : List<CustomerDTO>
+        + listCollaborators(customerId : Long,\n  customerType : CustomerType) : List<CollaboratorDTO>
+    }
+
+    class CustomerDTO {
+        + id : Long
+        + name : String
+        + type : CustomerType
+    }
+
+    class CollaboratorDTO {
+        + email : String
+        + name : String
+        + position : String
+    }
+
+    enum CustomerType {
+        AIR_TRANSPORT_COMPANY
+        AIR_CONTROL_AREA
+    }
+}
+
+'Repository
+package "Repository" {
+    interface CustomerRepository <<Interface>> {
+        + findAllAirTransportCompanies() : List<AirTransportCompany>
+        + findAllAirControlAreas() : List<AirControlArea>
+        + findAirTransportCompanyById(id : Long) : Optional<AirTransportCompany>
+        + findAirControlAreaById(id : Long) : Optional<AirControlArea>
+    }
+}
+
+' ── Relationships ────────────────────────────────────────
+ListCollaboratorsUI         ..> ListCollaboratorsController : uses
+ListCollaboratorsController ..> CustomerRepository          : uses
+ListCollaboratorsController ..> CustomerDTO                 : creates
+ListCollaboratorsController ..> CollaboratorDTO             : creates
+ListCollaboratorsController ..> CustomerType                : uses
+ListCollaboratorsUI         ..> CollaboratorDTO             : displays
+
+@enduml

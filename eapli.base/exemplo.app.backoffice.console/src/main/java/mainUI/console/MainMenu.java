@@ -114,7 +114,7 @@ public class MainMenu extends AbstractUI {
     }
 
     private void printLogoutExit() {
-        System.out.println("  ║  9.  Logout                              ║");
+        System.out.println("  ║  99.  Logout                              ║");
         System.out.println("  ║  0.  Exit                                ║");
     }
 
