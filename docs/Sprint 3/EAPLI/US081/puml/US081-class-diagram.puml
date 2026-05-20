@@ -1,0 +1,79 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class ImportFlightPlanUI <<boundary>> {
+    +doShow(): boolean
+  }
+}
+
+package "Application" {
+  class ImportFlightPlanController <<control>> {
+    +availableFiles(): List<String>
+    +importFromFile(filename): FlightPlan
+  }
+}
+
+package "LPROG" {
+  class FlightPlanImporter <<service>> {
+    +importFromFile(path): FlightPlanImportResult
+    +importFromString(input): FlightPlanImportResult
+  }
+  class FlightPlanImportResult <<result>> {
+    +isSuccess(): boolean
+    +getFlights(): List<FlightData>
+    +getErrors(): List<ValidationError>
+  }
+  class ErrorCollector <<listener>> {
+    +setPhase(ErrorType)
+    +addSemanticError(line, col, msg)
+    +hasErrors(): boolean
+    +getErrors(): List<ValidationError>
+  }
+  class FlightPlanSemanticVisitor <<visitor>> {
+    +visitFlight(ctx)
+    +visitLeg(ctx)
+    +visitFuel(ctx)
+    +visitSegment(ctx)
+    +visitAirportCode(ctx)
+  }
+  class FlightPlanBuilderListener <<listener>> {
+    +enterFlight(ctx)
+    +exitFlight(ctx)
+    +enterLeg(ctx)
+    +exitLeg(ctx)
+    +getFlights(): List<FlightData>
+  }
+}
+
+package "Domain" {
+  class FlightPlan <<aggregate root>> {
+    -flightId: String
+    -flightType: String
+    -status: FlightPlanStatus
+    -legs: List<FlightLeg>
+  }
+  class FlightLeg <<entity>> {
+    -departureAirport: String
+    -arrivalAirport: String
+    -fuelQuantity: double
+  }
+}
+
+ImportFlightPlanUI ..> ImportFlightPlanController
+ImportFlightPlanController ..> FlightPlanImporter
+FlightPlanImporter ..> ErrorCollector
+FlightPlanImporter ..> FlightPlanSemanticVisitor
+FlightPlanImporter ..> FlightPlanBuilderListener
+FlightPlanImporter ..> FlightPlanImportResult
+ImportFlightPlanController ..> FlightPlan : creates from FlightData
+FlightPlan "1" *-- "1..*" FlightLeg
+
+note right of FlightPlanImporter
+  4-step pipeline:
+  1. Lexical (FlightPlanLexer)
+  2. Syntactic (FlightPlanParser)
+  3. Semantic (Visitor)
+  4. Build (Listener)
+end note
+@enduml

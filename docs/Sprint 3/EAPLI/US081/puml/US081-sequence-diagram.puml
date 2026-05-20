@@ -1,0 +1,56 @@
+@startuml
+actor Pilot
+participant ImportFlightPlanUI as UI <<boundary>>
+participant ImportFlightPlanController as CTRL <<control>>
+participant FlightPlanImporter as IMP <<service>>
+participant ErrorCollector as ERR <<collector>>
+participant FlightPlanSemanticVisitor as VIS <<visitor>>
+participant FlightPlanBuilderListener as BLD <<listener>>
+participant FlightPlanRepository as REPO <<repository>>
+
+Pilot -> UI : doShow()
+UI -> CTRL : availableFiles()
+CTRL --> UI : file list
+UI --> Pilot : shows numbered file list
+
+Pilot -> UI : selects file number
+UI -> CTRL : importFromFile(filename)
+activate CTRL
+CTRL -> IMP : importFromFile(path)
+activate IMP
+
+IMP -> ERR : setPhase(LEXICAL)
+IMP -> IMP : FlightPlanLexer(input)
+
+IMP -> ERR : setPhase(SYNTACTIC)
+IMP -> IMP : FlightPlanParser(tokens) → ParseTree
+
+alt has lexical or syntactic errors
+    IMP --> CTRL : FlightPlanImportResult.failure(errors)
+else no errors so far
+    IMP -> VIS : visit(tree)
+    VIS -> ERR : addSemanticError(...) [if violations]
+
+    alt has semantic errors
+        IMP --> CTRL : FlightPlanImportResult.failure(errors)
+    else all valid
+        IMP -> BLD : ParseTreeWalker.walk(builder, tree)
+        BLD -> BLD : builds FlightData + LegData
+        IMP --> CTRL : FlightPlanImportResult.success(flights)
+    end
+end
+
+deactivate IMP
+
+alt success
+    CTRL -> CTRL : convert FlightData → FlightPlan
+    CTRL -> REPO : save(flightPlan)
+    CTRL --> UI : flightPlan
+    UI --> Pilot : displays success\n(flightId, type, legs, status=DRAFT)
+else failure
+    CTRL --> UI : errors
+    UI --> Pilot : displays all errors\n(type, line, column, message)
+end
+
+deactivate CTRL
+@enduml
