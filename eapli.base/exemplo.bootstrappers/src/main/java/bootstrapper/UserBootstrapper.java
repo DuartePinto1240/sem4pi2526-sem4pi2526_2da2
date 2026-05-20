@@ -45,6 +45,20 @@ public class UserBootstrapper implements Action {
     private static final String PILOT_PHONE     = "910000003";
     private static final String PILOT_STAFF     = "STAFF-PILOT-001";
 
+    private static final String WP_EMAIL     = "wtps@alsafe.com";
+    private static final String WP_PASSWORD  = "1234";
+    private static final String WP_FIRSTNAME = "AlSafe";
+    private static final String WP_LASTNAME  = "WeatherPerson";
+    private static final String WP_PHONE     = "910000004";
+    private static final String WP_STAFF     = "STAFF-WP-001";
+
+    private static final String FCO_EMAIL     = "ftctrl@alsafe.com";
+    private static final String FCO_PASSWORD  = "1234";
+    private static final String FCO_FIRSTNAME = "AlSafe";
+    private static final String FCO_LASTNAME  = "FlightControl";
+    private static final String FCO_PHONE     = "910000005";
+    private static final String FCO_STAFF     = "STAFF-FCO-001";
+
     @Override
     public boolean execute() {
         loadValidDomains();
@@ -56,6 +70,10 @@ public class UserBootstrapper implements Action {
         createBackofficeOperatorDomainUser();
         createPilotSystemUser();
         createPilotDomainUser();
+        createWeatherPersonSystemUser();
+        createWeatherPersonDomainUser();
+        createFlightControlOperatorSystemUser();
+        createFlightControlOperatorDomainUser();
         return true;
     }
 
@@ -133,6 +151,7 @@ public class UserBootstrapper implements Action {
                     ATCC_PHONE,
                     ATCC_STAFF,
                     LocalDate.now().plusYears(10));
+            atcc.setRole(BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR.toString());
             repo.save(atcc);
         } catch (final Exception e) {
             System.err.println("[Bootstrap] ERROR creating ATCC user: "
@@ -208,9 +227,86 @@ public class UserBootstrapper implements Action {
                     PILOT_PHONE,
                     PILOT_STAFF,
                     LocalDate.now().plusYears(10));
+            pilot.setRole(BaseRoles.PILOT.toString());
             repo.save(pilot);
         } catch (final Exception e) {
             System.err.println("[Bootstrap] ERROR creating Pilot: "
+                    + e.getMessage());
+        }
+    }
+
+    private void createWeatherPersonSystemUser() {
+        try {
+            final UserManagementService svc = AuthzRegistry.userService();
+            final Set<Role> roles = new HashSet<>();
+            roles.add(BaseRoles.WEATHER_PERSON);
+            svc.registerNewUser(
+                    WP_EMAIL,
+                    WP_PASSWORD,
+                    WP_FIRSTNAME,
+                    WP_LASTNAME,
+                    WP_EMAIL,
+                    roles);
+        } catch (final Exception e) {
+            // already exists
+        }
+    }
+
+    private void createWeatherPersonDomainUser() {
+        try {
+            final UserRepository repo =
+                    PersistenceContext.getInstance().userRepository();
+            final EmailAddress emailVO = EmailAddress.valueOf(WP_EMAIL);
+            if (repo.ofIdentity(emailVO).isPresent()) return;
+
+            final User wp = new User(
+                    emailVO,
+                    WP_FIRSTNAME + " " + WP_LASTNAME,
+                    WP_PHONE,
+                    WP_STAFF,
+                    LocalDate.now().plusYears(10));
+            wp.setRole(BaseRoles.WEATHER_PERSON.toString());
+            repo.save(wp);
+        } catch (final Exception e) {
+            System.err.println("[Bootstrap] ERROR creating Weather Person: "
+                    + e.getMessage());
+        }
+    }
+
+    private void createFlightControlOperatorSystemUser() {
+        try {
+            final UserManagementService svc = AuthzRegistry.userService();
+            final Set<Role> roles = new HashSet<>();
+            roles.add(BaseRoles.FLIGHT_CONTROL_OPERATOR);
+            svc.registerNewUser(
+                    FCO_EMAIL,
+                    FCO_PASSWORD,
+                    FCO_FIRSTNAME,
+                    FCO_LASTNAME,
+                    FCO_EMAIL,
+                    roles);
+        } catch (final Exception e) {
+            // already exists
+        }
+    }
+
+    private void createFlightControlOperatorDomainUser() {
+        try {
+            final UserRepository repo =
+                    PersistenceContext.getInstance().userRepository();
+            final EmailAddress emailVO = EmailAddress.valueOf(FCO_EMAIL);
+            if (repo.ofIdentity(emailVO).isPresent()) return;
+
+            final User fco = new User(
+                    emailVO,
+                    FCO_FIRSTNAME + " " + FCO_LASTNAME,
+                    FCO_PHONE,
+                    FCO_STAFF,
+                    LocalDate.now().plusYears(10));
+            fco.setRole(BaseRoles.FLIGHT_CONTROL_OPERATOR.toString());
+            repo.save(fco);
+        } catch (final Exception e) {
+            System.err.println("[Bootstrap] ERROR creating Flight Control Operator: "
                     + e.getMessage());
         }
     }
