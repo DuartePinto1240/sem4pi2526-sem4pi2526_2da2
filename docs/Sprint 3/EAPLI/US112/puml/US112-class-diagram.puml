@@ -1,0 +1,60 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class MonthlyReportUI <<boundary>> {
+    +doShow(): boolean
+  }
+}
+
+package "Application" {
+  class MonthlyReportController <<control>> {
+    +generateMonthlyReport(year, month): String
+  }
+}
+
+package "Report" {
+  abstract class AbstractReport <<template>> {
+    #title: String
+    #generatedAt: LocalDateTime
+    +generate(): String
+    +generateToFile(filename)
+    +generateHeader(): String
+    {abstract} +generateBody(): String
+    +generateFooter(): String
+  }
+  class MonthlyStatisticsReport <<concrete>> {
+    -year: int
+    -month: int
+    -simulationData: List<SimulationSummary>
+    +generateBody(): String
+  }
+  class SimulationSummary <<dto>> {
+    +flightId: String
+    +totalSteps: int
+    +totalViolations: int
+    +passed: boolean
+    +timestamp: LocalDateTime
+  }
+}
+
+MonthlyReportUI ..> MonthlyReportController
+MonthlyReportController ..> MonthlyStatisticsReport : creates
+MonthlyStatisticsReport --|> AbstractReport
+MonthlyStatisticsReport ..> SimulationSummary
+
+note right of AbstractReport
+  Template Method Pattern.
+  header + body + footer always
+  called in the same order.
+  Only generateBody() varies
+  per report type.
+end note
+
+note bottom of MonthlyStatisticsReport
+  Future report types:
+  ComplianceReport extends AbstractReport
+  IncidentReport extends AbstractReport
+  → only override generateBody()
+end note
+@enduml
