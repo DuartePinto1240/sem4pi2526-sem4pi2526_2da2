@@ -1,0 +1,85 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class ToggleUserUI <<boundary>> {
+    +doShow(): boolean
+    -printUserList()
+  }
+}
+
+package "Application" {
+  class ToggleUserController <<control>> {
+    -userSvc: UserManagementService
+    -repo: UserRepository
+    +allUsers(): Iterable<User>
+    +deactivateUser(email): boolean
+    +activateUser(email): boolean
+    -findDomainOrThrow(email): User
+    -findSystemUser(email): Optional<SystemUser>
+  }
+  class ListUsersController <<control>> {
+    +allUsers(): Iterable<User>
+  }
+}
+
+package "Infrastructure.Authz" {
+  class AuthzRegistry <<registry>> {
+    {static} +userService(): UserManagementService
+  }
+  class UserManagementService <<service>> {
+    +deactivateUser(SystemUser): SystemUser
+    +activateUser(SystemUser): SystemUser
+    +allUsers(): Iterable<SystemUser>
+  }
+  class SystemUser <<aggregate root>> {
+    -active: boolean
+    +isActive(): boolean
+  }
+}
+
+package "Domain" {
+  class User <<aggregate root>> {
+    -active: boolean
+    -role: String
+    +deactivate()
+    +activate()
+    +isActive(): boolean
+    +getRole(): String
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +userRepository(): UserRepository
+  }
+  interface UserRepository <<repository>> {
+    +ofIdentity(EmailAddress): Optional<User>
+    +findAll(): Iterable<User>
+    +save(user): User
+  }
+}
+
+ToggleUserUI ..> ToggleUserController
+ToggleUserUI ..> ListUsersController
+ToggleUserController ..> AuthzRegistry : userService()
+ToggleUserController ..> UserManagementService : deactivate/activateUser()
+ToggleUserController ..> PersistenceContext
+ToggleUserController ..> User : deactivate()/activate()
+ListUsersController ..> PersistenceContext
+UserManagementService ..> SystemUser
+PersistenceContext ..> UserRepository
+
+note right of ToggleUserController
+  Dual update on each toggle:
+  1. UserManagementService (framework)
+     → disables/enables SystemUser
+     → login will be refused/allowed
+  2. domain User.active mirrored
+     → keeps domain state in sync
+  Guards:
+  - user not found → throw
+  - role == "ADMIN" → cannot disable
+  - already inactive/active → throw
+end note
+@enduml

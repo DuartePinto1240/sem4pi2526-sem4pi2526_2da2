@@ -1,0 +1,89 @@
+@startuml US103-sequence-diagram
+title US103 — Synchronize Flight Execution with a Time Step
+
+participant "main_process\n(simulation.c)" as MAIN
+participant "flight_process_1\n(flight.c)" as FP1
+participant "flight_process_2\n(flight.c)" as FP2
+
+note over MAIN, FP2
+  Setup (done in start_simulation — US100):
+  Two pipes created per flight:
+    pos_pipe  — child writes Position to parent
+    step_pipe — parent writes step token to child
+  Children are blocked on read(step_pipe) at start.
+end note
+
+MAIN -> MAIN : start_simulation(config, states, report)
+
+loop [for step = 0 to total_steps - 1]
+
+    MAIN -> MAIN : synchronize_step(states, num_flights, step)
+    activate MAIN
+
+    note right of MAIN
+      Phase 1 — send "go" token
+      to all active flights
+    end note
+
+    MAIN -> FP1 : write(pipe_step, token)
+    MAIN -> FP2 : write(pipe_step, token)
+
+    note right of FP1
+      Child unblocks from
+      read(pipe_step, &token, 1)
+    end note
+
+    activate FP1
+    FP1 -> FP1 : compute_next_position(flight_id, step, total_steps)
+    FP1 -> MAIN : write(pipe_read, position)
+    deactivate FP1
+
+    activate FP2
+    FP2 -> FP2 : compute_next_position(flight_id, step, total_steps)
+    FP2 -> MAIN : write(pipe_read, position)
+    deactivate FP2
+
+    note right of MAIN
+      Phase 2 — block until every
+      active flight has replied
+    end note
+
+    MAIN -> MAIN : read(pipe_read, &pos) [flight 1]
+    MAIN -> MAIN : states[0].history[...] = states[0].current
+    MAIN -> MAIN : states[0].current = pos
+
+    MAIN -> MAIN : read(pipe_read, &pos) [flight 2]
+    MAIN -> MAIN : states[1].history[...] = states[1].current
+    MAIN -> MAIN : states[1].current = pos
+
+    deactivate MAIN
+
+    note over MAIN
+      Parent only advances to step N+1
+      after ALL flights have delivered
+      their position update for step N.
+    end note
+
+    MAIN -> MAIN : check_safety_violations(states, ...)
+    MAIN -> MAIN : check_predicted_violations(states, ...)
+
+    alt [violations >= max_violations]
+        MAIN -> FP1 : close(pipe_step) + kill(SIGTERM)
+        MAIN -> FP2 : close(pipe_step) + kill(SIGTERM)
+        note right of MAIN
+          Closing pipe_step unblocks
+          the child's read() call so
+          it exits cleanly.
+        end note
+    end
+
+end
+
+MAIN -> MAIN : close remaining pipe_steps
+
+FP1 -> MAIN : close(pipe_read) [pipe closed — flight done]
+FP2 -> MAIN : close(pipe_read) [pipe closed — flight done]
+
+MAIN -> MAIN : waitpid() all children
+
+@enduml

@@ -1,0 +1,76 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+  class RegisterAirTransportCompanyUI <<boundary>> {
+    +doShow()
+    +headline(): String
+  }
+}
+
+package "Application" {
+  class RegisterAirTransportCompanyController <<control>> {
+    +registerCompany(name, iata, icao): AirTransportCompany
+  }
+}
+
+package "Infrastructure.Authz" {
+  class AuthzRegistry <<registry>> {
+    {static} +authorizationService(): AuthorizationService
+  }
+  interface AuthorizationService <<service>> {
+    +ensureAuthenticatedUserHasAnyOf(roles): void
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<registry>> {
+    {static} +repositories(): RepositoryFactory
+  }
+  interface RepositoryFactory <<factory>> {
+    +airTransportCompanies(): AirTransportCompanyRepository
+  }
+  class JpaAirTransportCompanyRepository <<repository>> {
+    +existsByIata(iata): boolean
+    +existsByIcao(icao): boolean
+    +save(company): AirTransportCompany
+    +findAll(): Iterable
+  }
+}
+
+package "Domain" {
+  interface AirTransportCompanyRepository <<repository>> {
+    +existsByIata(iata): boolean
+    +existsByIcao(icao): boolean
+    +save(company): AirTransportCompany
+    +findAll(): Iterable
+  }
+  class AirTransportCompany <<aggregate root>> {
+    -name: String
+    -companyCode: CompanyCode
+    +identity(): CompanyCode
+    +name(): String
+    +sameAs(other): boolean
+  }
+  class CompanyCode <<value object>> {
+    -iata: String
+    -icao: String
+    +iata(): String
+    +icao(): String
+    +equals(o): boolean
+    +compareTo(other): int
+  }
+
+  AirTransportCompany "1" *-- "1" CompanyCode
+  JpaAirTransportCompanyRepository ..|> AirTransportCompanyRepository
+}
+
+RegisterAirTransportCompanyUI ..> RegisterAirTransportCompanyController
+RegisterAirTransportCompanyController ..> AuthzRegistry
+RegisterAirTransportCompanyController ..> PersistenceContext
+PersistenceContext ..> RepositoryFactory
+RepositoryFactory ..> AirTransportCompanyRepository
+RegisterAirTransportCompanyController ..> AirTransportCompany
+RegisterAirTransportCompanyController ..> CompanyCode
+
+@enduml

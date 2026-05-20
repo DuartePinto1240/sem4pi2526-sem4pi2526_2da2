@@ -1,0 +1,76 @@
+@startuml SD_US055
+skinparam monochrome true
+skinparam shadowing false
+autonumber
+
+actor "Backoffice Operator" as Operator
+participant ":CreateAircraftModelUI" as UI
+participant ":CreateAircraftModelController" as Controller
+participant "engineRepo:EngineModelRepository" as EngineRepo
+participant "aircraftModelRepo:AircraftModelRepository" as Repo
+participant "builder:AircraftModelBuilder" as Builder
+participant "model:AircraftModel" as Domain
+
+Operator -> UI : inicia o registo de um novo modelo
+activate UI
+
+UI -> Controller : getAvailableEngines()
+activate Controller
+Controller -> EngineRepo : findAll()
+activate EngineRepo
+EngineRepo --> Controller : engines
+deactivate EngineRepo
+Controller --> UI : engines
+deactivate Controller
+
+UI --> Operator : solicita dados (nome, fabricante, tipo, motores, specs)
+Operator -> UI : introduz os dados solicitados
+
+UI -> Controller : createAircraftModel(name, maker, type, engines, specs)
+activate Controller
+
+note right of Controller : Enforces US055.1: Uniqueness check
+Controller -> Repo : findByNameAndManufacturer(name, maker)
+activate Repo
+Repo --> Controller : result
+deactivate Repo
+
+alt model already exists
+    Controller --> UI : throw DuplicateModelException
+    UI --> Operator : Error: aircraft model already exists
+else
+
+    Controller -> Builder** : new AircraftModelBuilder()
+    activate Builder
+    Controller -> Builder : withName(name)
+    Controller -> Builder : withManufacturer(maker)
+    Controller -> Builder : withType(type)
+    Controller -> Builder : withEngines(engines)
+    Controller -> Builder : withSpecs(specs)
+    Controller -> Builder : build()
+
+    note right of Builder : Enforces US055.2, .3, .4:\nat least 1 engine,\nall engines same motorization type,\nEmptyWeight < MZFW < MTOW,\nall numeric values positive
+
+    Builder -> Domain** : new AircraftModel(name, maker, type, engines, specs)
+    activate Domain
+    Domain --> Builder : model
+    deactivate Domain
+
+    Builder --> Controller : model
+    deactivate Builder
+
+    Controller -> Repo : save(model)
+    activate Repo
+    Repo --> Controller : savedModel
+    deactivate Repo
+
+    Controller --> UI : savedModel
+    deactivate Controller
+
+    UI --> Operator : informa o sucesso da operação
+
+end
+
+deactivate UI
+
+@enduml

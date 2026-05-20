@@ -1,0 +1,490 @@
+@startuml US010_DomainModel
+title Domain Model (Updated)
+
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor<<AggregateRoot>> #D0C8F8
+    BorderColor<<AggregateRoot>> #534AB7
+
+    BackgroundColor<<Entity>> #C2EAD8
+    BorderColor<<Entity>> #0F6E56
+
+    BackgroundColor<<ValueObject>> #FAE8C0
+    BorderColor<<ValueObject>> #854F0B
+}
+
+' ─────────────────────────────
+' USER
+' ─────────────────────────────
+package "User" {
+    class User <<AggregateRoot>> {
+        + name : String
+        + staffNumber : String
+        + phoneNumber : String
+        + active : boolean
+        + role : String
+    }
+
+    class EmailAddress <<ValueObject>> {
+        + email : String
+        ' must match email format
+        ' UNIQUE — also used as SystemUser username
+        ' identity of the aggregate
+    }
+
+    class SecurityClearance <<ValueObject>> {
+        + expiryDate : LocalDate
+    }
+
+    class SkillsAssessment <<ValueObject>> {
+        + assessmentDate : LocalDate
+    }
+
+    User "1" *-- "1" EmailAddress
+    User "1" *-- "1" SecurityClearance
+    User "1" *-- "0..*" SkillsAssessment
+}
+
+note right of "User.User"
+  Password is managed by the EAPLI
+  Framework SystemUser entity.
+  The link is the EmailAddress,
+  used as the SystemUser username.
+end note
+
+' ─────────────────────────────
+' MANUFACTURER
+' ─────────────────────────────
+package "Manufacturer" {
+    class Manufacturer <<AggregateRoot>> {
+        + name : String
+    }
+
+    class Country <<ValueObject>> {
+        + name : String
+        ' selected from a predefined list
+        ' pre-loaded via bootstrap
+    }
+
+    Manufacturer "1" *-- "1" Country
+}
+
+' ─────────────────────────────
+' ENGINE MODEL
+' ─────────────────────────────
+package "Engine Model" {
+    class EngineModel <<AggregateRoot>> {
+        + name : String
+        + motorizationType : MotorizationType
+    }
+
+    class Thrust <<ValueObject>> {
+        + seaLevelThrust : double
+        + cruiseThrust : double
+    }
+
+    class TSFC <<ValueObject>> {
+        + value : double
+    }
+
+    EngineModel "1" *-- "1" Thrust
+    EngineModel "1" *-- "1" TSFC
+}
+
+EngineModel "0..*" --> "Manufacturer.Manufacturer" : made by
+
+' ─────────────────────────────
+' AIRCRAFT MODEL
+' ─────────────────────────────
+package "Aircraft Model" {
+    class AircraftModel <<AggregateRoot>> {
+        + modelId : String
+        + type : String
+    }
+
+    class FlightCharacteristics <<ValueObject>> {
+        + mtow : double
+        + mzfw : double
+        + maxFuelCapacity : double
+        + serviceCeiling : double
+        + cruiseSpeed : double
+        + wingArea : double
+        + cl : double
+        + cd : double
+    }
+
+    AircraftModel "1" *-- "1" FlightCharacteristics
+}
+
+AircraftModel "1" --> "Engine Model.EngineModel" : certified
+AircraftModel "0..*" --> "Manufacturer.Manufacturer" : made by
+
+' ─────────────────────────────
+' AIRCRAFT
+' ─────────────────────────────
+package "Aircraft" {
+    class Aircraft <<AggregateRoot>> {
+        + registration : String
+    }
+
+    class CabinConfiguration <<ValueObject>> {
+        + seatsPerClass : Map
+        + crewSize : int
+    }
+
+    class OperationalStatus <<ValueObject>> {
+        + status : enum {ACTIVE, DECOMMISSIONED}
+    }
+
+    Aircraft "1" *-- "1" CabinConfiguration
+    Aircraft "1" *-- "1" OperationalStatus
+}
+
+"Aircraft.Aircraft" "0..*" --> "Aircraft Model.AircraftModel" : based on
+
+' ─────────────────────────────
+' AIR TRANSPORT COMPANY
+' ─────────────────────────────
+package "Air Transport Company" {
+    class AirTransportCompany <<AggregateRoot>> {
+        + companyName : String
+    }
+
+    class IataCode <<ValueObject>> {
+        + code : String
+        ' 2 letters — UNIQUE
+    }
+
+    class IcaoCode <<ValueObject>> {
+        + code : String
+        ' 2-3 letters — UNIQUE
+    }
+
+    AirTransportCompany "1" *-- "1" IataCode
+    AirTransportCompany "1" *-- "1" IcaoCode
+}
+
+note right of "Air Transport Company.AirTransportCompany"
+  companyName, IataCode and IcaoCode
+  must be UNIQUE within the system
+end note
+
+"Aircraft.Aircraft" "0..*" --> "Air Transport Company.AirTransportCompany" : belongs to
+
+' ─────────────────────────────
+' AIR TRANSPORT COMPANY COLLABORATOR
+' ─────────────────────────────
+package "Air Transport Company Collaborator" {
+    class AirTransportCompanyCollaborator <<AggregateRoot>> {
+        + name : String
+        + active : boolean
+    }
+
+    class CollaboratorId <<ValueObject>> {
+        + email : String
+    }
+
+    class CollaboratorPosition <<ValueObject>> {
+        + position : String
+    }
+
+    class CollaboratorPhoneNumber <<ValueObject>> {
+        + phone : String
+    }
+
+    AirTransportCompanyCollaborator "1" *-- "1" CollaboratorId
+    AirTransportCompanyCollaborator "1" *-- "1" CollaboratorPosition
+    AirTransportCompanyCollaborator "1" *-- "1" CollaboratorPhoneNumber
+}
+
+"Air Transport Company Collaborator.AirTransportCompanyCollaborator" "1" --> "Air Transport Company.AirTransportCompany" : assigned to
+
+' ─────────────────────────────
+' PILOT
+' ─────────────────────────────
+package "Pilot" {
+    class Pilot <<AggregateRoot>> {
+    }
+
+    class PilotId <<ValueObject>> {
+        + email : String
+    }
+
+    class PilotStatus <<ValueObject>> {
+        + status : enum {ACTIVE, INACTIVE}
+    }
+
+    Pilot "1" *-- "1" PilotId
+    Pilot "1" *-- "1" PilotStatus
+}
+
+Pilot "1" --> "Air Transport Company.AirTransportCompany" : employed by
+"Pilot.Pilot" "1" --> "0..*" "Flight Plan.FlightPlan" : create
+
+
+' ─────────────────────────────
+' AIR CONTROL AREA
+' ─────────────────────────────
+package "Air Control Area" {
+    class AirControlArea <<AggregateRoot>> {
+        + name : String
+    }
+
+    class AirControlAreaCode <<ValueObject>> {
+        + code : String
+    }
+
+    class GeographicBoundary <<ValueObject>> {
+        + minLat : double
+        + maxLat : double
+        + minLon : double
+        + maxLon : double
+        + maxAltitude : double
+    }
+
+    AirControlArea "1" *-- "1" AirControlAreaCode
+    AirControlArea "1" *-- "1" GeographicBoundary
+}
+
+' ─────────────────────────────
+' AIRPORT
+' ─────────────────────────────
+package "Airport" {
+    class Airport <<AggregateRoot>> {
+        + name : AirportName
+        + town : String
+    }
+
+    class ICAOCode <<ValueObject>> {
+        + icao : String
+    }
+
+    class IATACode <<ValueObject>> {
+        + iata : String
+    }
+
+    class AirportName <<ValueObject>> {
+        + name : String
+    }
+
+    class AirportCoordinates <<ValueObject>> {
+        + latitude : double
+        + longitude : double
+    }
+
+    class Elevation <<ValueObject>> {
+        + metres : double
+    }
+
+    class Country <<ValueObject>> {
+        + name : String
+    }
+
+    Airport "1" *-- "1" ICAOCode
+    Airport "1" *-- "1" IATACode
+    Airport "1" *-- "1" AirportName
+    Airport "1" *-- "1" AirportCoordinates
+    Airport "1" *-- "1" Elevation
+    Airport "1" *-- "1" Country
+}
+
+"Airport.Airport" "0..*" --> "1" "Air Control Area.AirControlArea" : belongs to\n(via AirControlAreaCode)
+' ─────────────────────────────
+' FLIGHT ROUTE
+' ─────────────────────────────
+package "Flight Route" {
+    class FlightRoute <<AggregateRoot>> {
+        + active : boolean
+        + deactivationDate : LocalDate
+    }
+
+    class RouteDesignator <<ValueObject>> {
+        + designator : String
+        ' 2 letters + up to 4 numbers — UNIQUE
+    }
+
+    class FlightType <<ValueObject>> {
+        + type : enum {REGULAR, CHARTER}
+    }
+
+    class ScheduledDates <<ValueObject>> {
+        + departureDateTime : LocalDateTime
+        + scheduledArrivalDateTime : LocalDateTime
+    }
+
+    class RecurringSchedule <<ValueObject>> {
+    }
+
+    class ScheduleEntry <<ValueObject>> {
+        + dayOfWeek : DayOfWeek
+        + departureTime : LocalTime
+        + scheduledArrivalTime : LocalTime
+    }
+
+    FlightRoute "1" *-- "1" RouteDesignator
+    FlightRoute "1" *-- "1" FlightType
+    FlightRoute "1" *-- "0..1" ScheduledDates
+    FlightRoute "1" *-- "0..1" RecurringSchedule
+    RecurringSchedule "1" *-- "1..*" ScheduleEntry
+}
+
+note right of "Flight Route.FlightRoute"
+  Mutual exclusivity:
+  - charter routes have ScheduledDates
+  - regular routes have RecurringSchedule
+  Cannot be deactivated if there are
+  planned flights after deactivation date
+end note
+
+FlightRoute "1" --> "Airport.Airport" : origin
+FlightRoute "1" --> "Airport.Airport" : destination
+FlightRoute "1" --> "Air Transport Company.AirTransportCompany" : owned by
+
+' ─────────────────────────────
+' FLIGHT
+' ─────────────────────────────
+package "Flight" {
+    class Flight <<AggregateRoot>> {
+    }
+
+    class FlightDesignator <<ValueObject>> {
+        + airlineDesignator : String
+        + flightNumber : int
+        + suffix : Character
+        ' UNIQUE within the system
+    }
+
+    class FlightOccurrence <<ValueObject>> {
+        + departureDateTime : LocalDateTime
+    }
+
+    Flight "1" *-- "1" FlightDesignator
+    Flight "1" *-- "1" FlightOccurrence
+}
+
+"Flight.Flight" "0..*" --> "Flight Route.FlightRoute" : instance of
+"Flight.Flight" "0..*" --> "Aircraft.Aircraft" : assigned to
+"Flight.Flight" "0..*" --> "Pilot.Pilot" : piloted by
+
+' ─────────────────────────────
+' FLIGHT PLAN
+' ─────────────────────────────
+package "Flight Plan" {
+    class FlightPlan <<AggregateRoot>> {
+        + id : String
+        + status : enum {DRAFT, VALIDATED}
+        + fuelLoad : double
+    }
+
+    class DslSource <<ValueObject>> {
+        + rawText : String
+    }
+
+    FlightPlan "1" *-- "1" DslSource
+
+}
+
+"Flight.Flight" "1" *-- "0..*" FlightPlan : has
+FlightPlan "0..*" --> "Aircraft.Aircraft" : assigned
+
+' ─────────────────────────────
+' WEATHER
+' ─────────────────────────────
+package "Weather" {
+    class WeatherData <<AggregateRoot>> {
+        - id : Long
+    }
+
+    class WeatherSubArea <<ValueObject>> {
+    }
+
+    class GeographicBoundary <<ValueObject>> {
+        - minLat : double
+        - maxLat : double
+        - minLon : double
+        - maxLon : double
+    }
+
+    class AltitudeRange <<ValueObject>> {
+        - minAltitude : double
+        - maxAltitude : double
+    }
+
+    class ObservationPeriod <<ValueObject>> {
+        - startDateTime : LocalDateTime
+        - endDateTime : LocalDateTime
+    }
+
+    class WindCondition <<ValueObject>> {
+        - windDirection : double
+        - windSpeed : double
+    }
+
+    WeatherData "1" *-- "1" WeatherSubArea
+    WeatherData "1" *-- "1" ObservationPeriod
+    WeatherData "1" *-- "1" WindCondition
+
+    WeatherSubArea "1" *-- "1" GeographicBoundary
+    WeatherSubArea "1" *-- "1" AltitudeRange
+}
+
+WeatherData --> "Air Control Area.AirControlArea" : identified by >
+' ─────────────────────────────
+' SIMULATION
+' ─────────────────────────────
+package "Simulation" {
+    class Simulation <<AggregateRoot>> {
+        + status : enum {RUNNING, COMPLETED, FAILED}
+    }
+
+    class SimulationParameters <<ValueObject>> {
+        + numFlights : int
+        + timeStepSeconds : int
+        + totalSteps : int
+        + safetyThresholdMetres : double
+        + maxViolations : int
+    }
+
+    class FlightState <<Entity>> {
+        + flightId : int
+        + active : boolean
+        + violated : boolean
+        + historyCount : int
+        + status : enum {OK, VIOLATED, ABORTED}
+    }
+
+    class Position <<ValueObject>> {
+        + latitude : double
+        + longitude : double
+        + altitude : double
+        + timeStep : int
+    }
+
+    class VelocityVector <<ValueObject>> {
+        + vx : double
+        + vy : double
+        + vz : double
+    }
+
+    class SafetyViolation <<Entity>> {
+        + timestamp : double
+        + flightId1 : int
+        + flightId2 : int
+    }
+
+    Simulation "1" *-- "1" SimulationParameters
+    Simulation "1" *-- "1..*" FlightState
+    Simulation "1" *-- "0..*" SafetyViolation
+
+    FlightState "1" *-- "1" Position : current
+    FlightState "1" *-- "0..*" Position : history
+
+    SafetyViolation "1" *-- "2" Position
+    SafetyViolation "1" *-- "2" VelocityVector
+}
+
+
+Simulation.Simulation --> "Flight Plan.FlightPlan" : simulates
+Simulation.Simulation --> "Air Control Area.AirControlArea" : in area
+
+@enduml

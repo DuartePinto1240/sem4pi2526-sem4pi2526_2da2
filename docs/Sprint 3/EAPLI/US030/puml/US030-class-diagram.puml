@@ -1,0 +1,95 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+  class MainMenu <<boundary>> {
+    -loginController: LoginController
+    +doShow(): boolean
+    -printMenu()
+    -handleOption(int)
+    -doLogin()
+    -doLogout()
+    -currentUserName(): String
+  }
+}
+
+package "Application" {
+  class LoginController <<control>> {
+    +login(email: String, password: String): Optional<UserSession>
+  }
+}
+
+package "Infrastructure.Authz" {
+  class AuthzRegistry <<registry>> {
+    {static} +configure(repo, policy, encoder)
+    {static} +authenticationService(): AuthenticationService
+    {static} +authorizationService(): AuthorizationService
+  }
+  interface AuthenticationService <<service>> {
+    +authenticate(username, password): Optional<UserSession>
+  }
+  interface AuthorizationService <<service>> {
+    +session(): Optional<UserSession>
+    +isAuthenticatedUserAuthorizedTo(Role): boolean
+    +clearSession()
+  }
+  class UserSession <<session>> {
+    +authenticatedUser(): SystemUser
+  }
+  class SystemUser <<aggregate root>> {
+    -username: Username
+    -password: Password
+    -roles: RoleSet
+    -active: boolean
+    +isActive(): boolean
+    +name(): Name
+  }
+}
+
+package "Domain" {
+  class BaseRoles <<utility>> {
+    {static} +ADMIN: Role
+    {static} +BACKOFFICE_OPERATOR: Role
+  }
+  class User <<aggregate root>> {
+    -securityClearanceExpiry: LocalDate
+    +getSecurityClearanceExpiry(): LocalDate
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +userRepository(): UserRepository
+  }
+  interface UserRepository <<repository>> {
+    +ofIdentity(EmailAddress): Optional<User>
+  }
+}
+
+MainMenu ..> LoginController
+MainMenu ..> AuthzRegistry : authorizationService()
+LoginController ..> AuthzRegistry : authenticationService()
+LoginController ..> PersistenceContext : clearance check
+AuthzRegistry ..> AuthenticationService
+AuthzRegistry ..> AuthorizationService
+AuthenticationService ..> UserSession
+UserSession ..> SystemUser
+MainMenu ..> BaseRoles : isAuthenticatedUserAuthorizedTo()
+PersistenceContext ..> UserRepository
+UserRepository ..> User
+
+note right of MainMenu
+  No currentUser field —
+  session managed by AuthzRegistry.
+  authz.session().isEmpty() → unauthenticated
+  authz.isAuthenticatedUserAuthorizedTo(ADMIN) → admin menu
+end note
+
+note right of LoginController
+  Two-step authentication:
+  1. Framework: verify credentials + active status
+  2. Domain: check securityClearanceExpiry
+     → if expired: clearSession() + return empty
+  Skills assessment expiry has no effect on login.
+end note
+@enduml

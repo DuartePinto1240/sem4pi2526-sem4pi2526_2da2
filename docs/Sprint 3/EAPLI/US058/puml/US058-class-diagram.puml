@@ -1,0 +1,59 @@
+@startuml CD_US058
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+    class RemoveEngineModelFromAircraftUI <<Boundary>> {
+    }
+}
+
+package "Application" {
+    class RemoveEngineModelFromAircraftController {
+        + getAircraftModels(): Iterable<AircraftModel>
+        + getCertifiedEngines(aircraftModelId): Iterable<EngineModel>
+        + removeEngineModelFromAircraft(aircraftModelId, engineModelId): AircraftModel
+    }
+}
+
+package "Domain" {
+    class AircraftModel <<Aggregate Root>> {
+        - modelName: String
+        - manufacturer: String
+        + removeCertifiedEngine(engine: EngineModel): void
+        + certifiedEngines(): List<EngineModel>
+    }
+
+    class Aircraft <<Entity>> {
+        ' Defined in US070
+    }
+
+    class EngineModel <<Entity>> {
+        ' Defined in US056
+    }
+}
+
+package "Persistence" {
+    interface AircraftModelRepository <<Repository>> {
+        + findById(id): Optional<AircraftModel>
+        + findAll(): Iterable<AircraftModel>
+        + save(model): AircraftModel
+    }
+
+    interface AircraftRepository <<Repository>> {
+        ' Defined in US070
+        + existsActiveAircraftUsing(aircraftModelId, engineModelId): boolean
+    }
+}
+
+' Relationships
+RemoveEngineModelFromAircraftUI ..> RemoveEngineModelFromAircraftController : use
+RemoveEngineModelFromAircraftController ..> AircraftModelRepository : use
+RemoveEngineModelFromAircraftController ..> AircraftRepository : use
+RemoveEngineModelFromAircraftController ..> AircraftModel : use
+
+AircraftModel "1" o--> "1..*" EngineModel : certifiedEngines
+Aircraft "0..*" --> "1" AircraftModel : instanceOf
+Aircraft "0..*" --> "1" EngineModel : uses
+
+@enduml

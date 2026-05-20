@@ -1,0 +1,90 @@
+@startuml CD_US055
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+package "Presentation" {
+    class CreateAircraftModelUI <<Boundary>> {
+    }
+}
+
+package "Application" {
+    class CreateAircraftModelController {
+        + createAircraftModel(name, maker, type,\n  engines, specs): AircraftModel
+        + getAvailableEngines(): Iterable<EngineModel>
+    }
+}
+
+package "Domain" {
+    class AircraftModel <<Aggregate Root>> {
+        - modelName: String
+        - manufacturer: String
+        - type: AircraftType
+        + AircraftModel(name, maker, type, engines, specs)
+    }
+
+    class AircraftModelBuilder <<Builder>> {
+        - modelName: String
+        - manufacturer: String
+        - type: AircraftType
+        - engines: List<EngineModel>
+        - specs: FlightCharacteristics
+        + withName(name): AircraftModelBuilder
+        + withManufacturer(maker): AircraftModelBuilder
+        + withType(type): AircraftModelBuilder
+        + withEngines(engines): AircraftModelBuilder
+        + withSpecs(specs): AircraftModelBuilder
+        + build(): AircraftModel
+    }
+
+    enum AircraftType <<Enumeration>> {
+        PASSENGER
+        CARGO
+        MIXED
+    }
+
+    class FlightCharacteristics <<Value Object>> {
+        - emptyWeight: double
+        - mzfw: double
+        - mtow: double
+        - maxFuel: double
+        - serviceCeiling: double
+        - cruiseSpeed: double
+        - wingArea: double
+        - dragCoeff: double
+        - liftCoeff: double
+    }
+
+    class EngineModel <<Entity>> {
+        ' Defined in US056
+    }
+}
+
+package "Persistence" {
+    interface AircraftModelRepository <<Repository>> {
+        + save(model): AircraftModel
+        + findByNameAndManufacturer(name, maker): Optional<AircraftModel>
+    }
+
+    interface EngineModelRepository <<Repository>> {
+        + findAll(): Iterable<EngineModel>
+    }
+
+    class JpaAircraftModelRepository <<JPA>> {
+    }
+}
+
+' Relationships
+CreateAircraftModelUI ..> CreateAircraftModelController : use
+CreateAircraftModelController ..> AircraftModelBuilder : creates
+CreateAircraftModelController ..> AircraftModelRepository : use
+CreateAircraftModelController ..> EngineModelRepository : use
+AircraftModelBuilder ..> AircraftModel : creates
+
+AircraftModel "1" *--> "1" AircraftType
+AircraftModel "1" *--> "1" FlightCharacteristics
+AircraftModel "1" o--> "1..*" EngineModel : certifiedEngines
+
+JpaAircraftModelRepository ..|> AircraftModelRepository
+
+@enduml
