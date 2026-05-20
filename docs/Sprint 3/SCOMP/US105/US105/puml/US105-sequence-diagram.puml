@@ -1,0 +1,59 @@
+@startuml
+title US105 — Initialisation Sequence
+
+participant "main()" as MAIN
+participant "init_shared_memory()" as ISHMEM
+participant "init_semaphores()" as ISEM
+participant "spawn_parent_threads()" as SPAWN
+participant "fork() × N" as FORK
+participant "execute_flight()" as EF
+
+MAIN -> ISHMEM : init_shared_memory(config)
+activate ISHMEM
+ISHMEM -> ISHMEM : shmget(IPC_PRIVATE, sizeof(SharedSimulationData))
+ISHMEM -> ISHMEM : shmat() → attach to parent
+ISHMEM -> ISHMEM : memset(shm, 0)
+ISHMEM --> MAIN : shmid, shm*
+deactivate ISHMEM
+
+MAIN -> ISEM : init_semaphores(num_flights)
+activate ISEM
+loop for each flight i
+    ISEM -> ISEM : sem_open("/flight_i", O_CREAT, 0, 0)
+    note right: initialised to 0\nchild will block immediately
+end
+ISEM --> MAIN : sem_t* array
+deactivate ISEM
+
+MAIN -> SPAWN : spawn_parent_threads()
+activate SPAWN
+SPAWN -> SPAWN : pthread_create(SimulationController)
+SPAWN -> SPAWN : pthread_create(ViolationDetector)
+SPAWN -> SPAWN : pthread_create(ReportGenerator)
+SPAWN --> MAIN : thread ids
+deactivate SPAWN
+
+loop for each flight i
+    MAIN -> FORK : fork()
+    activate EF
+    FORK -> EF : execute_flight(i, shm, step_sem[i])
+    note right of EF
+      Child attaches to shm.
+      Blocks on sem_wait(step_sem[i]).
+      When unblocked: computes position,
+      writes to shm->positions[i].
+    end note
+end
+
+note over MAIN
+  Simulation loop runs in
+  SimulationController thread.
+  Parent main thread waits
+  with pthread_join().
+end note
+
+MAIN -> MAIN : pthread_join(all threads)
+MAIN -> MAIN : waitpid(all children)
+MAIN -> MAIN : cleanup:\n  shmdt() + shmctl(IPC_RMID)\n  sem_close() + sem_unlink()
+deactivate EF
+@enduml

@@ -1,0 +1,41 @@
+@startuml
+skinparam classAttributeIconSize 0
+title US105 — C Data Structures
+
+class SharedSimulationData << (S,#FFD700) struct >> {
+  + positions[MAX_FLIGHTS] : Position
+  + steps_completed[MAX_FLIGHTS] : int
+  + active[MAX_FLIGHTS] : int
+  + violations[MAX_FLIGHTS] : int
+  + total_violations : int
+  + abort_flag : int
+}
+
+class FlightState << (S,#FFD700) struct >> {
+  + flight_id : int
+  + pid : pid_t
+  + step_sem : sem_t*
+  + shm : SharedSimulationData*
+  + violated : int
+}
+
+class SimulationConfig << (S,#FFD700) struct >> {
+  + num_flights : int
+  + total_steps : int
+  + time_step_seconds : int
+  + safety_threshold_m : double
+  + max_violations : int
+}
+
+class Position << (S,#FFD700) struct >> {
+  + latitude : double
+  + longitude : double
+  + altitude : double
+  + time_step : int
+}
+
+FlightState --> SharedSimulationData : shm (pointer)
+FlightState --> Position : via shm->positions
+SharedSimulationData "1" *-- "MAX_FLIGHTS" Position
+
+@enduml
