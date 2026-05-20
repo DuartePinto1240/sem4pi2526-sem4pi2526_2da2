@@ -1,0 +1,66 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class CreateFlightPlanUI <<boundary>> {
+    +doShow(): boolean
+  }
+}
+
+package "Application" {
+  class CreateFlightPlanController <<control>> {
+    +availableRoutes(): Iterable<Route>
+    +availableAircraft(route): Iterable<Aircraft>
+    +createFlightPlan(flightId, type, aircraft, pilot, legs): FlightPlan
+  }
+}
+
+package "Domain" {
+  class FlightPlan <<aggregate root>> {
+    -flightId: String
+    -flightType: String
+    -status: FlightPlanStatus
+    -importedAt: LocalDateTime
+    -legs: List<FlightLeg>
+    +status(): FlightPlanStatus
+    +flightId(): String
+    +legs(): List<FlightLeg>
+  }
+  class FlightLeg <<entity>> {
+    -departureAirport: String
+    -departureDate: String
+    -departureTime: String
+    -arrivalAirport: String
+    -arrivalTime: String
+    -fuelQuantity: double
+    -fuelUnit: String
+  }
+  enum FlightPlanStatus <<enum>> {
+    DRAFT
+    TESTED
+    APPROVED
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +flightPlanRepository(): FlightPlanRepository
+  }
+  interface FlightPlanRepository <<repository>> {
+    +save(FlightPlan): FlightPlan
+    +findAll(): Iterable<FlightPlan>
+  }
+}
+
+CreateFlightPlanUI ..> CreateFlightPlanController
+CreateFlightPlanController ..> FlightPlan : creates
+CreateFlightPlanController ..> PersistenceContext
+FlightPlan "1" *-- "1..*" FlightLeg
+FlightPlan --> FlightPlanStatus
+PersistenceContext ..> FlightPlanRepository
+
+note right of FlightPlan
+  status = DRAFT on creation.
+  Lifecycle: DRAFT → TESTED → APPROVED
+end note
+@enduml

@@ -1,0 +1,36 @@
+@startuml
+actor Pilot
+participant CreateFlightPlanUI as UI <<boundary>>
+participant CreateFlightPlanController as CTRL <<control>>
+participant "plan:FlightPlan" as PLAN <<domain>>
+participant FlightPlanRepository as REPO <<repository>>
+
+Pilot -> UI : doShow()
+UI -> CTRL : availableRoutes()
+CTRL --> UI : routes
+UI --> Pilot : shows route list
+
+Pilot -> UI : selects route, aircraft, pilot, date, fuel
+UI -> CTRL : createFlightPlan(flightId, type, aircraft, pilot, legs)
+activate CTRL
+
+CTRL -> CTRL : validate pilot belongs to company
+CTRL -> CTRL : validate aircraft in company fleet
+
+loop for each leg
+    CTRL -> PLAN : new FlightLeg(dep, date, time, arr, time, fuel, unit)
+end
+
+CTRL -> PLAN : new FlightPlan(flightId, type, legs)
+activate PLAN
+PLAN -> PLAN : status = DRAFT
+PLAN -> PLAN : importedAt = now()
+PLAN --> CTRL : plan
+deactivate PLAN
+
+CTRL -> REPO : save(plan)
+CTRL --> UI : plan
+deactivate CTRL
+
+UI --> Pilot : displays confirmation\n(flightId, type, legs, status=DRAFT)
+@enduml
