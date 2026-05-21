@@ -1,0 +1,85 @@
+@startuml
+title US121 — Create Flight Plan from File (Sprint 3)
+
+actor Pilot
+participant ImportFlightPlanUI as UI <<boundary>>
+participant ImportFlightPlanController as CTRL <<control>>
+participant FlightPlanImporter as IMP <<service>>
+participant ErrorCollector as ERR <<collector>>
+participant FlightPlanSemanticVisitor as VIS <<visitor>>
+participant FlightPlanBuilderListener as BLD <<listener>>
+participant FlightPlanRepository as REPO <<repository>>
+
+Pilot -> UI : doShow()
+UI -> UI : scan directory for .fp files
+UI --> Pilot : numbered file list
+
+Pilot -> UI : selects file number
+UI -> CTRL : importFromFile(filename)
+activate CTRL
+
+CTRL -> IMP : importFromFile(path)
+activate IMP
+
+note over IMP
+  Step 1 — Lexical
+end note
+IMP -> ERR : setPhase(LEXICAL)
+IMP -> IMP : FlightPlanLexer(CharStreams.fromFileName)
+IMP -> IMP : lexer.addErrorListener(errorCollector)
+
+note over IMP
+  Step 2 — Syntactic
+end note
+IMP -> ERR : setPhase(SYNTACTIC)
+IMP -> IMP : FlightPlanParser(tokens)
+IMP -> IMP : parser.addErrorListener(errorCollector)
+IMP -> IMP : tree = parser.flightPlan()
+
+IMP -> ERR : hasErrors()?
+ERR --> IMP : false (continue)
+
+note over IMP
+  Step 3 — Semantic
+end note
+IMP -> VIS : visit(tree)
+activate VIS
+VIS -> VIS : visitFlight() — unique ID check
+VIS -> VIS : visitLeg() — sequence coherence
+VIS -> VIS : visitFuel() — positive quantity
+VIS -> VIS : visitSegment() — start ≠ end
+VIS -> VIS : visitAirportCode() — IATA/ICAO format
+VIS -> ERR : addSemanticError(...) [if any violations]
+VIS --> IMP
+deactivate VIS
+
+IMP -> ERR : hasErrors()?
+ERR --> IMP : false (continue)
+
+note over IMP
+  Step 4 — Build
+end note
+IMP -> BLD : ParseTreeWalker.DEFAULT.walk(builder, tree)
+activate BLD
+BLD -> BLD : enter/exit callbacks build FlightData + LegData
+BLD --> IMP : flights (List<FlightData>)
+deactivate BLD
+
+IMP --> CTRL : FlightPlanImportResult.success(flights)
+deactivate IMP
+
+CTRL -> CTRL : convert FlightData → FlightPlan
+CTRL -> CTRL : convert LegData → FlightLeg (per leg)
+CTRL -> REPO : save(flightPlan)
+CTRL --> UI : flightPlan (status=DRAFT)
+deactivate CTRL
+
+UI --> Pilot : shows success\n(flightId, type, legs, DRAFT)
+
+note over UI, Pilot
+  If any phase has errors:
+  IMP returns failure(errors)
+  UI shows all errors with type/line/col
+  Plan is NOT created
+end note
+@enduml

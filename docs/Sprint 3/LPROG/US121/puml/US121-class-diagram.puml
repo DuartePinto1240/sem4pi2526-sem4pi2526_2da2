@@ -1,0 +1,97 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI (EAPLI)" {
+  class ImportFlightPlanUI <<boundary>> {
+    +doShow(): boolean
+    -listAvailableFiles(): List<String>
+  }
+}
+
+package "Application (EAPLI)" {
+  class ImportFlightPlanController <<control>> {
+    +availableFiles(): List<String>
+    +importFromFile(filename): FlightPlan
+  }
+}
+
+package "LPROG" {
+  class FlightPlanImporter <<service>> {
+    +importFromFile(path): FlightPlanImportResult
+    +importFromString(input): FlightPlanImportResult
+  }
+  class FlightPlanImportResult <<result>> {
+    +isSuccess(): boolean
+    +getFlights(): List<FlightData>
+    +getErrors(): List<ValidationError>
+    +{static} success(flights): FlightPlanImportResult
+    +{static} failure(errors): FlightPlanImportResult
+  }
+  class ErrorCollector <<listener>> {
+    -errors: List<ValidationError>
+    -currentPhase: ErrorType
+    +setPhase(ErrorType)
+    +syntaxError(...): void
+    +addSemanticError(line, col, msg): void
+    +hasErrors(): boolean
+    +getErrors(): List<ValidationError>
+  }
+  class FlightPlanSemanticVisitor <<visitor>> {
+    +visitFlight(ctx): Void
+    +visitLeg(ctx): Void
+    +visitFuel(ctx): Void
+    +visitSegment(ctx): Void
+    +visitAirportCode(ctx): Void
+  }
+  class FlightPlanBuilderListener <<listener>> {
+    +enterFlight(ctx): void
+    +exitFlight(ctx): void
+    +enterLeg(ctx): void
+    +exitLeg(ctx): void
+    +enterDeparture(ctx): void
+    +enterArrival(ctx): void
+    +enterFuel(ctx): void
+    +enterSegment(ctx): void
+    +getFlights(): List<FlightData>
+  }
+}
+
+package "Domain (EAPLI)" {
+  class FlightPlan <<aggregate root>> {
+    -flightId: String
+    -flightType: String
+    -status: FlightPlanStatus
+    -legs: List<FlightLeg>
+  }
+  class FlightLeg <<entity>> {
+    -departureAirport: String
+    -arrivalAirport: String
+    -fuelQuantity: double
+    -fuelUnit: String
+  }
+}
+
+ImportFlightPlanUI ..> ImportFlightPlanController
+ImportFlightPlanController ..> FlightPlanImporter
+FlightPlanImporter ..> ErrorCollector
+FlightPlanImporter ..> FlightPlanSemanticVisitor
+FlightPlanImporter ..> FlightPlanBuilderListener
+FlightPlanImporter ..> FlightPlanImportResult
+ImportFlightPlanController ..> FlightPlan : converts FlightData →
+FlightPlan "1" *-- "1..*" FlightLeg
+
+note right of FlightPlanImporter
+  Boundary between LPROG and EAPLI.
+  EAPLI never uses ANTLR directly.
+  4 steps: Lexical → Syntactic
+           → Semantic → Build
+end note
+
+note right of ErrorCollector
+  Extends BaseErrorListener (ANTLR).
+  Captures lexical+syntactic errors
+  automatically via syntaxError().
+  Semantic errors added manually
+  by the Visitor.
+end note
+@enduml
