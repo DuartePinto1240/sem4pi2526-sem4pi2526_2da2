@@ -1,5 +1,6 @@
 package controller;
 
+import domain.BaseRoles;
 import domain.EmailAddress;
 import domain.User;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
@@ -11,13 +12,12 @@ import repositories.UserRepository;
 import java.util.Optional;
 
 /**
- * Controller for US032 — Enable/Disable backoffice users.
+ * Controller for US032 — Enable/Disable BackOffice Operators.
  *
- * <p>Both the EAPLI Framework's {@link SystemUser} (authentication layer)
- * and the domain {@link User} (domain layer) are updated to keep them
- * in sync. The framework enforces that a deactivated user cannot log in.</p>
- *
- * <p>The administrator account cannot be deactivated.</p>
+ * <p>Only users with the {@code BACKOFFICE_OPERATOR} role can be toggled.
+ * Both the EAPLI Framework's {@link SystemUser} (authentication layer)
+ * and the domain {@link User} (domain layer) are updated to keep them in sync.
+ * The framework enforces that a deactivated user cannot log in.</p>
  */
 public class ToggleUserController {
 
@@ -28,33 +28,30 @@ public class ToggleUserController {
     private final UserRepository repo = PersistenceContext.getInstance().userRepository();
 
     /**
-     * Returns all registered users (active and inactive) for display.
+     * Returns all BackOffice Operators (active and inactive) for display.
      *
-     * @return iterable of all domain {@link User} records
+     * @return iterable of {@link User} records with BACKOFFICE_OPERATOR role
      */
     public Iterable<User> allUsers() {
-        return repo.findAll();
+        return repo.findByRole(BaseRoles.BACKOFFICE_OPERATOR.toString());
     }
 
     /**
-     * Deactivates the user identified by the given email (US032.1).
+     * Deactivates the BackOffice Operator identified by the given email (US032.1).
      *
      * <p>Deactivates the {@link SystemUser} via the framework and mirrors
      * the change to the domain {@link User}.</p>
      *
-     * @param email the email of the user to deactivate
+     * @param email the email of the operator to deactivate
      * @return {@code true} if deactivated successfully
-     * @throws IllegalArgumentException if the user is not found, is already
-     *                                  inactive, or is the admin account
+     * @throws IllegalArgumentException if the user is not found, is not a
+     *                                  BackOffice Operator, or is already inactive
      */
     public boolean deactivateUser(final String email) {
-        final User domainUser = findDomainOrThrow(email);
+        final User domainUser = findBackOfficeOperatorOrThrow(email);
 
-        if ("ADMIN".equals(domainUser.getRole())) {
-            throw new IllegalArgumentException("The administrator account cannot be deactivated.");
-        }
         if (!domainUser.isActive()) {
-            throw new IllegalArgumentException("User '" + email + "' is already inactive.");
+            throw new IllegalArgumentException("Operator '" + email + "' is already inactive.");
         }
 
         // Deactivate SystemUser via framework
@@ -67,20 +64,21 @@ public class ToggleUserController {
     }
 
     /**
-     * Activates the user identified by the given email (US032.2).
+     * Activates the BackOffice Operator identified by the given email (US032.2).
      *
      * <p>Activates the {@link SystemUser} via the framework and mirrors
      * the change to the domain {@link User}.</p>
      *
-     * @param email the email of the user to activate
+     * @param email the email of the operator to activate
      * @return {@code true} if activated successfully
-     * @throws IllegalArgumentException if the user is not found or is already active
+     * @throws IllegalArgumentException if the user is not found, is not a
+     *                                  BackOffice Operator, or is already active
      */
     public boolean activateUser(final String email) {
-        final User domainUser = findDomainOrThrow(email);
+        final User domainUser = findBackOfficeOperatorOrThrow(email);
 
         if (domainUser.isActive()) {
-            throw new IllegalArgumentException("User '" + email + "' is already active.");
+            throw new IllegalArgumentException("Operator '" + email + "' is already active.");
         }
 
         // Activate SystemUser via framework
@@ -93,14 +91,20 @@ public class ToggleUserController {
     }
 
     /**
-     * Finds the domain User by email or throws if not found.
+     * Finds the domain User by email, enforcing that it must be a
+     * BackOffice Operator, or throws if not found / wrong role.
      */
-    private User findDomainOrThrow(final String email) {
+    private User findBackOfficeOperatorOrThrow(final String email) {
         final Optional<User> userOpt = repo.ofIdentity(EmailAddress.valueOf(email));
         if (userOpt.isEmpty()) {
             throw new IllegalArgumentException("User not found: " + email);
         }
-        return userOpt.get();
+        final User user = userOpt.get();
+        if (!BaseRoles.BACKOFFICE_OPERATOR.toString().equals(user.getRole())) {
+            throw new IllegalArgumentException(
+                    "User '" + email + "' is not a BackOffice Operator.");
+        }
+        return user;
     }
 
     /**

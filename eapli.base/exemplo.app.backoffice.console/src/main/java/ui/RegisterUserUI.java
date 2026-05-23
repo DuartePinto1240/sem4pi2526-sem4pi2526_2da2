@@ -4,7 +4,6 @@ import controller.RegisterUserController;
 import domain.EmailAddress;
 import domain.User;
 import domain.ValidEmailDomains;
-import eapli.framework.infrastructure.authz.domain.model.Role;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 import persistence.PersistenceContext;
@@ -14,6 +13,12 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
+/**
+ * UI for registering a new BackOffice Operator (US031).
+ *
+ * <p>The Admin can only create BackOffice Operators — the role is therefore
+ * fixed and not presented as a choice to the user.</p>
+ */
 public class RegisterUserUI extends AbstractUI {
 
     private static final DateTimeFormatter DATE_FMT =
@@ -27,8 +32,9 @@ public class RegisterUserUI extends AbstractUI {
     @Override
     protected boolean doShow() {
         System.out.println("\n+--------------------------------------------+");
-        System.out.println("|                Register User               |");
+        System.out.println("|        Register BackOffice Operator        |");
         System.out.println("+--------------------------------------------+");
+        System.out.println("  Role: BACKOFFICE_OPERATOR (fixed)");
 
         if (!ValidEmailDomains.isEmpty()) {
             System.out.println("  Valid email domains: " + ValidEmailDomains.getAll());
@@ -40,16 +46,14 @@ public class RegisterUserUI extends AbstractUI {
         final String    staffNumber = readStaffNumber();
         final String    password    = readPassword();
         final LocalDate clearance   = readClearanceDate();
-        final Role      role        = readRole();
 
         try {
-            final User u = theController.registerUserWithRole(
-                    email, name, phoneNumber, password,
-                    staffNumber, clearance, role);
-            System.out.println("\n  >> User registered successfully!");
+            final User u = theController.registerBackOfficeOperator(
+                    email, name, phoneNumber, password, staffNumber, clearance);
+            System.out.println("\n  >> BackOffice Operator registered successfully!");
             System.out.printf("     Name  : %s%n", u.getName());
             System.out.printf("     Email : %s%n", u.identity());
-            System.out.printf("     Role  : %s%n", role);
+            System.out.printf("     Role  : %s%n", u.getRole());
         } catch (IllegalArgumentException e) {
             System.out.println("\n  >> ERROR: " + e.getMessage());
         }
@@ -170,23 +174,8 @@ public class RegisterUserUI extends AbstractUI {
         }
     }
 
-    private Role readRole() {
-        final Role[] roles = theController.availableRoles();
-        System.out.println("\n  Available roles:");
-        for (int i = 0; i < roles.length; i++) {
-            System.out.printf("    %d. %s%n", i + 1, roles[i].toString());
-        }
-        while (true) {
-            final int choice = Console.readInteger("  Select role:");
-            if (choice >= 1 && choice <= roles.length) {
-                return roles[choice - 1];
-            }
-            System.out.println("  ! Invalid option. Please try again.");
-        }
-    }
-
     @Override
     public String headline() {
-        return "Register User";
+        return "Register BackOffice Operator";
     }
 }

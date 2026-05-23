@@ -10,11 +10,11 @@ participant UserRepository as REPO <<repository>>
 
 Administrator -> UI : doShow()
 UI -> LCTRL : allUsers()
-LCTRL -> REPO : findAll()
-REPO --> LCTRL : domain users
-LCTRL -> LCTRL : sort by name
-LCTRL --> UI : sorted users
-UI --> Administrator : displays user list with status
+LCTRL -> REPO : findByRole("BACKOFFICE_OPERATOR")
+REPO --> LCTRL : BackOffice Operator users only
+LCTRL -> LCTRL : convert to DTO + sort by name
+LCTRL --> UI : sorted BackOffice Operators
+UI --> Administrator : displays operator list with status
 
 Administrator -> UI : enters email + choice (1=Enable / 2=Disable)
 
@@ -23,7 +23,7 @@ alt Disable (choice = 2)
     activate TCTRL
     TCTRL -> REPO : ofIdentity(email)
     REPO --> TCTRL : domainUser
-    TCTRL -> USER : getRole() [guard: "ADMIN" cannot be disabled]
+    TCTRL -> USER : getRole() [guard: must be BACKOFFICE_OPERATOR]
     TCTRL -> USER : isActive() [guard: already inactive?]
 
     ' Step 1: disable SystemUser via framework
@@ -50,6 +50,7 @@ else Enable (choice = 1)
     activate TCTRL
     TCTRL -> REPO : ofIdentity(email)
     REPO --> TCTRL : domainUser
+    TCTRL -> USER : getRole() [guard: must be BACKOFFICE_OPERATOR]
     TCTRL -> USER : isActive() [guard: already active?]
 
     ' Step 1: activate SystemUser via framework

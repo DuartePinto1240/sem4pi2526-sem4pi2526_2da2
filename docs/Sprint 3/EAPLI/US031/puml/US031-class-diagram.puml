@@ -17,7 +17,7 @@ package "Application" {
   class RegisterUserController <<control>> {
     -userSvc: UserManagementService
     -repo: UserRepository
-    +registerUser(email, name, phone, password, staff, clearance): User
+    +registerBackOfficeOperator(email, name, phone, password, staff, clearance): User
     +registerAdmin(email, name, phone, password, staff, clearance): User
   }
 }
@@ -53,6 +53,16 @@ package "Domain" {
     +updateSecurityClearance(LocalDate)
     +updateSkillsAssessment(LocalDate)
   }
+  class UserExceptionBuilder <<builder>> {
+    +{static} builder(): UserExceptionBuilder
+    +{static} of(email, name, phone, staff, clearance): UserExceptionBuilder
+    +checkNotNull(value, fieldName): UserExceptionBuilder
+    +checkNotBlank(value, fieldName): UserExceptionBuilder
+    +checkPhone(phoneNumber): UserExceptionBuilder
+    +checkFutureDate(date, fieldName): UserExceptionBuilder
+    +checkRole(roleName): UserExceptionBuilder
+    +validate(): void
+  }
   class EmailAddress <<value object>> {
     -address: String
     +valueOf(String): EmailAddress
@@ -87,18 +97,25 @@ RegisterUserController ..> UserManagementService : registerNewUser()
 RegisterUserController ..> ValidEmailDomains : validates
 RegisterUserController ..> PersistenceContext
 RegisterUserController ..> User : creates
-RegisterUserController ..> BaseRoles : assigns roles
+RegisterUserController ..> BaseRoles : assigns BACKOFFICE_OPERATOR
 UserManagementService ..> SystemUser : creates
 PersistenceContext ..> UserRepository
 User *-- EmailAddress
+User ..> UserExceptionBuilder : delegates validation
 
 note right of RegisterUserController
-  Two-step registration:
-  1. Create SystemUser via framework
-     (authentication + role assignment)
-  2. Create domain User in our repo
-     (phone, staff, clearance, assessment)
-  Linked by email address.
+  Admin only creates BackOffice Operators.
+  (Other roles created by BackOffice Operator
+  when adding collaborators/customers.)
+
+  Order of operations:
+  1. Build & validate domain User FIRST
+     via UserExceptionBuilder.validate()
+     -> IllegalArgumentException on failure,
+        NO SystemUser created (no orphan)
+  2. Register SystemUser in framework
+     (credentials + BACKOFFICE_OPERATOR role)
+  3. Persist domain User
 end note
 
 note right of User
@@ -106,5 +123,13 @@ note right of User
   Authentication delegated to SystemUser.
   role field is display-only string.
   nextSkillsAssessmentDate auto = today+5yr
+  All validation delegated to UserExceptionBuilder.
+end note
+
+note right of UserExceptionBuilder
+  Accumulates violations in a list.
+  validate() throws IllegalArgumentException
+  with all messages joined by " | ".
+  Keeps User class free of inline guard clauses.
 end note
 @enduml

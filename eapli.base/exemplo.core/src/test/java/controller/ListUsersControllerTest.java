@@ -165,23 +165,28 @@ class ListUsersControllerTest {
 
     @Test
     void ensureListShowsRoleForEachUser() {
-        // Arrange
+        // Arrange — allUsers() returns BACKOFFICE_OPERATOR users only (US033 scope).
+        // Admin users are managed by a different use case and must NOT appear here.
         final UserRepository repo = PersistenceContext.getInstance().userRepository();
+
         final User admin = new User(
                 domain.EmailAddress.valueOf("adm@alsafe.com"),
                 "Admin User", "910000000", "S-ADM", LocalDate.now().plusYears(10));
         admin.markAsAdmin();
         repo.save(admin);
-        repo.save(new User(domain.EmailAddress.valueOf("usr@alsafe.com"),
-                "Regular User", "910000001", "S-USR", FUTURE));
+
+        repo.save(new User(domain.EmailAddress.valueOf("bo@alsafe.com"),
+                "BackOffice User", "910000001", "S-USR", FUTURE));
 
         // Act
         final List<UserDTO> users = new ArrayList<>();
         for (UserDTO u : new ListUsersController().allUsers()) users.add(u);
 
-        // Assert
-        assertTrue(users.stream().anyMatch(u -> u.getRole().equals("ADMIN")));
+        // Assert — only the BACKOFFICE_OPERATOR appears; admin is excluded
+        assertEquals(1, users.size(), "Only BACKOFFICE_OPERATOR users should be listed");
         assertTrue(users.stream().anyMatch(u -> u.getRole().equals("BACKOFFICE_OPERATOR")));
+        assertFalse(users.stream().anyMatch(u -> u.getRole().equals("ADMIN")),
+                "Admin users must not appear in the backoffice operator list");
     }
 
     @Test

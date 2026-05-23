@@ -1,5 +1,5 @@
 @startuml
-title Domain Model Excerpt — US031 (User Registration)
+title Domain Model Excerpt — US031 (BackOffice Operator Registration)
 
 skinparam linetype ortho
 skinparam class {
@@ -9,6 +9,8 @@ skinparam class {
     BorderColor<<ValueObject>> #854F0B
     BackgroundColor<<FrameworkEntity>> #C8F0D0
     BorderColor<<FrameworkEntity>> #1A7A34
+    BackgroundColor<<Builder>> #F0F4C3
+    BorderColor<<Builder>> #827717
 }
 
 package "EAPLI Framework (Authentication Layer)" {
@@ -33,18 +35,24 @@ package "AlSafe Domain (User Management Aggregate)" {
         + nextSkillsAssessmentDate : LocalDate
     }
 
+    class UserExceptionBuilder <<Builder>> {
+        + {static} of(...): UserExceptionBuilder
+        + validate(): void
+    }
+
     class EmailAddress <<ValueObject>> {
         + address : String
     }
 
     User "1" *-- "1" EmailAddress
+    User ..> UserExceptionBuilder : delegates validation
 }
 
 SystemUser .. User : linked by email\n(username = email)
 
 note right of User
-  Domain invariants:
-  - email unique, valid format, valid AISafe domain
+  Domain invariants (enforced by UserExceptionBuilder):
+  - email unique, valid format, valid AlSafe domain
   - name not blank
   - phoneNumber exactly 9 digits, unique
   - staffNumber not blank, unique
@@ -52,13 +60,24 @@ note right of User
   - nextSkillsAssessmentDate = today + 5yr (auto)
   - active = true on creation
   - role = "BACKOFFICE_OPERATOR" on creation
+    (Admin can only create BackOffice Operators)
   Note: password and authentication
   managed by SystemUser (framework)
+end note
+
+note right of UserExceptionBuilder
+  Accumulates all validation violations.
+  Throws IllegalArgumentException only at
+  validate() — after all checks run.
+  Keeps User constructor free of guard clauses.
+  User is always validated BEFORE SystemUser
+  is created, preventing orphan records.
 end note
 
 note left of SystemUser
   Managed by EAPLI Framework.
   Stores credentials and roles.
-  Created via UserManagementService.
+  Created via UserManagementService,
+  but ONLY after domain User is validated.
 end note
 @enduml

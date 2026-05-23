@@ -128,11 +128,11 @@ public class MainMenu extends AbstractUI {
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.ADMIN)) {
             switch (option) {
-                case 1: new RegisterUserUI().show();   break;
-                case 2: new ToggleUserUI().show();     break;
-                case 3: new ListUsersUI().show();      break;
-                case 9: doLogout();                    break;
-                case 0: doExit();                      break;
+                case 1:  new RegisterUserUI().show();  break;
+                case 2:  new ToggleUserUI().show();    break;
+                case 3:  new ListUsersUI().show();     break;
+                case 99: doLogout();                   break;
+                case 0:  doExit();                     break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 
@@ -157,35 +157,35 @@ public class MainMenu extends AbstractUI {
         } else if (authz.isAuthenticatedUserAuthorizedTo(
                 BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR)) {
             switch (option) {
-                case 1: new AddAircraftToFleetUI().show();   break;
-                case 2: new ListCompanyFleetUI().show();     break;
-                case 3: new DecommissionAircraftUI().show(); break;
-                case 9: doLogout();                          break;
-                case 0: doExit();                            break;
+                case 1:  new AddAircraftToFleetUI().show();   break;
+                case 2:  new ListCompanyFleetUI().show();     break;
+                case 3:  new DecommissionAircraftUI().show(); break;
+                case 99: doLogout();                          break;
+                case 0:  doExit();                            break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON)) {
             switch (option) {
-                case 1: new RegisterWeatherDataUI().show(); break;
-                case 9: doLogout();                         break;
-                case 0: doExit();                           break;
+                case 1:  new RegisterWeatherDataUI().show(); break;
+                case 99: doLogout();                         break;
+                case 0:  doExit();                           break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.PILOT)
                 || authz.isAuthenticatedUserAuthorizedTo(BaseRoles.FLIGHT_CONTROL_OPERATOR)) {
             switch (option) {
-                case 1: new ImportFlightPlanUI().show(); break;
-                case 9: doLogout(); break;
-                case 0: doExit();   break;
+                case 1:  new ImportFlightPlanUI().show(); break;
+                case 99: doLogout();                      break;
+                case 0:  doExit();                        break;
                 default: System.out.println("  >> Invalid option or insufficient permissions.");
             }
 
         } else {
             switch (option) {
-                case 9: doLogout(); break;
-                case 0: doExit();   break;
+                case 99: doLogout(); break;
+                case 0:  doExit();   break;
                 default: System.out.println("  >> Invalid option or insufficient permissions.");
             }
         }

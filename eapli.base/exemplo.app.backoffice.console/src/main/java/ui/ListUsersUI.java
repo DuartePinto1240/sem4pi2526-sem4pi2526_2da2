@@ -25,11 +25,11 @@ public class ListUsersUI extends AbstractUI {
     @Override
     protected boolean doShow() {
         System.out.println("\n+--------------------------------------------+");
-        System.out.println("|                 User List                  |");
+        System.out.println("|        BackOffice Operator List            |");
         System.out.println("+--------------------------------------------+");
 
-        final String header = String.format("%-22s | %-28s | %-22s | %-9s | %-8s | %-10s | %s",
-                "Name", "Email", "Role", "Phone", "Status",
+        final String header = String.format("%-22s | %-28s | %-22s | %-12s | %-9s | %-8s | %-10s | %s",
+                "Name", "Email", "Role", "Staff No.", "Phone", "Status",
                 "Clearance", "Next Assessment");
         System.out.println(header);
         System.out.println("-".repeat(header.length() + 5));
@@ -42,7 +42,7 @@ public class ListUsersUI extends AbstractUI {
         }
 
         if (total == 0) {
-            System.out.println("  (no users registered)");
+            System.out.println("  (no BackOffice Operators registered)");
         } else {
             System.out.println("-".repeat(header.length() + 5));
             System.out.printf("Total: %d user(s)  |  Active: %d  |  Inactive: %d%n",
@@ -54,6 +54,6 @@ public class ListUsersUI extends AbstractUI {
 
     @Override
     public String headline() {
-        return "List Users";
+        return "List BackOffice Operators";
     }
 }

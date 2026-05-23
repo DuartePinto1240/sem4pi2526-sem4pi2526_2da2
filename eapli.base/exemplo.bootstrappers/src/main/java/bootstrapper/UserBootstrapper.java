@@ -15,7 +15,27 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Bootstrap data loader that creates one account per role for demo/testing.
+ *
+ * <p><strong>Order of operations per account (mirrors the production rule):</strong>
+ * <ol>
+ *   <li>Build and validate the domain {@link User} — if the data is wrong the
+ *       bootstrap entry is skipped without creating any SystemUser.</li>
+ *   <li>Register the SystemUser in the EAPLI framework (credentials + role).</li>
+ *   <li>Persist the domain User.</li>
+ * </ol>
+ * Every step is wrapped individually so a single bad entry does not abort the
+ * whole bootstrap sequence.
+ * </p>
+ */
 public class UserBootstrapper implements Action {
+
+    private static final LocalDate FAR_FUTURE = LocalDate.now().plusYears(10);
+
+    // -------------------------------------------------------------------------
+    // Account constants
+    // -------------------------------------------------------------------------
 
     private static final String ADMIN_EMAIL     = "admin@alsafe.com";
     private static final String ADMIN_PASSWORD  = "Admin1234";
@@ -59,23 +79,32 @@ public class UserBootstrapper implements Action {
     private static final String FCO_PHONE     = "910000005";
     private static final String FCO_STAFF     = "STAFF-FCO-001";
 
+    // -------------------------------------------------------------------------
+    // Entry point
+    // -------------------------------------------------------------------------
+
     @Override
     public boolean execute() {
         loadValidDomains();
-        createAdminSystemUser();
-        createAdminDomainUser();
-        createAtccSystemUser();
-        createAtccDomainUser();
-        createBackofficeOperatorSystemUser();
-        createBackofficeOperatorDomainUser();
-        createPilotSystemUser();
-        createPilotDomainUser();
-        createWeatherPersonSystemUser();
-        createWeatherPersonDomainUser();
-        createFlightControlOperatorSystemUser();
-        createFlightControlOperatorDomainUser();
+
+        bootstrapAdmin();
+        bootstrapUser(ATCC_EMAIL,  ATCC_PASSWORD,  ATCC_FIRSTNAME,  ATCC_LASTNAME,
+                ATCC_PHONE,  ATCC_STAFF,  BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR);
+        bootstrapUser(BO_EMAIL,    BO_PASSWORD,    BO_FIRSTNAME,    BO_LASTNAME,
+                BO_PHONE,    BO_STAFF,    BaseRoles.BACKOFFICE_OPERATOR);
+        bootstrapUser(PILOT_EMAIL, PILOT_PASSWORD, PILOT_FIRSTNAME, PILOT_LASTNAME,
+                PILOT_PHONE, PILOT_STAFF, BaseRoles.PILOT);
+        bootstrapUser(WP_EMAIL,    WP_PASSWORD,    WP_FIRSTNAME,    WP_LASTNAME,
+                WP_PHONE,    WP_STAFF,    BaseRoles.WEATHER_PERSON);
+        bootstrapUser(FCO_EMAIL,   FCO_PASSWORD,   FCO_FIRSTNAME,   FCO_LASTNAME,
+                FCO_PHONE,   FCO_STAFF,   BaseRoles.FLIGHT_CONTROL_OPERATOR);
+
         return true;
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
 
     private void loadValidDomains() {
         ValidEmailDomains.register("alsafe.com");
@@ -83,231 +112,93 @@ public class UserBootstrapper implements Action {
         ValidEmailDomains.register("isep.ipp.pt");
     }
 
-    private void createAdminSystemUser() {
+    /**
+     * Bootstraps the admin account following the correct order:
+     * domain User validated first, SystemUser registered only on success.
+     */
+    private void bootstrapAdmin() {
         try {
-            final UserManagementService svc = AuthzRegistry.userService();
-            final Set<Role> roles = new HashSet<>();
-            roles.add(BaseRoles.ADMIN);
-            svc.registerNewUser(
-                    ADMIN_EMAIL,
-                    ADMIN_PASSWORD,
-                    ADMIN_FIRSTNAME,
-                    ADMIN_LASTNAME,
-                    ADMIN_EMAIL,
-                    roles);
-        } catch (final Exception e) {
-            // already exists
-        }
-    }
-
-    private void createAdminDomainUser() {
-        try {
-            final UserRepository repo =
-                    PersistenceContext.getInstance().userRepository();
+            final UserRepository repo = PersistenceContext.getInstance().userRepository();
             final EmailAddress emailVO = EmailAddress.valueOf(ADMIN_EMAIL);
             if (repo.ofIdentity(emailVO).isPresent()) return;
 
+            // Step 1 — build and validate domain User
             final User admin = new User(
                     emailVO,
                     ADMIN_FIRSTNAME + " " + ADMIN_LASTNAME,
                     ADMIN_PHONE,
                     ADMIN_STAFF,
-                    LocalDate.now().plusYears(10));
+                    FAR_FUTURE);
             admin.markAsAdmin();
+
+            // Step 2 — only register SystemUser if domain User is valid
+            final Set<Role> roles = new HashSet<>();
+            roles.add(BaseRoles.ADMIN);
+            AuthzRegistry.userService().registerNewUser(
+                    ADMIN_EMAIL, ADMIN_PASSWORD,
+                    ADMIN_FIRSTNAME, ADMIN_LASTNAME,
+                    ADMIN_EMAIL, roles);
+
+            // Step 3 — persist domain User
             repo.save(admin);
+
         } catch (final Exception e) {
-            System.err.println("[Bootstrap] ERROR creating admin: "
-                    + e.getMessage());
+            System.err.println("[Bootstrap] ERROR creating admin: " + e.getMessage());
         }
     }
 
-    private void createAtccSystemUser() {
+    /**
+     * Bootstraps a generic user account following the correct order:
+     * domain User validated first, SystemUser registered only on success.
+     *
+     * @param email     account email (also used as username)
+     * @param password  plain-text password (bootstrap only)
+     * @param firstName first name for the framework
+     * @param lastName  last name for the framework
+     * @param phone     9-digit phone number
+     * @param staff     unique staff number
+     * @param role      framework role to assign
+     */
+    private void bootstrapUser(final String email, final String password,
+                               final String firstName, final String lastName,
+                               final String phone, final String staff,
+                               final Role role) {
         try {
-            final UserManagementService svc = AuthzRegistry.userService();
-            final Set<Role> roles = new HashSet<>();
-            roles.add(BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR);
-            svc.registerNewUser(
-                    ATCC_EMAIL,
-                    ATCC_PASSWORD,
-                    ATCC_FIRSTNAME,
-                    ATCC_LASTNAME,
-                    ATCC_EMAIL,
-                    roles);
-        } catch (final Exception e) {
-            // already exists
-        }
-    }
+            final UserRepository repo = PersistenceContext.getInstance().userRepository();
+            final EmailAddress emailVO = EmailAddress.valueOf(email);
 
-    private void createAtccDomainUser() {
-        try {
-            final UserRepository repo =
-                    PersistenceContext.getInstance().userRepository();
-            final EmailAddress emailVO = EmailAddress.valueOf(ATCC_EMAIL);
-            if (repo.ofIdentity(emailVO).isPresent()) return;
+            // If the user already exists but has the wrong role (stale bootstrap data),
+            // correct it in place — do NOT recreate the SystemUser.
+            if (repo.ofIdentity(emailVO).isPresent()) {
+                final User existing = repo.ofIdentity(emailVO).get();
+                if (!role.toString().equals(existing.getRole())) {
+                    existing.setRole(role.toString());
+                    repo.save(existing);
+                }
+                return;
+            }
 
-            final User atcc = new User(
+            // Step 1 — build and validate domain User
+            final User user = new User(
                     emailVO,
-                    ATCC_FIRSTNAME + " " + ATCC_LASTNAME,
-                    ATCC_PHONE,
-                    ATCC_STAFF,
-                    LocalDate.now().plusYears(10));
-            atcc.setRole(BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR.toString());
-            repo.save(atcc);
-        } catch (final Exception e) {
-            System.err.println("[Bootstrap] ERROR creating ATCC user: "
-                    + e.getMessage());
-        }
-    }
+                    firstName + " " + lastName,
+                    phone,
+                    staff,
+                    FAR_FUTURE);
+            user.setRole(role.toString());
 
-    private void createBackofficeOperatorSystemUser() {
-        try {
-            final UserManagementService svc = AuthzRegistry.userService();
+            // Step 2 — only register SystemUser if domain User is valid
             final Set<Role> roles = new HashSet<>();
-            roles.add(BaseRoles.BACKOFFICE_OPERATOR);
-            svc.registerNewUser(
-                    BO_EMAIL,
-                    BO_PASSWORD,
-                    BO_FIRSTNAME,
-                    BO_LASTNAME,
-                    BO_EMAIL,
-                    roles);
+            roles.add(role);
+            AuthzRegistry.userService().registerNewUser(
+                    email, password, firstName, lastName, email, roles);
+
+            // Step 3 — persist domain User
+            repo.save(user);
+
         } catch (final Exception e) {
-            // already exists
-        }
-    }
-
-    private void createBackofficeOperatorDomainUser() {
-        try {
-            final UserRepository repo =
-                    PersistenceContext.getInstance().userRepository();
-            final EmailAddress emailVO = EmailAddress.valueOf(BO_EMAIL);
-            if (repo.ofIdentity(emailVO).isPresent()) return;
-
-            final User bo = new User(
-                    emailVO,
-                    BO_FIRSTNAME + " " + BO_LASTNAME,
-                    BO_PHONE,
-                    BO_STAFF,
-                    LocalDate.now().plusYears(10));
-            bo.setRole(BaseRoles.BACKOFFICE_OPERATOR.toString());
-            repo.save(bo);
-        } catch (final Exception e) {
-            System.err.println("[Bootstrap] ERROR creating Backoffice Operator: "
-                    + e.getMessage());
-        }
-    }
-
-    private void createPilotSystemUser() {
-        try {
-            final UserManagementService svc = AuthzRegistry.userService();
-            final Set<Role> roles = new HashSet<>();
-            roles.add(BaseRoles.PILOT);
-            svc.registerNewUser(
-                    PILOT_EMAIL,
-                    PILOT_PASSWORD,
-                    PILOT_FIRSTNAME,
-                    PILOT_LASTNAME,
-                    PILOT_EMAIL,
-                    roles);
-        } catch (final Exception e) {
-            // already exists
-        }
-    }
-
-    private void createPilotDomainUser() {
-        try {
-            final UserRepository repo =
-                    PersistenceContext.getInstance().userRepository();
-            final EmailAddress emailVO = EmailAddress.valueOf(PILOT_EMAIL);
-            if (repo.ofIdentity(emailVO).isPresent()) return;
-
-            final User pilot = new User(
-                    emailVO,
-                    PILOT_FIRSTNAME + " " + PILOT_LASTNAME,
-                    PILOT_PHONE,
-                    PILOT_STAFF,
-                    LocalDate.now().plusYears(10));
-            pilot.setRole(BaseRoles.PILOT.toString());
-            repo.save(pilot);
-        } catch (final Exception e) {
-            System.err.println("[Bootstrap] ERROR creating Pilot: "
-                    + e.getMessage());
-        }
-    }
-
-    private void createWeatherPersonSystemUser() {
-        try {
-            final UserManagementService svc = AuthzRegistry.userService();
-            final Set<Role> roles = new HashSet<>();
-            roles.add(BaseRoles.WEATHER_PERSON);
-            svc.registerNewUser(
-                    WP_EMAIL,
-                    WP_PASSWORD,
-                    WP_FIRSTNAME,
-                    WP_LASTNAME,
-                    WP_EMAIL,
-                    roles);
-        } catch (final Exception e) {
-            // already exists
-        }
-    }
-
-    private void createWeatherPersonDomainUser() {
-        try {
-            final UserRepository repo =
-                    PersistenceContext.getInstance().userRepository();
-            final EmailAddress emailVO = EmailAddress.valueOf(WP_EMAIL);
-            if (repo.ofIdentity(emailVO).isPresent()) return;
-
-            final User wp = new User(
-                    emailVO,
-                    WP_FIRSTNAME + " " + WP_LASTNAME,
-                    WP_PHONE,
-                    WP_STAFF,
-                    LocalDate.now().plusYears(10));
-            wp.setRole(BaseRoles.WEATHER_PERSON.toString());
-            repo.save(wp);
-        } catch (final Exception e) {
-            System.err.println("[Bootstrap] ERROR creating Weather Person: "
-                    + e.getMessage());
-        }
-    }
-
-    private void createFlightControlOperatorSystemUser() {
-        try {
-            final UserManagementService svc = AuthzRegistry.userService();
-            final Set<Role> roles = new HashSet<>();
-            roles.add(BaseRoles.FLIGHT_CONTROL_OPERATOR);
-            svc.registerNewUser(
-                    FCO_EMAIL,
-                    FCO_PASSWORD,
-                    FCO_FIRSTNAME,
-                    FCO_LASTNAME,
-                    FCO_EMAIL,
-                    roles);
-        } catch (final Exception e) {
-            // already exists
-        }
-    }
-
-    private void createFlightControlOperatorDomainUser() {
-        try {
-            final UserRepository repo =
-                    PersistenceContext.getInstance().userRepository();
-            final EmailAddress emailVO = EmailAddress.valueOf(FCO_EMAIL);
-            if (repo.ofIdentity(emailVO).isPresent()) return;
-
-            final User fco = new User(
-                    emailVO,
-                    FCO_FIRSTNAME + " " + FCO_LASTNAME,
-                    FCO_PHONE,
-                    FCO_STAFF,
-                    LocalDate.now().plusYears(10));
-            fco.setRole(BaseRoles.FLIGHT_CONTROL_OPERATOR.toString());
-            repo.save(fco);
-        } catch (final Exception e) {
-            System.err.println("[Bootstrap] ERROR creating Flight Control Operator: "
-                    + e.getMessage());
+            System.err.println("[Bootstrap] ERROR creating user " + email
+                    + ": " + e.getMessage());
         }
     }
 }

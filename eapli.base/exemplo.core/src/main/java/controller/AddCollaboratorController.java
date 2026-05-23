@@ -1,7 +1,6 @@
 package controller;
 
 import domain.*;
-import dto.CollaboratorDTO;
 import dto.CustomerDTO;
 import eapli.framework.infrastructure.authz.application.AuthorizationService;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
@@ -65,13 +64,20 @@ public class AddCollaboratorController {
 
     /**
      * Registers a new collaborator for the given customer.
-     * <p>
-     * 1. Auth check.
-     * 2. findByEmail() — abort if email already taken.
-     * 3. Create User + save.
-     * 4. findById(customerId, customerType) — load aggregate.
-     * 5. aggregate.addCollaborator() — aggregate enforces its invariants.
-     * 6. save(customerAggregate).
+     *
+     * <p><strong>Order of operations (mirrors the US031 production rule):</strong>
+     * <ol>
+     *   <li>Auth check.</li>
+     *   <li>System-wide email uniqueness guard.</li>
+     *   <li>Load and validate the customer aggregate — fail fast before any user is created.</li>
+     *   <li>Build and validate the domain {@link User} — if data is wrong, nothing is persisted.</li>
+     *   <li>Register the {@link eapli.framework.infrastructure.authz.domain.model.SystemUser}
+     *       in the EAPLI framework (only reached if step 4 succeeded).</li>
+     *   <li>Persist the domain User.</li>
+     *   <li>Delegate {@code addCollaborator()} to the aggregate and save it.</li>
+     * </ol>
+     * This guarantees no orphan SystemUser is ever created when a later step fails.
+     * </p>
      *
      * @param customerId   "IATA/ICAO" for a company, area code for an area
      * @param customerType discriminates between company and area
@@ -98,52 +104,53 @@ public class AddCollaboratorController {
         // 2. System-wide email uniqueness guard
         if (userRepo.findByEmail(EmailAddress.valueOf(email)).isPresent()) {
             throw new IllegalArgumentException(
-                    "Email '" + email + "' is already registered. " + "Each collaborator must be a distinct system user.");
+                    "Email '" + email + "' is already registered. "
+                    + "Each collaborator must be a distinct system user.");
         }
 
-        // 3. Create SystemUser + domain User
+        // 3. Load and validate the customer aggregate — before any user is created
+        final Object aggregate = customerRepo.findById(customerId, customerType)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Customer not found: " + customerId));
+
+        // 3b. System-wide phone and staff number uniqueness guards (fail fast before DB)
+        if (userRepo.existsByPhone(phone)) {
+            throw new IllegalArgumentException(
+                    "Phone number '" + phone + "' is already registered.");
+        }
+        if (userRepo.existsByStaffNumber(staffNo)) {
+            throw new IllegalArgumentException(
+                    "Staff number '" + staffNo + "' is already registered.");
+        }
+
+        // 4. Determine role and build + validate domain User
         final Role role = customerType == CustomerDTO.CustomerType.AIR_TRANSPORT_COMPANY
                 ? BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR
                 : BaseRoles.FLIGHT_CONTROL_OPERATOR;
-        createSystemAndDomainUser(email, name, phone, staffNo, password, role);
-
-        // 4. Load the customer aggregate
-        Optional<Object> customer = customerRepo.findById(customerId, customerType);
-
-        if (customer.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Customer not found: " + customerId);
-        }
-
-        final Object aggregate = customer.get();
-
-        // 5. Delegate to aggregate
-        if (aggregate instanceof AirTransportCompany) {
-            ((AirTransportCompany) aggregate).addCollaborator(email, name, position);
-            // 6. Save updated aggregate
-            customerRepo.save((AirTransportCompany) aggregate);
-        } else {
-            ((AirControlArea) aggregate).addCollaborator(email, name, position);
-            customerRepo.save((AirControlArea) aggregate);
-        }
-    }
-
-    // Private helper
-    private void createSystemAndDomainUser(final String email, final String name,
-                                           final String phone, final String staffNo,
-                                           final String password, final Role role) {
-        final String[] parts     = name.trim().split("\\s+", 2);
-        final String   firstName = parts[0];
-        final String   lastName  = parts.length > 1 ? parts[1] : parts[0];
-
-        final Set<Role> roles = new HashSet<>();
-        roles.add(role);
-        userSvc.registerNewUser(email, password, firstName, lastName, email, roles);
 
         final User domainUser = new User(
                 EmailAddress.valueOf(email), name, phone, staffNo,
                 LocalDate.now().plusYears(1));
         domainUser.setRole(role.toString());
+
+        // 5. Register SystemUser in framework (only if domain User is valid)
+        final String[] parts     = name.trim().split("\\s+", 2);
+        final String   firstName = parts[0];
+        final String   lastName  = parts.length > 1 ? parts[1] : parts[0];
+        final Set<Role> roles = new HashSet<>();
+        roles.add(role);
+        userSvc.registerNewUser(email, password, firstName, lastName, email, roles);
+
+        // 6. Persist domain User
         userRepo.save(domainUser);
+
+        // 7. Delegate to aggregate and save
+        if (aggregate instanceof AirTransportCompany) {
+            ((AirTransportCompany) aggregate).addCollaborator(email, name, position);
+            customerRepo.save((AirTransportCompany) aggregate);
+        } else {
+            ((AirControlArea) aggregate).addCollaborator(email, name, position);
+            customerRepo.save((AirControlArea) aggregate);
+        }
     }
 }

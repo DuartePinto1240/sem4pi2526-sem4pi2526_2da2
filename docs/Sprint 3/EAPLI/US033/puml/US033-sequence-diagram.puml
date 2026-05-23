@@ -12,10 +12,10 @@ activate CTRL
 
 CTRL -> PCON : getInstance().userRepository()
 PCON --> CTRL : repo
-CTRL -> REPO : findAll()
-REPO --> CTRL : Iterable<User> (unordered domain objects)
+CTRL -> REPO : findByRole("BACKOFFICE_OPERATOR")
+REPO --> CTRL : Iterable<User> (only BackOffice Operators)
 
-loop for each User
+loop for each BackOffice Operator User
     CTRL -> DTO : new UserDTO(email, name, role, phone, staff, active, clearance, assessment)
     DTO --> CTRL : userDTO
 end
@@ -27,10 +27,11 @@ deactivate CTRL
 note right of UI
   Displays formatted table using UserDTO:
   Name | Email | Role | Phone | Status | Clearance | Next Assessment
-  Both ACTIVE and INACTIVE users are shown.
+  Only BACKOFFICE_OPERATOR users are shown.
+  Both ACTIVE and INACTIVE operators are included.
   Sorted alphabetically by name.
   UI never accesses domain User directly.
 end note
 
-UI --> Administrator : displays user table with totals (active / inactive)
+UI --> Administrator : displays operator table with totals (active / inactive)
 @enduml

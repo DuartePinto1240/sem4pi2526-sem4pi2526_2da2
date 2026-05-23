@@ -48,9 +48,8 @@ public class AircraftBootstrapper implements Action {
         try {
             ctrl.addAircraft(registration, country, companyIata,
                     modelId, economy, business, firstClass, crew);
-            System.out.printf("Bootstrapped aircraft: %s%n", registration);
         } catch (final Exception e) {
-            System.out.printf("Skipped '%s': %s%n", registration, e.getMessage());
+            // silently skip already-registered aircraft
         }
     }
 }

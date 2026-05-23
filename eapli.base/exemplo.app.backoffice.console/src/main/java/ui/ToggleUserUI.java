@@ -2,7 +2,6 @@ package ui;
 
 import controller.ListUsersController;
 import controller.ToggleUserController;
-import domain.User;
 import dto.UserDTO;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
@@ -32,30 +31,30 @@ public class ToggleUserUI extends AbstractUI {
     @Override
     protected boolean doShow() {
         System.out.println("\n+------------------------------------------+");
-        System.out.println("|    Enable / Disable User                 |");
+        System.out.println("|  Enable / Disable BackOffice Operator    |");
         System.out.println("+------------------------------------------+");
 
         printUserList();
 
-        final String email = Console.readLine("\nUser email to change (press ENTER to cancel):");
+        final String email = Console.readLine("\nOperator email to change (press ENTER to cancel):");
         if (email == null || email.isBlank()) {
             System.out.println("Operation cancelled.");
             return false;
         }
 
-        System.out.println("\n  1. Enable user");
-        System.out.println("  2. Disable user");
+        System.out.println("\n  1. Enable operator");
+        System.out.println("  2. Disable operator");
         final int option = Console.readInteger("Choice");
 
         try {
             switch (option) {
                 case 1:
                     toggleController.activateUser(email);
-                    System.out.println(">> User enabled successfully.");
+                    System.out.println(">> Operator enabled successfully.");
                     break;
                 case 2:
                     toggleController.deactivateUser(email);
-                    System.out.println(">> User disabled successfully.");
+                    System.out.println(">> Operator disabled successfully.");
                     break;
                 default:
                     System.out.println(">> Invalid option.");
@@ -68,20 +67,25 @@ public class ToggleUserUI extends AbstractUI {
     }
 
     /**
-     * Prints a formatted table of all registered users.
+     * Prints a formatted table of all BackOffice Operators.
+     * Columns: Name | Email | Staff No. | Phone | Status
      */
     private void printUserList() {
-        System.out.printf("%n%-20s | %-25s | %-15s | %-9s | %s%n",
+        final String header = String.format("%-22s | %-28s | %-12s | %-9s | %s",
                 "Name", "Email", "Staff No.", "Phone", "Status");
-        System.out.println("-".repeat(88));
+        System.out.println();
+        System.out.println(header);
+        System.out.println("-".repeat(header.length() + 5));
 
         boolean hasUsers = false;
         for (UserDTO u : listController.allUsers()) {
-            System.out.println(u);
+            System.out.printf("%-22s | %-28s | %-12s | %-9s | %s%n",
+                    u.getName(), u.getEmail(), u.getStaffNumber(),
+                    u.getPhoneNumber(), u.isActive() ? "ACTIVE" : "INACTIVE");
             hasUsers = true;
         }
         if (!hasUsers) {
-            System.out.println("  (no users registered)");
+            System.out.println("  (no BackOffice Operators registered)");
         }
     }
 
@@ -92,6 +96,6 @@ public class ToggleUserUI extends AbstractUI {
      */
     @Override
     public String headline() {
-        return "Enable/Disable User";
+        return "Enable/Disable BackOffice Operator";
     }
 }

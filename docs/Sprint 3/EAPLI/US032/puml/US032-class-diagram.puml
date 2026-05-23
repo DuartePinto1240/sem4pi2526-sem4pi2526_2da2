@@ -15,11 +15,11 @@ package "Application" {
     +allUsers(): Iterable<User>
     +deactivateUser(email): boolean
     +activateUser(email): boolean
-    -findDomainOrThrow(email): User
+    -findBackOfficeOperatorOrThrow(email): User
     -findSystemUser(email): Optional<SystemUser>
   }
   class ListUsersController <<control>> {
-    +allUsers(): Iterable<User>
+    +allUsers(): Iterable<UserDTO>
   }
 }
 
@@ -47,6 +47,9 @@ package "Domain" {
     +isActive(): boolean
     +getRole(): String
   }
+  class BaseRoles <<utility>> {
+    {static} +BACKOFFICE_OPERATOR: Role
+  }
 }
 
 package "Infrastructure.Persistence" {
@@ -55,7 +58,7 @@ package "Infrastructure.Persistence" {
   }
   interface UserRepository <<repository>> {
     +ofIdentity(EmailAddress): Optional<User>
-    +findAll(): Iterable<User>
+    +findByRole(role): Iterable<User>
     +save(user): User
   }
 }
@@ -65,21 +68,30 @@ ToggleUserUI ..> ListUsersController
 ToggleUserController ..> AuthzRegistry : userService()
 ToggleUserController ..> UserManagementService : deactivate/activateUser()
 ToggleUserController ..> PersistenceContext
+ToggleUserController ..> BaseRoles : BACKOFFICE_OPERATOR filter
 ToggleUserController ..> User : deactivate()/activate()
 ListUsersController ..> PersistenceContext
+ListUsersController ..> BaseRoles : BACKOFFICE_OPERATOR filter
 UserManagementService ..> SystemUser
 PersistenceContext ..> UserRepository
 
 note right of ToggleUserController
+  Only BackOffice Operators can be toggled.
   Dual update on each toggle:
   1. UserManagementService (framework)
-     → disables/enables SystemUser
-     → login will be refused/allowed
+     -> disables/enables SystemUser
+     -> login will be refused/allowed
   2. domain User.active mirrored
-     → keeps domain state in sync
+     -> keeps domain state in sync
   Guards:
-  - user not found → throw
-  - role == "ADMIN" → cannot disable
-  - already inactive/active → throw
+  - user not found -> throw
+  - role != "BACKOFFICE_OPERATOR" -> throw
+  - already inactive/active -> throw
+end note
+
+note right of UserRepository
+  findByRole("BACKOFFICE_OPERATOR")
+  used by both controllers to ensure
+  only operators are listed/toggled.
 end note
 @enduml

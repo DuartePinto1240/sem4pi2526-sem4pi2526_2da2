@@ -43,6 +43,9 @@ package "Domain" {
     -securityClearanceExpiry: LocalDate
     -nextSkillsAssessmentDate: LocalDate
   }
+  class BaseRoles <<utility>> {
+    {static} +BACKOFFICE_OPERATOR: Role
+  }
 }
 
 package "Infrastructure.Persistence" {
@@ -50,19 +53,23 @@ package "Infrastructure.Persistence" {
     +userRepository(): UserRepository
   }
   interface UserRepository <<repository>> {
-    +findAll(): Iterable<User>
+    +findByRole(role): Iterable<User>
   }
 }
 
 ListUsersUI ..> ListUsersController
 ListUsersUI ..> UserDTO : displays
 ListUsersController ..> PersistenceContext
+ListUsersController ..> BaseRoles : BACKOFFICE_OPERATOR filter
 ListUsersController ..> User : reads
-ListUsersController ..> UserDTO : creates (converts User → UserDTO)
+ListUsersController ..> UserDTO : creates (converts User -> UserDTO)
 PersistenceContext ..> UserRepository
 UserRepository ..> User
 
 note right of ListUsersController
+  Only BackOffice Operators are listed.
+  Uses findByRole("BACKOFFICE_OPERATOR")
+  instead of findAll().
   DTO pattern:
   Converts each domain User to UserDTO
   before returning — UI never accesses

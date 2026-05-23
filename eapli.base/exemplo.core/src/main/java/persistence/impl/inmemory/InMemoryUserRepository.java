@@ -83,6 +83,45 @@ public class InMemoryUserRepository implements UserRepository {
         return Collections.unmodifiableCollection(store.values());
     }
 
+    /**
+     * Returns all users with the given role label (e.g. {@code "BACKOFFICE_OPERATOR"}).
+     *
+     * @param role the role string to filter by
+     * @return iterable of matching {@link User} records
+     */
+    @Override
+    public Iterable<User> findByRole(final String role) {
+        final List<User> result = new ArrayList<>();
+        for (User u : store.values()) {
+            if (role.equals(u.getRole())) result.add(u);
+        }
+        return result;
+    }
+
+    /**
+     * Returns {@code true} if a user with the given phone number already exists.
+     *
+     * @param phone the phone number to check
+     * @return {@code true} if already taken
+     */
+    @Override
+    public boolean existsByPhone(final String phone) {
+        return store.values().stream()
+                .anyMatch(u -> u.getPhoneNumber().equals(phone));
+    }
+
+    /**
+     * Returns {@code true} if a user with the given staff number already exists.
+     *
+     * @param staffNumber the staff number to check
+     * @return {@code true} if already taken
+     */
+    @Override
+    public boolean existsByStaffNumber(final String staffNumber) {
+        return store.values().stream()
+                .anyMatch(u -> u.getStaffNumber().equals(staffNumber));
+    }
+
     /** {@inheritDoc} */
     @Override
     public Optional<User> ofIdentity(final EmailAddress id) {

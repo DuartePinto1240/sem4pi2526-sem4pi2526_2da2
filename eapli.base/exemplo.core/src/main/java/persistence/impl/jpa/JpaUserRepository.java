@@ -62,4 +62,43 @@ public class JpaUserRepository
         params.put("email", email);
         return matchOne("e.email = :email", params);
     }
+
+    /**
+     * Returns all users with the given role label (e.g. {@code "BACKOFFICE_OPERATOR"}).
+     *
+     * @param role the role string to filter by
+     * @return iterable of matching {@link User} records
+     */
+    @Override
+    public Iterable<User> findByRole(final String role) {
+        final Map<String, Object> params = new HashMap<>();
+        params.put("role", role);
+        return match("e.role = :role", params);
+    }
+
+    /**
+     * Returns {@code true} if a user with the given phone number already exists.
+     *
+     * @param phone the phone number to check
+     * @return {@code true} if already taken
+     */
+    @Override
+    public boolean existsByPhone(final String phone) {
+        final Map<String, Object> params = new HashMap<>();
+        params.put("phone", phone);
+        return matchOne("e.phoneNumber = :phone", params).isPresent();
+    }
+
+    /**
+     * Returns {@code true} if a user with the given staff number already exists.
+     *
+     * @param staffNumber the staff number to check
+     * @return {@code true} if already taken
+     */
+    @Override
+    public boolean existsByStaffNumber(final String staffNumber) {
+        final Map<String, Object> params = new HashMap<>();
+        params.put("staffNumber", staffNumber);
+        return matchOne("e.staffNumber = :staffNumber", params).isPresent();
+    }
 }

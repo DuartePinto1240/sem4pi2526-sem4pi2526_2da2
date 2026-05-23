@@ -61,22 +61,11 @@ public final class User implements AggregateRoot<EmailAddress> {
      */
     public User(final EmailAddress email, final String name, final String phoneNumber,
                 final String staffNumber, final LocalDate securityClearanceExpiry) {
-        if (email == null || name == null || staffNumber == null
-                || phoneNumber == null || securityClearanceExpiry == null) {
-            throw new IllegalArgumentException("All fields are required.");
-        }
-        if (name.isBlank()) {
-            throw new IllegalArgumentException("Name must not be blank.");
-        }
-        if (staffNumber.isBlank()) {
-            throw new IllegalArgumentException("Staff number must not be blank.");
-        }
-        if (!phoneNumber.matches("\\d{9}")) {
-            throw new IllegalArgumentException("Phone number must contain exactly 9 digits.");
-        }
-        if (!securityClearanceExpiry.isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException("Security clearance expiry date must be in the future.");
-        }
+        // All validation is delegated to UserExceptionBuilder so exception
+        // definitions stay outside this class (see UserException / UserExceptionBuilder).
+        UserExceptionBuilder.of(email, name, phoneNumber, staffNumber, securityClearanceExpiry)
+                .validate();
+
         this.email                    = email;
         this.name                     = name;
         this.phoneNumber              = phoneNumber;
@@ -94,9 +83,7 @@ public final class User implements AggregateRoot<EmailAddress> {
      * @param roleName the role name string (e.g. {@code "PILOT"}, {@code "WEATHER_PERSON"})
      */
     public void setRole(final String roleName) {
-        if (roleName == null || roleName.isBlank()) {
-            throw new IllegalArgumentException("Role must not be blank.");
-        }
+        UserExceptionBuilder.builder().checkNotNull(roleName, "Role").checkRole(roleName).validate();
         this.role = roleName;
     }
 
@@ -116,24 +103,26 @@ public final class User implements AggregateRoot<EmailAddress> {
     }
 
     public void updateSecurityClearance(final LocalDate date) {
-        if (date == null || !date.isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException("Security clearance expiry date must be in the future.");
-        }
+        UserExceptionBuilder.builder()
+                .checkNotNull(date, "Security clearance expiry date")
+                .checkFutureDate(date, "Security clearance expiry date")
+                .validate();
         this.securityClearanceExpiry = date;
     }
 
     public void updateSkillsAssessment(final LocalDate date) {
-        if (date == null) {
-            throw new IllegalArgumentException("Skills assessment date is required.");
-        }
+        UserExceptionBuilder.builder()
+                .checkNotNull(date, "Skills assessment date")
+                .validate();
         this.nextSkillsAssessmentDate = date;
     }
 
     /** Updates the phone number. Used by EditCollaboratorController. */
     public void updatePhoneNumber(final String phone) {
-        if (phone == null || !phone.matches("\\d{9}")) {
-            throw new IllegalArgumentException("Phone number must contain exactly 9 digits.");
-        }
+        UserExceptionBuilder.builder()
+                .checkNotNull(phone, "Phone number")
+                .checkPhone(phone)
+                .validate();
         this.phoneNumber = phone;
     }
 

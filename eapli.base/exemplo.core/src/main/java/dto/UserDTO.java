@@ -65,8 +65,8 @@ public final class UserDTO {
      */
     @Override
     public String toString() {
-        return String.format("%-22s | %-28s | %-22s | %-9s | %-8s | %-10s | %s",
-                name, email, role, phoneNumber,
+        return String.format("%-22s | %-28s | %-22s | %-12s | %-9s | %-8s | %-10s | %s",
+                name, email, role, staffNumber, phoneNumber,
                 active ? "ACTIVE" : "INACTIVE",
                 securityClearanceExpiry  != null ? securityClearanceExpiry.toString()  : "N/A",
                 nextSkillsAssessmentDate != null ? nextSkillsAssessmentDate.toString() : "N/A");
