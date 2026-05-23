@@ -1,0 +1,77 @@
+@startuml CD_US075
+
+title Class Diagram — US075: Add a Pilot
+
+package "ui" {
+    class AddPilotUI {
+        + doShow()
+        + selectAircraftModels()
+        + displaySuccess()
+        + displayError(msg: String)
+    }
+}
+
+package "application" {
+    class AddPilotController {
+        - pilotRepository: PilotRepository
+        - companyRepository: AirTranspCompRepository
+        - aircraftModelRepository: AircraftModelRepository
+        --
+        + availableAircraftModels(): List<AircraftModel>
+        + addPilot(name: String, email: String, phone: String, modelIds: List<Long>): Either<String, Pilot>
+    }
+}
+
+package "domain" {
+    class Pilot <<AggregateRoot>> {
+        - name: String
+        - email: String
+        - phoneNumber: String
+        - certifiedModels: List<AircraftModel>
+        - active: boolean
+        --
+        + isActive(): boolean
+        + certifiedModels(): List<AircraftModel>
+    }
+
+    class AirTransportCompany <<AggregateRoot>> {
+        - name: String
+        - iataCode: String
+        - icaoCode: String
+    }
+
+    class AircraftModel <<AggregateRoot>> {
+        - modelName: String
+        - manufacturer: String
+        - type: AircraftType
+    }
+}
+
+package "persistence" {
+    interface PilotRepository {
+        + save(pilot: Pilot): Pilot
+        + findByEmail(email: String): Optional<Pilot>
+        + findAllByCompany(company: AirTransportCompany): List<Pilot>
+    }
+
+    interface AirTranspCompRepository {
+        + findByCurrentUser(): Optional<AirTransportCompany>
+    }
+
+    interface AircraftModelRepository {
+        + findAll(): List<AircraftModel>
+        + findByIds(ids: List<Long>): List<AircraftModel>
+    }
+}
+
+AddPilotUI ..> AddPilotController : uses
+
+AddPilotController ..> PilotRepository : uses
+AddPilotController ..> AirTranspCompRepository : uses
+AddPilotController ..> AircraftModelRepository : uses
+AddPilotController ..> Pilot : creates
+
+Pilot "1" o-- "1" AirTransportCompany : belongs to
+Pilot "1" *-- "1..*" AircraftModel : certified in
+
+@enduml

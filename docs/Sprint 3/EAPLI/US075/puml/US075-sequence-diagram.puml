@@ -1,0 +1,45 @@
+@startuml SD_US075
+
+title Sequence Diagram — US075: Add a Pilot (Design)
+
+actor "ATCC" as ATCC
+participant ":AddPilotUI" as UI
+participant ":AddPilotController" as CTRL
+participant ":AircraftModelRepository" as AMR
+participant ":AirTranspCompRepository" as ATCR
+participant ":PilotRepository" as PR
+
+ATCC -> UI : doShow()
+UI -> CTRL : availableAircraftModels()
+CTRL -> AMR : findAll()
+AMR --> CTRL : List<AircraftModel>
+CTRL --> UI : List<AircraftModel>
+UI --> ATCC : showAvailableAircraftModels(modelList)
+
+ATCC -> UI : submitPilotData(name, email, phone, modelIds)
+UI -> CTRL : addPilot(name, email, phone, modelIds)
+
+CTRL -> ATCR : findByCurrentUser()
+ATCR --> CTRL : AirTransportCompany
+
+alt pilot with email already exists
+    CTRL --> UI : Either.left("pilot already registered")
+    UI --> ATCC : displayError(msg)
+else no valid aircraft models selected
+    CTRL --> UI : Either.left("at least one model required")
+    UI --> ATCC : displayError(msg)
+end
+
+CTRL -> AMR : findByIds(modelIds)
+AMR --> CTRL : List<AircraftModel>
+
+create participant ":Pilot" as P
+CTRL -> P : new Pilot(name, email, phone, models, company)
+
+CTRL -> PR : save(pilot)
+PR --> CTRL : Pilot
+
+CTRL --> UI : Either.right(pilot)
+UI --> ATCC : showSuccessMessage()
+
+@enduml
