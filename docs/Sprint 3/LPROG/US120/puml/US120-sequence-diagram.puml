@@ -1,0 +1,140 @@
+@startuml
+title US120 — Flight DSL Specification and Validation
+
+actor "Project Manager" as PM
+participant FlightPlanImporter as IMP <<service>>
+participant ErrorCollector as ERR <<collector>>
+participant FlightPlanLexer as LEX <<generated>>
+participant FlightPlanParser as PAR <<generated>>
+participant FlightPlanSemanticVisitor as VIS <<visitor>>
+participant FlightPlanBuilderListener as BLD <<listener>>
+participant ParseTreeWalker as WLK <<walker>>
+
+PM -> IMP : importFromString(input)
+activate IMP
+
+note over IMP
+  Step 1 — Lexical Analysis
+end note
+
+IMP -> ERR : setPhase(LEXICAL)
+IMP -> LEX : new FlightPlanLexer(CharStreams.fromString(input))
+IMP -> LEX : removeErrorListeners()
+IMP -> LEX : addErrorListener(errorCollector)
+IMP -> IMP : tokens = new CommonTokenStream(lexer)
+IMP -> IMP : tokens.fill()
+
+note right of IMP
+  tokens.fill() forces the lexer
+  to process ALL input before
+  the parser starts.
+  Ensures LEXICAL errors are
+  classified correctly.
+end note
+
+IMP -> ERR : hasErrors()?
+ERR --> IMP : false (continue)
+
+note over IMP
+  Step 2 — Syntactic Analysis
+end note
+
+IMP -> ERR : setPhase(SYNTACTIC)
+IMP -> PAR : new FlightPlanParser(tokens)
+IMP -> PAR : removeErrorListeners()
+IMP -> PAR : addErrorListener(errorCollector)
+IMP -> PAR : tree = flightPlan()
+PAR --> IMP : parseTree
+
+IMP -> ERR : hasErrors()?
+ERR --> IMP : false (continue)
+
+note over IMP
+  Step 3 — Semantic Validation
+end note
+
+IMP -> ERR : setPhase(SEMANTIC)
+IMP -> VIS : new FlightPlanSemanticVisitor(errorCollector)
+IMP -> VIS : visit(parseTree)
+activate VIS
+
+VIS -> VIS : visitFlight()\n— check flight ID unique within file
+VIS -> ERR : addSemanticError(...) [if duplicate ID]
+
+VIS -> VIS : visitLeg()\n— check arrival airport = next departure
+VIS -> ERR : addSemanticError(...) [if mismatch]
+
+VIS -> VIS : visitLeg()\n— check arrival time < next departure time
+VIS -> ERR : addSemanticError(...) [if time conflict]
+
+VIS -> VIS : visitFuel()\n— check fuel quantity > 0
+VIS -> ERR : addSemanticError(...) [if fuel <= 0]
+
+VIS -> VIS : visitSegment()\n— check from ≠ to coordinates
+VIS -> ERR : addSemanticError(...) [if same coords]
+
+VIS -> VIS : visitAirportCode()\n— check IATA (3 letters) or ICAO (4 letters)
+VIS -> ERR : addSemanticError(...) [if invalid format]
+
+VIS --> IMP : done (all rules checked)
+deactivate VIS
+
+note right of VIS
+  All 6 rules checked.
+  All errors collected — no fail-fast.
+  Visitor controls traversal via
+  visitChildren(ctx).
+end note
+
+IMP -> ERR : hasErrors()?
+ERR --> IMP : false (continue)
+
+note over IMP
+  Step 4 — Build Internal Representation
+end note
+
+IMP -> BLD : new FlightPlanBuilderListener()
+IMP -> WLK : ParseTreeWalker.DEFAULT.walk(builder, tree)
+activate WLK
+
+WLK -> BLD : enterFlight(ctx) → create FlightData
+WLK -> BLD : enterLeg(ctx) → create LegData
+WLK -> BLD : enterDeparture(ctx) → fill departure fields
+WLK -> BLD : enterArrival(ctx) → fill arrival fields
+WLK -> BLD : enterFuel(ctx) → fill fuel fields
+WLK -> BLD : enterSegment(ctx) → create SegmentData
+WLK -> BLD : exitSegment(ctx) → add SegmentData to LegData
+WLK -> BLD : exitLeg(ctx) → add LegData to FlightData
+WLK -> BLD : exitFlight(ctx) → add FlightData to list
+
+WLK --> IMP : done
+deactivate WLK
+
+note right of WLK
+  Listener callbacks called
+  automatically by the walker.
+  No manual traversal control needed.
+  enter = object created
+  exit = object added to parent
+end note
+
+IMP -> BLD : getFlights()
+BLD --> IMP : List<FlightData>
+
+IMP --> PM : FlightPlanImportResult.success(flights)
+deactivate IMP
+
+note over IMP, PM
+  If errors in any phase:
+  ─────────────────────────────────
+  Step 1 error → return failure(LEXICAL errors)
+  Step 2 error → return failure(SYNTACTIC errors)
+  Step 3 error → return failure(SEMANTIC errors)
+
+  Each error includes:
+  [TYPE] Line X, Col Y — message
+  e.g. [SEMANTIC] Line 6, Col 15 —
+       Fuel quantity must be strictly
+       positive (got: -500.0)
+end note
+@enduml

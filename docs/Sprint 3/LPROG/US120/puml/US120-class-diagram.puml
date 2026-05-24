@@ -1,0 +1,168 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "LPROG" {
+  class FlightPlanImporter <<service>> {
+    +importFromFile(path): FlightPlanImportResult
+    +importFromString(input): FlightPlanImportResult
+  }
+
+  class FlightPlanImportResult <<result>> {
+    +isSuccess(): boolean
+    +getFlights(): List<FlightData>
+    +getErrors(): List<ValidationError>
+    +{static} success(flights): FlightPlanImportResult
+    +{static} failure(errors): FlightPlanImportResult
+  }
+
+  class ErrorCollector <<listener>> {
+    -errors: List<ValidationError>
+    -currentPhase: ErrorType
+    +setPhase(ErrorType): void
+    +syntaxError(...): void
+    +addSemanticError(line, col, msg): void
+    +hasErrors(): boolean
+    +getErrors(): List<ValidationError>
+  }
+
+  class ValidationError <<value object>> {
+    -type: ErrorType
+    -line: int
+    -column: int
+    -message: String
+    +getType(): ErrorType
+    +getLine(): int
+    +getColumn(): int
+    +getMessage(): String
+    +toString(): String
+  }
+
+  enum ErrorType {
+    LEXICAL
+    SYNTACTIC
+    SEMANTIC
+  }
+
+  class FlightPlanSemanticVisitor <<visitor>> {
+    -errorCollector: ErrorCollector
+    -flightIds: Set<String>
+    -lastArrivalAirport: String
+    -lastArrivalTime: String
+    +visitFlight(ctx): Void
+    +visitLeg(ctx): Void
+    +visitFuel(ctx): Void
+    +visitSegment(ctx): Void
+    +visitAirportCode(ctx): Void
+  }
+
+  class FlightPlanBuilderListener <<listener>> {
+    -flights: List<FlightData>
+    -currentFlight: FlightData
+    -currentLeg: LegData
+    -currentSegment: SegmentData
+    +enterFlight(ctx): void
+    +exitFlight(ctx): void
+    +enterLeg(ctx): void
+    +exitLeg(ctx): void
+    +enterDeparture(ctx): void
+    +enterArrival(ctx): void
+    +enterFuel(ctx): void
+    +enterSegment(ctx): void
+    +exitSegment(ctx): void
+    +getFlights(): List<FlightData>
+  }
+
+  class FlightData <<data>> {
+    +id: String
+    +type: String
+    +legs: List<LegData>
+  }
+
+  class LegData <<data>> {
+    +departureAirport: String
+    +departureDate: String
+    +departureTime: String
+    +arrivalAirport: String
+    +arrivalTime: String
+    +fuelQuantity: double
+    +fuelUnit: String
+    +segments: List<SegmentData>
+  }
+
+  class SegmentData <<data>> {
+    +fromLat: double
+    +fromLon: double
+    +toLat: double
+    +toLon: double
+    +altitudeSlots: List<Double>
+    +width: double
+    +windAngle: double
+    +windSpeed: double
+  }
+}
+
+package "ANTLR4 Generated" {
+  class FlightPlanLexer <<generated>> {
+  }
+  class FlightPlanParser <<generated>> {
+  }
+  class FlightPlanBaseVisitor <<generated>> {
+  }
+  class FlightPlanBaseListener <<generated>> {
+  }
+}
+
+FlightPlanImporter ..> FlightPlanImportResult
+FlightPlanImporter ..> ErrorCollector
+FlightPlanImporter ..> FlightPlanSemanticVisitor
+FlightPlanImporter ..> FlightPlanBuilderListener
+FlightPlanImporter ..> FlightPlanLexer
+FlightPlanImporter ..> FlightPlanParser
+FlightPlanImportResult ..> FlightData
+FlightPlanImportResult ..> ValidationError
+ErrorCollector ..> ValidationError
+ValidationError ..> ErrorType
+FlightPlanSemanticVisitor --|> FlightPlanBaseVisitor
+FlightPlanSemanticVisitor ..> ErrorCollector
+FlightPlanBuilderListener --|> FlightPlanBaseListener
+FlightPlanBuilderListener ..> FlightData
+FlightData "1" *-- "1..*" LegData
+LegData "1" *-- "1..*" SegmentData
+
+note right of FlightPlanImporter
+  Orchestrates the 4-step pipeline:
+  Step 1 — Lexical (FlightPlanLexer)
+  Step 2 — Syntactic (FlightPlanParser)
+  Step 3 — Semantic (SemanticVisitor)
+  Step 4 — Build (BuilderListener)
+  tokens.fill() forces full lexical
+  processing before parsing starts.
+end note
+
+note right of FlightPlanSemanticVisitor
+  Enforces 6 semantic rules:
+  1. Flight ID unique within file
+  2. Leg arrival airport = next departure
+  3. Leg arrival time < next departure
+  4. Fuel quantity > 0
+  5. Segment from ≠ to coordinates
+  6. Airport code: IATA (3) or ICAO (4)
+  All errors collected — no fail-fast.
+end note
+
+note right of FlightPlanBuilderListener
+  Builds internal representation:
+  FlightData → LegData → SegmentData
+  enter/exit callbacks called
+  automatically by ParseTreeWalker.
+end note
+
+note right of ErrorCollector
+  Extends BaseErrorListener (ANTLR).
+  Captures LEXICAL + SYNTACTIC errors
+  automatically via syntaxError().
+  SEMANTIC errors added manually
+  by FlightPlanSemanticVisitor.
+  setPhase() tags each error correctly.
+end note
+@enduml
