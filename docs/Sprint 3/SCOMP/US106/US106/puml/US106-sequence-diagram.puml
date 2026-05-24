@@ -1,0 +1,120 @@
+@startuml
+title US106 — Thread Lifecycle Sequence
+
+participant "main()" as MAIN
+participant "spawn_parent_threads()" as SPAWN
+participant "SimulationController\nThread" as SC
+participant "ViolationDetector\nThread" as VD
+participant "ReportGenerator\nThread" as RG
+participant "Flight Process i" as FP
+participant "SharedMemory\n(shm)" as SHM
+
+MAIN -> MAIN : init_shared_memory() [US105]
+MAIN -> MAIN : init_semaphores() [US105]
+MAIN -> MAIN : fork() × num_flights
+activate FP
+FP -> FP : sem_wait(step_sem[i])\n(blocks immediately)
+
+MAIN -> SPAWN : spawn_parent_threads(args)
+activate SPAWN
+SPAWN -> SPAWN : pthread_mutex_init(violation_mutex)
+SPAWN -> SPAWN : pthread_mutex_init(report_mutex)
+SPAWN -> SPAWN : pthread_cond_init(violation_cond)
+SPAWN -> SPAWN : pthread_cond_init(report_cond)
+SPAWN -> SC : pthread_create(simulation_controller_thread)
+activate SC
+SPAWN -> VD : pthread_create(violation_detector_thread)
+activate VD
+SPAWN -> RG : pthread_create(report_generator_thread)
+activate RG
+SPAWN --> MAIN : thread_ids[]
+deactivate SPAWN
+
+note right of RG
+  Immediately calls
+  pthread_cond_wait(report_cond)
+  — blocks until violation detected
+end note
+
+loop [each simulation step, while !abort_flag]
+
+    SC -> FP : sem_post(step_sem[i]) × num_flights
+    note right of SC
+      Unblocks each flight
+      process for this step
+    end note
+
+    FP -> SHM : shm->positions[i] =\ncompute_next_position()
+    FP -> FP : sem_wait(step_sem[i])\n(blocks until next step)
+
+    VD -> VD : pthread_mutex_lock(violation_mutex)
+    VD -> SHM : read positions[i], positions[j]
+    VD -> VD : dist = compute_distance(pi, pj)
+
+    alt [dist < safety_threshold]
+
+        VD -> SHM : shm->total_violations++
+        VD -> VD : pthread_mutex_unlock(violation_mutex)
+
+        VD -> FP : kill(pid_i, SIGUSR1)
+        VD -> FP : kill(pid_j, SIGUSR1)
+
+        VD -> VD : pthread_mutex_lock(report_mutex)
+        VD -> RG : pthread_cond_signal(report_cond)
+        note right of VD
+          US107 — wakes
+          ReportGenerator via
+          condition variable
+        end note
+        VD -> VD : pthread_mutex_unlock(report_mutex)
+
+        RG -> RG : woken by cond_signal
+        RG -> VD : pthread_mutex_lock(violation_mutex)\n(copy violation data)
+        RG -> RG : log ViolationEvent
+        RG -> VD : pthread_mutex_unlock(violation_mutex)
+        RG -> RG : pthread_cond_wait(report_cond)\n(back to waiting)
+
+    else [no violation]
+        VD -> VD : pthread_mutex_unlock(violation_mutex)
+    end
+
+    alt [total_violations >= max_violations]
+        VD -> SHM : shm->abort_flag = 1
+        VD -> FP : kill(pid, SIGTERM) × all active
+        note right of VD
+          Simulation aborted —
+          exceeded max violations
+        end note
+    end
+
+    SC -> SC : sleep(time_step_seconds)
+
+end
+
+SC -> SC : simulation_done = 1
+SC -> RG : pthread_cond_broadcast(report_cond)
+SC -> VD : (simulation_done flag wakes loop)
+SC --> MAIN : thread exits
+deactivate SC
+
+VD --> MAIN : thread exits\n(simulation_done = 1)
+deactivate VD
+
+RG -> RG : write_report(shm, config, states)\n[US109]
+note right of RG
+  Writes final report to file:
+  simulation_report_YYYYMMDD_HHMMSS.txt
+  Includes: total flights, statuses,
+  violation events, PASS/FAIL result
+end note
+RG --> MAIN : thread exits
+deactivate RG
+
+FP --> MAIN : exit(0)
+deactivate FP
+
+MAIN -> MAIN : pthread_join(SC, VD, RG)
+MAIN -> MAIN : waitpid() × num_flights
+MAIN -> MAIN : cleanup:\n  shmdt() + shmctl(IPC_RMID)\n  sem_close() + sem_unlink()\n  pthread_mutex_destroy()\n  pthread_cond_destroy()
+
+@enduml

@@ -1,0 +1,94 @@
+@startuml
+skinparam classAttributeIconSize 0
+title US106 — C Data Structures
+
+class ThreadArgs << (S,#FFD700) struct >> {
+  + shm : SharedSimulationData*
+  + config : SimulationConfig*
+  + states : FlightState*
+  + violation_mutex : pthread_mutex_t
+  + violation_cond : pthread_cond_t
+  + report_mutex : pthread_mutex_t
+  + report_cond : pthread_cond_t
+  + event_queue[MAX_VIOLATIONS] : ViolationEvent
+  + event_count : int
+  + simulation_done : volatile int
+}
+
+class ViolationEvent << (S,#FFD700) struct >> {
+  + timestamp : double
+  + flight_i : int
+  + flight_j : int
+  + distance : double
+  + position_i : Position
+  + position_j : Position
+}
+
+class SharedSimulationData << (S,#FFD700) struct >> {
+  + positions[MAX_FLIGHTS] : Position
+  + pids[MAX_FLIGHTS] : pid_t
+  + active[MAX_FLIGHTS] : int
+  + total_violations : int
+  + abort_flag : int
+}
+
+class FlightState << (S,#FFD700) struct >> {
+  + flight_id : int
+  + pid : pid_t
+  + step_sem : sem_t*
+  + violated : int
+  + aborted : int
+}
+
+class SimulationConfig << (S,#FFD700) struct >> {
+  + num_flights : int
+  + total_steps : int
+  + time_step_seconds : int
+  + safety_threshold_m : double
+  + max_violations : int
+}
+
+class Position << (S,#FFD700) struct >> {
+  + latitude : double
+  + longitude : double
+  + altitude : double
+  + time_step : int
+}
+
+class violation_detector_thread << (F,#ADD8E6) function >> {
+  + arg : void*
+  --
+  scans shm->positions[] each step
+  signals report_cond on violation
+  sends SIGUSR1 / SIGTERM to flights
+}
+
+class report_generator_thread << (F,#ADD8E6) function >> {
+  + arg : void*
+  --
+  waits on report_cond
+  logs ViolationEvents
+  writes report on simulation_done
+}
+
+class simulation_controller_thread << (F,#ADD8E6) function >> {
+  + arg : void*
+  --
+  posts step_sem per flight per step
+  sets simulation_done = 1
+  broadcasts on all cond vars
+}
+
+ThreadArgs --> SharedSimulationData : shm (pointer)
+ThreadArgs --> SimulationConfig : config (pointer)
+ThreadArgs --> FlightState : states (pointer)
+ThreadArgs "1" *-- "0..*" ViolationEvent : event_queue
+
+violation_detector_thread ..> ThreadArgs : uses
+report_generator_thread ..> ThreadArgs : uses
+simulation_controller_thread ..> ThreadArgs : uses
+
+SharedSimulationData "1" *-- "MAX_FLIGHTS" Position
+ViolationEvent "1" *-- "2" Position : position_i / position_j
+
+@enduml
