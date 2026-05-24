@@ -1,0 +1,95 @@
+@startuml US073-class-diagram
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class CreateFlightRouteUI <<boundary>> {
+    +doShow(): boolean
+  }
+}
+
+package "Application" {
+  class CreateFlightRouteController <<control>> {
+    +availableAirports(): Iterable<Airport>
+    +createRegularRoute(designator, originIata,\n  destinationIata, entries): FlightRoute
+    +createCharterRoute(designator, originIata,\n  destinationIata, departure, arrival): FlightRoute
+  }
+}
+
+package "Domain" {
+  class FlightRoute <<aggregate root>> {
+    -active: boolean
+    -deactivationDate: LocalDate
+    +deactivate(fromDate): void
+    +identity(): RouteDesignator
+    +sameAs(other): boolean
+  }
+
+  class RouteDesignator <<value object>> {
+    -designator: String
+    ' 2 letters + 1-4 digits — UNIQUE
+    +RouteDesignator(designator)
+    +value(): String
+    +compareTo(other): int
+  }
+
+  class FlightType <<value object>> {
+    -type: enum {REGULAR, CHARTER}
+    +isRegular(): boolean
+    +isCharter(): boolean
+  }
+
+  class ScheduledDates <<value object>> {
+    -departureDateTime: LocalDateTime
+    -scheduledArrivalDateTime: LocalDateTime
+    ' used by CHARTER routes only
+  }
+
+  class RecurringSchedule <<value object>> {
+    -entries: List<ScheduleEntry>
+    ' used by REGULAR routes only
+  }
+
+  class ScheduleEntry <<value object>> {
+    -dayOfWeek: DayOfWeek
+    -departureTime: LocalTime
+    -scheduledArrivalTime: LocalTime
+  }
+
+  FlightRoute "1" *-- "1" RouteDesignator
+  FlightRoute "1" *-- "1" FlightType
+  FlightRoute "1" *-- "0..1" ScheduledDates
+  FlightRoute "1" *-- "0..1" RecurringSchedule
+  RecurringSchedule "1" *-- "1..*" ScheduleEntry
+}
+
+package "Repository" {
+  interface FlightRouteRepository <<repository>> {
+    +existsByDesignator(designator): boolean
+    +save(route): FlightRoute
+    +findAll(): Iterable<FlightRoute>
+    +ofIdentity(designator): Optional<FlightRoute>
+  }
+}
+
+CreateFlightRouteUI ..> CreateFlightRouteController
+CreateFlightRouteController ..> FlightRoute : creates
+CreateFlightRouteController ..> FlightRouteRepository : saves
+FlightRoute ..> FlightRouteRepository
+
+note right of FlightRoute
+  Invariants:
+  - designator UNIQUE and format valid
+  - origin ≠ destination
+  - CHARTER → has ScheduledDates
+  - REGULAR → has RecurringSchedule
+  - never both schedules at once
+  - active = true on creation
+end note
+
+note right of RouteDesignator
+  Format: 2 uppercase letters
+  followed by 1 to 4 digits.
+  Examples: TP1, FR0042, UX123
+  Stored uppercase, trimmed.
+end note
+@enduml

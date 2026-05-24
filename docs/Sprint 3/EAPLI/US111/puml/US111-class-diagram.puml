@@ -1,0 +1,119 @@
+@startuml US111-class-diagram
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class GenerateSimulationReportUI <<boundary>> {
+    +doShow(): boolean
+  }
+}
+
+package "Application" {
+  class GenerateSimulationReportController <<control>> {
+    +availableReportFiles(): List<String>
+    +generateReport(filename): SimulationReport
+  }
+
+  class ReportFileParser <<service>> {
+    +parse(filePath): ReportData
+  }
+
+  class ReportData <<data>> {
+    +totalFlights: int
+    +statuses: List<FlightStatusData>
+    +violations: List<ViolationData>
+    +passed: boolean
+  }
+}
+
+package "Domain" {
+  class SimulationReport <<aggregate root>> {
+    +identity(): SimulationReportId
+    +sameAs(other): boolean
+    +totalFlights(): TotalFlights
+    +result(): OverallValidationResult
+    +flightStatuses(): List<FlightExecutionStatus>
+    +violationEvents(): List<SafetyViolationEvent>
+  }
+
+  class SimulationReportId <<value object>> {
+    -id: String
+  }
+
+  class ReportPeriod <<value object>> {
+    -generatedAt: LocalDateTime
+  }
+
+  class TotalFlights <<value object>> {
+    -total: int
+  }
+
+  class OverallValidationResult <<value object>> {
+    -result: enum {PASS, FAIL}
+    +isPassed(): boolean
+  }
+
+  class FlightExecutionStatus <<value object>> {
+    -flightIdentifier: int
+    -status: enum {OK, VIOLATED, ABORTED}
+  }
+
+  class SafetyViolationEvent <<value object>> {
+    -timestamp: double
+    -flightI: int
+    -flightJ: int
+    -positionI: Position
+    -positionJ: Position
+    -velocityVector: VelocityVector
+  }
+
+  class Position <<value object>> {
+    -latitude: double
+    -longitude: double
+    -altitude: double
+  }
+
+  class VelocityVector <<value object>> {
+    -vx: double
+    -vy: double
+    -vz: double
+  }
+
+  SimulationReport "1" *-- "1" SimulationReportId
+  SimulationReport "1" *-- "1" ReportPeriod
+  SimulationReport "1" *-- "1" TotalFlights
+  SimulationReport "1" *-- "1" OverallValidationResult
+  SimulationReport "1" *-- "1..*" FlightExecutionStatus
+  SimulationReport "1" *-- "0..*" SafetyViolationEvent
+  SafetyViolationEvent "1" *-- "2" Position
+  SafetyViolationEvent "1" *-- "1" VelocityVector
+}
+
+package "Repository" {
+  interface SimulationReportRepository <<repository>> {
+    +save(report): SimulationReport
+    +findAll(): Iterable<SimulationReport>
+    +ofIdentity(id): Optional<SimulationReport>
+  }
+}
+
+GenerateSimulationReportUI ..> GenerateSimulationReportController
+GenerateSimulationReportController ..> ReportFileParser
+GenerateSimulationReportController ..> SimulationReport : creates
+GenerateSimulationReportController ..> SimulationReportRepository : saves
+ReportFileParser ..> ReportData
+
+note right of SimulationReport
+  Invariants:
+  - totalFlights > 0
+  - at least one FlightExecutionStatus
+  - PASS only if total_violations < max
+  - generatedAt not null
+end note
+
+note right of GenerateSimulationReportController
+  Reads report file produced by
+  US109 (C module).
+  Parses it into domain objects.
+  Persists via repository.
+end note
+@enduml

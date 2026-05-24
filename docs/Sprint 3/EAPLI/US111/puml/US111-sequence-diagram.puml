@@ -1,0 +1,70 @@
+@startuml US111-sequence-diagram
+actor "Flight Control\nOperator" as OP
+participant GenerateSimulationReportUI as UI <<boundary>>
+participant GenerateSimulationReportController as CTRL <<control>>
+participant ReportFileParser as PARSER <<service>>
+participant PersistenceContext as PC <<registry>>
+participant SimulationReportRepository as REPO <<repository>>
+participant "report:SimulationReport" as SR <<aggregate root>>
+
+OP -> UI : doShow()
+
+UI -> CTRL : availableReportFiles()
+activate CTRL
+CTRL -> CTRL : scan directory for\nsimulation_report_*.txt files
+CTRL --> UI : file list
+deactivate CTRL
+
+UI --> OP : numbered file list
+
+OP -> UI : selects file number
+
+UI -> CTRL : generateReport(filename)
+activate CTRL
+
+CTRL -> PARSER : parse(filePath)
+activate PARSER
+PARSER -> PARSER : read total flights
+PARSER -> PARSER : read flight statuses\n(OK / VIOLATED / ABORTED)
+PARSER -> PARSER : read violation events\n(timestamp, positions, vectors)
+PARSER -> PARSER : read overall result\n(PASS / FAIL)
+PARSER --> CTRL : ReportData
+deactivate PARSER
+
+CTRL -> PC : getInstance()
+PC --> CTRL : persistenceContext
+
+CTRL -> SR : new SimulationReport(\n  id, generatedAt,\n  totalFlights, statuses,\n  violations, result)
+activate SR
+SR -> SR : validate totalFlights > 0
+SR -> SR : validate statuses not empty
+SR --> CTRL : report
+deactivate SR
+
+CTRL -> REPO : save(report)
+activate REPO
+REPO --> CTRL : savedReport
+deactivate REPO
+
+CTRL --> UI : savedReport
+deactivate CTRL
+
+UI --> OP : display report summary
+
+note right of UI
+  Shows:
+  - Generated at
+  - Total flights
+  - Per-flight status (OK/VIOLATED/ABORTED)
+  - Violation events (timestamp, positions)
+  - Overall result: PASS / FAIL
+end note
+
+alt [file not found or unreadable]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> OP : show error "Report file not found"
+else [parse error — invalid format]
+    PARSER --> CTRL : throw IllegalArgumentException
+    UI --> OP : show error "Invalid report file format"
+end
+@enduml

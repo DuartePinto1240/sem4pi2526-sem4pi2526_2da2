@@ -1,0 +1,80 @@
+@startuml US073-sequence-diagram
+actor "ATCC" as ATCC
+participant CreateFlightRouteUI as UI <<boundary>>
+participant CreateFlightRouteController as CTRL <<control>>
+participant PersistenceContext as PC <<registry>>
+participant FlightRouteRepository as REPO <<repository>>
+participant AirportRepository as AIRPORT_REPO <<repository>>
+participant "route:FlightRoute" as ROUTE <<aggregate root>>
+participant "designator:RouteDesignator" as RD <<value object>>
+participant "type:FlightType" as FT <<value object>>
+
+ATCC -> UI : doShow()
+
+UI -> CTRL : availableAirports()
+activate CTRL
+CTRL -> AIRPORT_REPO : findAll()
+AIRPORT_REPO --> CTRL : airports
+CTRL --> UI : airports
+deactivate CTRL
+
+UI --> ATCC : numbered airport list +\nasks for designator, type, schedule
+
+ATCC -> UI : provides all data
+
+UI -> CTRL : createRoute(designator, type,\n  originIata, destinationIata, schedule)
+activate CTRL
+
+CTRL -> PC : getInstance()
+PC --> CTRL : persistenceContext
+
+CTRL -> REPO : existsByDesignator(designator)
+activate REPO
+REPO --> CTRL : false
+deactivate REPO
+
+CTRL -> RD : new RouteDesignator(designator)
+activate RD
+RD -> RD : validate format\n(2 letters + 1-4 digits)
+RD --> CTRL : routeDesignator
+deactivate RD
+
+CTRL -> FT : new FlightType(type)
+activate FT
+FT --> CTRL : flightType
+deactivate FT
+
+alt [type == CHARTER]
+    CTRL -> ROUTE : new FlightRoute(designator, CHARTER,\n  originIata, destinationIata,\n  scheduledDates)
+else [type == REGULAR]
+    CTRL -> ROUTE : new FlightRoute(designator, REGULAR,\n  originIata, destinationIata,\n  recurringSchedule)
+end
+
+activate ROUTE
+ROUTE -> ROUTE : validate origin ≠ destination
+ROUTE -> ROUTE : validate schedule matches type
+ROUTE -> ROUTE : active = true
+ROUTE --> CTRL : route
+deactivate ROUTE
+
+alt [designator already exists]
+    CTRL --> UI : throw IllegalArgumentException
+    UI --> ATCC : show error "Route designator already exists"
+else [invalid designator format]
+    RD --> CTRL : throw IllegalArgumentException
+    UI --> ATCC : show error "Invalid designator format"
+else [origin == destination]
+    ROUTE --> CTRL : throw IllegalArgumentException
+    UI --> ATCC : show error "Origin and destination must be different"
+else [all validations pass]
+    CTRL -> REPO : save(route)
+    activate REPO
+    REPO --> CTRL : savedRoute
+    deactivate REPO
+
+    CTRL --> UI : savedRoute
+    deactivate CTRL
+
+    UI --> ATCC : show success\n(designator, type, origin → destination, schedule)
+end
+@enduml
