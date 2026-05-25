@@ -1,0 +1,97 @@
+@startuml US042-sequence-diagram
+actor "Weather Person" as WP
+participant ImportBulkWeatherDataUI as UI <<boundary>>
+participant ImportBulkWeatherDataController as CTRL <<control>>
+participant AuthorizationService as AUTHZ <<service>>
+participant WeatherDataImporterFactory as FACTORY <<factory>>
+participant WeatherDataImporter as IMPORTER <<interface>>
+participant AirControlAreaRepository as AREA_REPO <<repository>>
+participant WeatherDataRepository as WD_REPO <<repository>>
+participant "wd:WeatherData" as WD <<entity>>
+participant ImportResult as RESULT
+
+WP -> UI : doShow()
+UI --> WP : prompts for file path
+
+WP -> UI : filePath = "weather.csv"
+
+UI -> CTRL : importWeatherData(filePath)
+activate CTRL
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(WEATHER_PERSON)
+activate AUTHZ
+AUTHZ --> CTRL : ok
+deactivate AUTHZ
+
+CTRL -> CTRL : extension = extractExtension(filePath)
+CTRL -> FACTORY : getImporter(extension)
+activate FACTORY
+note right of FACTORY
+  Simple Factory decides internally
+  which concrete adapter to instantiate
+  based on the file extension.
+  ".csv"  → CsvWeatherDataImporter
+  ".json" → JsonWeatherDataImporter
+  Controller never sees concrete types.
+end note
+FACTORY --> CTRL : WeatherDataImporter
+deactivate FACTORY
+
+CTRL -> IMPORTER : parse(filePath)
+activate IMPORTER
+IMPORTER --> CTRL : List<WeatherDataDTO>
+deactivate IMPORTER
+
+CTRL -> RESULT ** : new ImportResult()
+
+loop for each WeatherDataDTO dto in list
+
+  CTRL -> AREA_REPO : ofIdentity(new AirControlAreaCode(dto.areaCode))
+  activate AREA_REPO
+  AREA_REPO --> CTRL : Optional<AirControlArea>
+  deactivate AREA_REPO
+
+  alt area not found
+    CTRL -> RESULT : recordFailure("line N – area not found")
+
+  else area found
+
+    CTRL -> CTRL : new GeographicBoundary(subMinLat, subMaxLat, subMinLon, subMaxLon)
+    CTRL -> CTRL : new AltitudeRange(minAltitude, maxAltitude)
+    CTRL -> CTRL : new WeatherSubArea(subBoundary, altRange)
+
+    alt sub-area outside parent boundary OR value-object invariant violated
+      CTRL -> RESULT : recordFailure("line N – " + e.getMessage())
+
+    else value objects valid
+
+      CTRL -> CTRL : new ObservationPeriod(startDateTime, endDateTime)
+      CTRL -> CTRL : new WindCondition(windDirection, windSpeed)
+
+      CTRL -> WD_REPO : existsConflicting(areaCode, subArea, period)
+      activate WD_REPO
+      WD_REPO --> CTRL : boolean
+      deactivate WD_REPO
+
+      alt conflict exists
+        CTRL -> RESULT : recordFailure("line N – conflicting record")
+
+      else no conflict
+        CTRL -> WD ** : new WeatherData(areaCode, subArea, period, wind)
+        CTRL -> WD_REPO : save(wd)
+        activate WD_REPO
+        WD_REPO --> CTRL : wd (persisted)
+        deactivate WD_REPO
+        CTRL -> RESULT : recordSuccess()
+      end
+    end
+  end
+
+end
+
+CTRL --> UI : ImportResult
+deactivate CTRL
+
+UI --> WP : "Import complete: N imported, M rejected\n[error per rejected line]"
+
+@enduml

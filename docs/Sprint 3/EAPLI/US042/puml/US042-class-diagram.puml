@@ -1,0 +1,165 @@
+@startuml US042-class-diagram
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+package "UI Layer" {
+  class ImportBulkWeatherDataUI <<boundary>> {
+    + doShow() : boolean
+    + headline() : String
+    - promptFilePath() : String
+    - promptFormat() : String
+    - displaySummary(result : ImportResult) : void
+  }
+}
+
+package "Application Layer" {
+
+  class ImportBulkWeatherDataController <<control>> {
+    - authz : AuthorizationService
+    - areaRepo : AirControlAreaRepository
+    - weatherRepo : WeatherDataRepository
+    - importerFactory : WeatherDataImporterFactory
+    + ImportBulkWeatherDataController()
+    + ImportBulkWeatherDataController(authz, areaRepo,\n  weatherRepo, importerFactory)
+    + importWeatherData(filePath : String,\n  format : String) : ImportResult
+    + allAreas() : Iterable<AirControlArea>
+    - processRecord(dto : WeatherDataDTO,\n  area : AirControlArea,\n  result : ImportResult) : void
+  }
+
+  note right of ImportBulkWeatherDataController
+    Follows the same pattern as
+    ImportFlightPlanController (Sprint 2):
+    auth + delegate to adapter via factory
+    + loop + accumulate ImportResult.
+    No separate Application Service needed
+    (single aggregate, single repository).
+  end note
+
+  class WeatherDataImporterFactory <<factory>> {
+    + getImporter(format : String) : WeatherDataImporter
+  }
+
+  note bottom of WeatherDataImporterFactory
+    Simple Factory — justified because
+    multiple concrete variants are already
+    foreseen by the requirements.
+    Avoids growing if/else in the controller.
+  end note
+
+  interface WeatherDataImporter <<interface>> {
+    + parse(filePath : String) : List<WeatherDataDTO>
+  }
+
+  class CsvWeatherDataImporter <<Adapter>> {
+    - SEPARATOR : String = ","
+    + parse(filePath : String) : List<WeatherDataDTO>
+    - parseLine(line : String, lineNo : int) : WeatherDataDTO
+  }
+
+  class WeatherDataDTO <<DTO>> {
+    + areaCode : String
+    + subMinLat : double
+    + subMaxLat : double
+    + subMinLon : double
+    + subMaxLon : double
+    + minAltitude : double
+    + maxAltitude : double
+    + startDateTime : LocalDateTime
+    + endDateTime : LocalDateTime
+    + windDirection : double
+    + windSpeed : double
+    + sourceLineNumber : int
+  }
+
+  class ImportResult {
+    - importedCount : int
+    - rejectedCount : int
+    - errors : List<String>
+    + ImportResult()
+    + recordSuccess() : void
+    + recordFailure(reason : String) : void
+    + importedCount() : int
+    + rejectedCount() : int
+    + errors() : List<String>
+    + totalRead() : int
+  }
+}
+
+package "Domain Layer" {
+
+  class WeatherData <<entity>> <<AggregateRoot>> {
+    - id : Long
+    - areaCode : AirControlAreaCode
+    - subArea : WeatherSubArea
+    - period : ObservationPeriod
+    - wind : WindCondition
+    + WeatherData(areaCode, subArea, period, wind)
+    + identity() : Long
+    + sameAs(other : Object) : boolean
+  }
+
+  class WeatherSubArea <<ValueObject>> {
+    - subBoundary : GeographicBoundary
+    - altitudeRange : AltitudeRange
+    + isInsideBoundary(parent : GeographicBoundary) : boolean
+    + overlapsWith(other : WeatherSubArea) : boolean
+  }
+
+  class AirControlArea <<entity>> <<AggregateRoot>> {
+    + boundary() : GeographicBoundary
+  }
+
+  class AirControlAreaCode <<ValueObject>> {
+    - code : String
+  }
+
+  interface WeatherDataRepository <<Repository>> {
+    + save(wd : WeatherData) : WeatherData
+    + findByArea(code : AirControlAreaCode) : Iterable<WeatherData>
+    + existsConflicting(code, subArea, period) : boolean
+  }
+
+  interface AirControlAreaRepository <<Repository>> {
+    + ofIdentity(code : AirControlAreaCode) : Optional<AirControlArea>
+    + findAll() : Iterable<AirControlArea>
+  }
+}
+
+package "Infrastructure Layer" {
+  class JpaWeatherDataRepository <<infrastructure>> {
+    + save(wd : WeatherData) : WeatherData
+    + findByArea(...) : Iterable<WeatherData>
+    + existsConflicting(...) : boolean
+  }
+  class InMemoryWeatherDataRepository <<infrastructure>> {
+    + save(wd : WeatherData) : WeatherData
+    + findByArea(...) : Iterable<WeatherData>
+    + existsConflicting(...) : boolean
+  }
+}
+
+
+
+ImportBulkWeatherDataUI --> ImportBulkWeatherDataController
+
+ImportBulkWeatherDataController --> AuthorizationService
+ImportBulkWeatherDataController --> AirControlAreaRepository
+ImportBulkWeatherDataController --> WeatherDataRepository
+ImportBulkWeatherDataController --> WeatherDataImporterFactory
+ImportBulkWeatherDataController ..> WeatherDataDTO   : <<reads>>
+ImportBulkWeatherDataController ..> WeatherData      : <<creates via new>>
+ImportBulkWeatherDataController --> ImportResult     : <<builds>>
+
+WeatherDataImporterFactory ..> WeatherDataImporter        : <<returns>>
+WeatherDataImporterFactory ..> CsvWeatherDataImporter     : <<creates>>
+
+CsvWeatherDataImporter  ..|> WeatherDataImporter
+CsvWeatherDataImporter  ..> WeatherDataDTO : <<creates>>
+
+WeatherData *-- AirControlAreaCode
+WeatherData *-- WeatherSubArea
+
+JpaWeatherDataRepository      ..|> WeatherDataRepository
+InMemoryWeatherDataRepository ..|> WeatherDataRepository
+
+@enduml
