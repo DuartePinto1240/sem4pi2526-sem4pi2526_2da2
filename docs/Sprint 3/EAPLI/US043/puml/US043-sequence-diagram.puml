@@ -1,0 +1,93 @@
+@startuml
+title US043 — Consult Weather Data\nSequence Diagram
+
+skinparam sequenceArrowThickness 1.5
+skinparam roundcorner 5
+
+actor "Actor\n(Weather Person /\nPilot / FCO)" as USER
+
+participant ConsultWeatherDataUI         as UI      <<boundary>>
+participant ConsultWeatherDataController as CTRL    <<control>>
+participant WeatherDataQueryService      as SVC     <<service>>
+participant AuthorizationService         as AUTHZ   <<service>>
+participant AirControlAreaRepository     as AREA_REPO <<repository>>
+participant WeatherDataRepository        as WD_REPO <<repository>>
+participant "wd:WeatherData"             as WD      <<entity>>
+participant "dto:WeatherDataDTO"         as DTO     <<DTO>>
+
+USER -> UI : doShow()
+
+UI -> CTRL : availableAreas()
+activate CTRL
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(\n  WEATHER_PERSON, PILOT, FLIGHT_CONTROL_OPERATOR)
+activate AUTHZ
+AUTHZ --> CTRL : ok
+deactivate AUTHZ
+
+CTRL -> SVC : allAreas()
+activate SVC
+SVC -> AREA_REPO : findAll()
+activate AREA_REPO
+AREA_REPO --> SVC : Iterable<AirControlArea>
+deactivate AREA_REPO
+SVC --> CTRL : Iterable<AirControlArea>
+deactivate SVC
+
+CTRL --> UI : Iterable<AirControlArea>
+deactivate CTRL
+
+UI --> USER : displays list of areas
+
+USER -> UI : selects areaCode, enters date (LocalDate)
+
+UI -> CTRL : weatherDataByAreaAndDate(areaCode : String,\n  date : LocalDate)
+activate CTRL
+
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(\n  WEATHER_PERSON, PILOT, FLIGHT_CONTROL_OPERATOR)
+activate AUTHZ
+AUTHZ --> CTRL : ok
+deactivate AUTHZ
+
+CTRL -> SVC : weatherDataByAreaAndDate(areaCode, date)
+activate SVC
+
+SVC -> AREA_REPO : ofIdentity(AirControlAreaCode(areaCode))
+activate AREA_REPO
+AREA_REPO --> SVC : Optional<AirControlArea>
+deactivate AREA_REPO
+
+alt area not found
+    SVC --> CTRL : throws IllegalArgumentException("Area does not exist")
+    CTRL --> UI : propagates exception
+    UI --> USER : "ERROR: Air control area not found"
+
+else area exists
+
+    SVC -> WD_REPO : findByAreaAndDate(\n  AirControlAreaCode(areaCode), date)
+    activate WD_REPO
+    WD_REPO --> SVC : Iterable<WeatherData>
+    deactivate WD_REPO
+
+    loop for each WeatherData wd in results
+        SVC -> WD : toDTO()
+        activate WD
+        WD -> DTO ** : new WeatherDataDTO(\n  id, areaCode, subMinLat, subMaxLat,\n  subMinLon, subMaxLon,\n  minAltitude, maxAltitude,\n  startDateTime, endDateTime,\n  windDirection, windSpeed)
+        WD --> SVC : WeatherDataDTO
+        deactivate WD
+    end
+
+    SVC --> CTRL : List<WeatherDataDTO>
+    deactivate SVC
+
+    CTRL --> UI : List<WeatherDataDTO>
+    deactivate CTRL
+
+    alt list is empty
+        UI --> USER : "No weather data found for area\n'<areaCode>' on <date>"
+    else list has results
+        UI --> USER : displays:\n  area | sub-area coords | altitude range\n  | period | wind direction | wind speed
+    end
+end
+
+@enduml

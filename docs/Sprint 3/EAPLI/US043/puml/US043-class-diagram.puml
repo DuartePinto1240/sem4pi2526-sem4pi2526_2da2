@@ -1,0 +1,239 @@
+@startuml
+title US043 — Consult Weather Data\nClass Diagram
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+
+package "UI Layer" {
+  class ConsultWeatherDataUI <<boundary>> {
+    + doShow() : boolean
+    + headline() : String
+  }
+}
+
+
+package "Application Layer" {
+
+  class ConsultWeatherDataController <<control>> {
+    - authz               : AuthorizationService
+    - weatherQueryService : WeatherDataQueryService
+    --
+    + ConsultWeatherDataController()
+    + ConsultWeatherDataController(\n    authz, weatherQueryService)
+    --
+    + availableAreas() : Iterable<AirControlArea>
+    + weatherDataByAreaAndDate(\n    areaCode : String,\n    date : LocalDate) : List<WeatherDataDTO>
+  }
+
+  class WeatherDataQueryService <<service>> {
+    - areaRepo    : AirControlAreaRepository
+    - weatherRepo : WeatherDataRepository
+    --
+    + WeatherDataQueryService(\n    areaRepo, weatherRepo)
+    --
+    + allAreas() : Iterable<AirControlArea>
+    + weatherDataByAreaAndDate(\n    areaCode : String,\n    date : LocalDate) : List<WeatherDataDTO>
+  }
+
+  note right of WeatherDataQueryService
+    Can be reused by US082 and US100/US110
+    (flight simulation needs weather).
+  end note
+}
+
+
+package "DTOs" {
+
+  class WeatherDataDTO <<DTO>> {
+    + id            : Long
+    + areaCode      : String
+    + subMinLat     : double
+    + subMaxLat     : double
+    + subMinLon     : double
+    + subMaxLon     : double
+    + minAltitude   : double
+    + maxAltitude   : double
+    + startDateTime : LocalDateTime
+    + endDateTime   : LocalDateTime
+    + windDirection : double
+    + windSpeed     : double
+    --
+    + WeatherDataDTO(id, areaCode,\n  subMinLat, subMaxLat, subMinLon, subMaxLon,\n  minAltitude, maxAltitude,\n  startDateTime, endDateTime,\n  windDirection, windSpeed)
+    + toString() : String
+  }
+}
+
+
+package "Domain Layer" {
+
+  class WeatherData <<entity>> <<AggregateRoot>> {
+    - id       : Long
+    - areaCode : AirControlAreaCode
+    - subArea  : WeatherSubArea
+    - period   : ObservationPeriod
+    - wind     : WindCondition
+    --
+    + WeatherData(areaCode, subArea, period, wind)
+    + identity() : Long
+    + sameAs(other : Object) : boolean
+    + areaCode() : AirControlAreaCode
+    + subArea() : WeatherSubArea
+    + period() : ObservationPeriod
+    + wind() : WindCondition
+    + toDTO() : WeatherDataDTO
+  }
+
+  note right of WeatherData
+    NEW in US043: toDTO()
+    "The DTO must be created by
+    the Domain object"
+  end note
+
+  class ObservationPeriod <<ValueObject>> {
+    - startDateTime : LocalDateTime
+    - endDateTime   : LocalDateTime
+    --
+    + ObservationPeriod(startDateTime, endDateTime)
+    + startDateTime() : LocalDateTime
+    + endDateTime() : LocalDateTime
+    + overlapsWith(other : ObservationPeriod) : boolean
+    + containsDate(date : LocalDate) : boolean
+  }
+
+  note bottom of ObservationPeriod
+    NEW in US043: containsDate(LocalDate)
+    Domain rule: does this period cover
+    the given day?
+  end note
+
+  class WeatherSubArea <<ValueObject>> {
+    - subBoundary   : GeographicBoundary
+    - altitudeRange : AltitudeRange
+    --
+    + WeatherSubArea(subBoundary, altitudeRange)
+    + subBoundary() : GeographicBoundary
+    + altitudeRange() : AltitudeRange
+    + isInsideBoundary(parent : GeographicBoundary) : boolean
+    + overlapsWith(other : WeatherSubArea) : boolean
+  }
+
+  class GeographicBoundary <<ValueObject>> {
+    - minLat : double
+    - maxLat : double
+    - minLon : double
+    - maxLon : double
+    --
+    + minLat() : double
+    + maxLat() : double
+    + minLon() : double
+    + maxLon() : double
+    + overlapsWith(other : GeographicBoundary) : boolean
+  }
+
+  class AltitudeRange <<ValueObject>> {
+    - minAltitude : double
+    - maxAltitude : double
+    --
+    + minAltitude() : double
+    + maxAltitude() : double
+    + overlapsWith(other : AltitudeRange) : boolean
+  }
+
+  class WindCondition <<ValueObject>> {
+    - windDirection : double
+    - windSpeed     : double
+    --
+    + windDirection() : double
+    + windSpeed() : double
+  }
+
+  class AirControlAreaCode <<ValueObject>> {
+    - code : String
+    --
+    + AirControlAreaCode(code : String)
+    + code() : String
+  }
+
+  class AirControlArea <<entity>> <<AggregateRoot>> {
+    - areaCode : AirControlAreaCode
+    - name     : String
+    - boundary : GeographicBoundary
+    --
+    + identity() : AirControlAreaCode
+    + name() : String
+    + boundary() : GeographicBoundary
+  }
+
+  interface WeatherDataRepository <<Repository>> {
+    + save(wd : WeatherData) : WeatherData
+    + ofIdentity(id : Long) : Optional<WeatherData>
+    + findByArea(\n    areaCode : AirControlAreaCode) : Iterable<WeatherData>
+    + existsConflicting(\n    areaCode, subArea, period) : boolean
+    + findByAreaAndDate(\n    areaCode : AirControlAreaCode,\n    date : LocalDate) : Iterable<WeatherData>
+  }
+
+  note bottom of WeatherDataRepository
+    NEW in US043: findByAreaAndDate()
+    Returns records whose period contains
+    the given date.
+  end note
+
+  interface AirControlAreaRepository <<Repository>> {
+    + ofIdentity(\n    code : AirControlAreaCode) : Optional<AirControlArea>
+    + findAll() : Iterable<AirControlArea>
+  }
+}
+
+' ══════════════════════════════════════════════════════════════════════════════
+' Infrastructure Layer
+' ══════════════════════════════════════════════════════════════════════════════
+package "Infrastructure Layer" {
+
+  class JpaWeatherDataRepository <<infrastructure>> {
+    + findByArea(areaCode) : Iterable<WeatherData>
+    + existsConflicting(...) : boolean
+    + findByAreaAndDate(\n    areaCode, date) : Iterable<WeatherData>
+  }
+
+  class InMemoryWeatherDataRepository <<infrastructure>> {
+    + findByArea(areaCode) : Iterable<WeatherData>
+    + existsConflicting(...) : boolean
+    + findByAreaAndDate(\n    areaCode, date) : Iterable<WeatherData>
+  }
+}
+
+' ══════════════════════════════════════════════════════════════════════════════
+' Relationships
+' ══════════════════════════════════════════════════════════════════════════════
+
+' UI → Controller
+ConsultWeatherDataUI --> ConsultWeatherDataController
+
+' Controller → AuthZ + Service (no direct repo access)
+ConsultWeatherDataController --> AuthorizationService
+ConsultWeatherDataController --> WeatherDataQueryService
+
+' Service → Repos
+WeatherDataQueryService --> AirControlAreaRepository
+WeatherDataQueryService --> WeatherDataRepository
+
+' Service calls toDTO() on the aggregate
+WeatherDataQueryService ..> WeatherData : <<calls toDTO()>>
+
+' The AGGREGATE creates the DTO — not the other way around
+WeatherData ..> WeatherDataDTO : <<creates via toDTO()>>
+
+' Domain composition (unchanged from US041)
+WeatherData *-- AirControlAreaCode
+WeatherData *-- WeatherSubArea
+WeatherData *-- ObservationPeriod
+WeatherData *-- WindCondition
+WeatherSubArea *-- GeographicBoundary
+WeatherSubArea *-- AltitudeRange
+
+' Repository implementations
+JpaWeatherDataRepository      ..|> WeatherDataRepository
+InMemoryWeatherDataRepository ..|> WeatherDataRepository
+
+@enduml
