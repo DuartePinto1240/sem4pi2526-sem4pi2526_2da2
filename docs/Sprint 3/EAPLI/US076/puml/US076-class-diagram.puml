@@ -1,0 +1,57 @@
+@startuml CD_US076
+
+title Class Diagram — US076: List Pilot Roster
+
+package "ui" {
+    class ListPilotRosterUI {
+        + doShow()
+        + displayPilotRoster(pilots: List<Pilot>)
+    }
+}
+
+package "application" {
+    class ListPilotRosterController {
+        - pilotRepository: PilotRepository
+        - companyRepository: AirTranspCompRepository
+        --
+        + activePilotsOfMyCompany(): List<Pilot>
+    }
+}
+
+package "domain" {
+    class Pilot <<AggregateRoot>> {
+        - name: String
+        - email: String
+        - phoneNumber: String
+        - certifiedModels: List<AircraftModel>
+        - active: boolean
+        --
+        + isActive(): boolean
+        + name(): String
+        + email(): String
+        + certifiedModels(): List<AircraftModel>
+    }
+
+    class AirTransportCompany <<AggregateRoot>> {
+        - name: String
+        - iataCode: String
+        - icaoCode: String
+    }
+}
+
+package "persistence" {
+    interface PilotRepository {
+        + findActiveByCompany(company: AirTransportCompany): List<Pilot>
+    }
+
+    interface AirTranspCompRepository {
+        + findByCurrentUser(): Optional<AirTransportCompany>
+    }
+}
+
+ListPilotRosterUI ..> ListPilotRosterController : uses
+ListPilotRosterController ..> PilotRepository : uses
+ListPilotRosterController ..> AirTranspCompRepository : uses
+Pilot "1" o-- "1" AirTransportCompany : belongs to
+
+@enduml
