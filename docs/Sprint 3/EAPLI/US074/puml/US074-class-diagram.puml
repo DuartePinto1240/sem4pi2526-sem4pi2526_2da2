@@ -1,0 +1,67 @@
+@startuml
+
+package "Presentation" {
+  class DeleteFlightRouteUI {
+    +doShow(): boolean
+    +headline(): String
+  }
+}
+
+package "Application" {
+  class DeleteFlightRouteController {
+    -authz: AuthorizationService
+    -companyRepo: AirTransportCompanyRepository
+    -flightPlanRepo: FlightPlanRepository
+    +getCompanyRoutes(): List<FlightRouteDTO>
+    +deleteRoute(routeName: String, date: LocalDate): void
+  }
+  class FlightRouteDTO {
+    +name: String
+    +originAirport: String
+    +destinationAirport: String
+    +active: boolean
+  }
+}
+
+package "Domain" {
+  class AirTransportCompany <<AggregateRoot>> {
+    -companyCode: CompanyCode
+    -name: String
+    -routes: List<FlightRoute>
+    +listActiveRoutes(): List<FlightRoute>
+    +deactivateRoute(name: String, date: LocalDate): void
+  }
+  class FlightRoute <<Entity>> {
+    -name: String
+    -origin: Airport
+    -destination: Airport
+    -active: boolean
+    -deactivationDate: LocalDate
+    +deactivate(date: LocalDate): void
+    +isActive(): boolean
+  }
+  class CompanyCode <<ValueObject>> {
+    -iata: String
+    -icao: String
+  }
+}
+
+package "Repository" {
+  interface AirTransportCompanyRepository {
+    +findByCollaborator(email: String): Optional<AirTransportCompany>
+    +save(company: AirTransportCompany): AirTransportCompany
+  }
+  interface FlightPlanRepository {
+    +existsPlannedFlightsAfter(route: FlightRoute, date: LocalDate): boolean
+  }
+}
+
+DeleteFlightRouteUI ..> DeleteFlightRouteController
+DeleteFlightRouteController ..> AirTransportCompanyRepository
+DeleteFlightRouteController ..> FlightPlanRepository
+DeleteFlightRouteController ..> FlightRouteDTO
+AirTransportCompany "1" *-- "0..*" FlightRoute
+AirTransportCompany *-- CompanyCode
+AirTransportCompanyRepository ..> AirTransportCompany
+
+@enduml

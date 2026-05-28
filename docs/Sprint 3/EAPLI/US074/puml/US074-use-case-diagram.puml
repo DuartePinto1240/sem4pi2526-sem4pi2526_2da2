@@ -1,0 +1,25 @@
+@startuml
+left to right direction
+
+actor "Air Transport Company\nCollaborator (ATCC)" as ATCC
+
+rectangle "Air Companies Configuration Module" {
+  usecase "Delete (Deactivate)\nFlight Route" as UC_Delete
+  usecase "Validate Authorization" as UC_Authz
+  usecase "List Active Routes" as UC_List
+  usecase "Validate Deactivation Date" as UC_Date
+  usecase "Check Planned Flights\nAfter Date" as UC_Check
+  usecase "Deactivate Route" as UC_Deactivate
+  usecase "Persist Updated Route" as UC_Persist
+}
+
+ATCC --> UC_Delete
+
+UC_Delete ..> UC_Authz     : <<include>>
+UC_Delete ..> UC_List      : <<include>>
+UC_Delete ..> UC_Date      : <<include>>
+UC_Delete ..> UC_Check     : <<include>>
+UC_Delete ..> UC_Deactivate : <<include>>
+UC_Delete ..> UC_Persist   : <<include>>
+
+@enduml

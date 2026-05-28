@@ -1,0 +1,66 @@
+@startuml SD_US074
+title US074 – Delete (Deactivate) a Flight Route\n(Sequence Diagram)
+
+skinparam sequence {
+    ActorBorderColor #534AB7
+    ActorBackgroundColor #D0C8F8
+    ParticipantBorderColor #0F6E56
+    ParticipantBackgroundColor #C2EAD8
+    LifeLineBorderColor #854F0B
+    NoteBackgroundColor #FAE8C0
+    NoteBorderColor #854F0B
+    ArrowColor #333333
+}
+
+actor "ATCC" as ATCC
+participant "DeleteFlightRouteUI" as UI
+participant "DeleteFlightRouteController" as CTRL
+participant "AirTransportCompanyRepository" as CREPO
+participant "FlightPlanRepository" as FPREPO
+participant "AirTransportCompany" as COMPANY
+
+ATCC -> UI : requests to deactivate a route
+activate UI
+
+UI -> CTRL : getCompanyRoutes()
+activate CTRL
+CTRL -> CREPO : findByCollaborator(email)
+CREPO --> CTRL : AirTransportCompany
+CTRL -> COMPANY : listActiveRoutes()
+activate COMPANY
+COMPANY --> CTRL : List<FlightRoute>
+deactivate COMPANY
+CTRL --> UI : List<FlightRouteDTO>
+deactivate CTRL
+
+UI --> ATCC : displays active routes
+
+ATCC -> UI : selects route and provides deactivation date
+
+UI -> CTRL : deleteRoute(routeName, deactivationDate)
+activate CTRL
+
+CTRL -> FPREPO : existsPlannedFlightsAfter(route, deactivationDate)
+FPREPO --> CTRL : boolean
+
+alt planned flights exist after date
+    CTRL --> UI : throws BusinessRuleViolationException
+    UI --> ATCC : displays error message
+else no planned flights after date
+    CTRL -> COMPANY : deactivateRoute(routeName, deactivationDate)
+    activate COMPANY
+    COMPANY -> COMPANY : route.deactivate(date)
+    COMPANY --> CTRL : void
+    deactivate COMPANY
+
+    CTRL -> CREPO : save(company)
+
+    CTRL --> UI : success
+    deactivate CTRL
+
+    UI --> ATCC : displays success message
+end
+
+deactivate UI
+
+@enduml

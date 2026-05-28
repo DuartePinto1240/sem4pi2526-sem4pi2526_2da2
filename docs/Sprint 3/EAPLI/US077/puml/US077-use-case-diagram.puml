@@ -1,0 +1,23 @@
+@startuml
+left to right direction
+
+actor "Air Transport Company\nCollaborator (ATCC)" as ATCC
+
+rectangle "Air Companies Configuration Module" {
+  usecase "Remove (Deactivate)\nPilot" as UC_Remove
+  usecase "Validate Authorization" as UC_Authz
+  usecase "List Active Pilots" as UC_List
+  usecase "Check Assigned\nFlight Plans" as UC_Check
+  usecase "Deactivate Pilot" as UC_Deactivate
+  usecase "Persist Updated Pilot" as UC_Persist
+}
+
+ATCC --> UC_Remove
+
+UC_Remove ..> UC_Authz     : <<include>>
+UC_Remove ..> UC_List      : <<include>>
+UC_Remove ..> UC_Check     : <<include>>
+UC_Remove ..> UC_Deactivate : <<include>>
+UC_Remove ..> UC_Persist   : <<include>>
+
+@enduml
