@@ -32,6 +32,8 @@ public class PersistenceContext {
     private final AircraftRepository            aircraftRepository;
     private final FlightPlanRepository          flightPlanRepository;
     private final CustomerRepository            customerRepository;
+    private final FlightRouteRepository flightRouteRepository;
+
 
     private PersistenceContext() {
         final Properties props = loadProperties();
@@ -56,6 +58,8 @@ public class PersistenceContext {
         this.aircraftRepository           = new JpaAircraftRepository(persistenceUnit, extendedProps);
         this.flightPlanRepository         = new InMemoryFlightPlanRepository();
         this.customerRepository           = new JpaCustomerRepository(persistenceUnit, extendedProps);
+        this.flightRouteRepository = new InMemoryFlightRouteRepository();
+
     }
 
     public static synchronized PersistenceContext getInstance() {
@@ -76,6 +80,7 @@ public class PersistenceContext {
     public AircraftRepository aircraftRepository()                       { return aircraftRepository;            }
     public FlightPlanRepository flightPlanRepository()                   { return flightPlanRepository;          }
     public CustomerRepository customerRepository() { return customerRepository; }
+    public FlightRouteRepository flightRouteRepository() { return flightRouteRepository; }
 
     private static Properties loadProperties() {
         final Properties props = new Properties();

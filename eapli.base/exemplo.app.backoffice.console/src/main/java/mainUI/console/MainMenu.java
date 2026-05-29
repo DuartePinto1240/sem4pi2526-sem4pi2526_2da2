@@ -76,6 +76,9 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  2.  List Company Fleet                  ║");
             System.out.println("  ║  3.  Decommission Aircraft               ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
+            System.out.println("  ║  [ Route Management ]                    ║");
+            System.out.println("  ║  4.  Create Flight Route                 ║");
+            System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON)) {
@@ -138,30 +141,31 @@ public class MainMenu extends AbstractUI {
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.BACKOFFICE_OPERATOR)) {
             switch (option) {
-                case 1: new RegisterAirTransportCompanyUI().show(); break;
-                case 2: new RegisterAirControlAreaUI().show();      break;
-                case 3: new CreateAirportUI().show();               break;
-                case 4: new CreateEngineModelUI().show();           break;
-                case 5: new CreateAircraftModelUI().show();         break;
-                case 6: new AddEngineModelToAircraftUI().show();    break;
-                case 7: new RemoveEngineModelFromAircraftUI().show();    break;
-                case 8: new AddCollaboratorUI().show();             break;
-                case 9: new ListCollaboratorsUI().show();           break;
-                case 10: new EditCollaboratorUI().show();            break;
-                case 11: new DisableCollaboratorUI().show();        break;
-                case 99: doLogout();                                 break;
-                case 0: doExit();                                    break;
+                case 1:  new RegisterAirTransportCompanyUI().show();   break;
+                case 2:  new RegisterAirControlAreaUI().show();        break;
+                case 3:  new CreateAirportUI().show();                 break;
+                case 4:  new CreateEngineModelUI().show();             break;
+                case 5:  new CreateAircraftModelUI().show();           break;
+                case 6:  new AddEngineModelToAircraftUI().show();      break;
+                case 7:  new RemoveEngineModelFromAircraftUI().show(); break;
+                case 8:  new AddCollaboratorUI().show();               break;
+                case 9:  new ListCollaboratorsUI().show();             break;
+                case 10: new EditCollaboratorUI().show();              break;
+                case 11: new DisableCollaboratorUI().show();           break;
+                case 99: doLogout();                                   break;
+                case 0:  doExit();                                     break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(
                 BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR)) {
             switch (option) {
-                case 1:  new AddAircraftToFleetUI().show();   break;
-                case 2:  new ListCompanyFleetUI().show();     break;
-                case 3:  new DecommissionAircraftUI().show(); break;
-                case 99: doLogout();                          break;
-                case 0:  doExit();                            break;
+                case 1:  new AddAircraftToFleetUI().show();    break;
+                case 2:  new ListCompanyFleetUI().show();      break;
+                case 3:  new DecommissionAircraftUI().show();  break;
+                case 4:  new CreateFlightRouteUI().show();     break;
+                case 99: doLogout();                           break;
+                case 0:  doExit();                             break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 
