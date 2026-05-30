@@ -3,8 +3,8 @@ actor "Weather Person" as WP
 participant ImportBulkWeatherDataUI as UI <<boundary>>
 participant ImportBulkWeatherDataController as CTRL <<control>>
 participant AuthorizationService as AUTHZ <<service>>
-participant WeatherDataImporterFactory as FACTORY <<factory>>
-participant WeatherDataImporter as IMPORTER <<interface>>
+participant WeatherDataReaderFactory as FACTORY <<factory>>
+participant WeatherDataReader as READER <<Strategy>>
 participant AirControlAreaRepository as AREA_REPO <<repository>>
 participant WeatherDataRepository as WD_REPO <<repository>>
 participant "wd:WeatherData" as WD <<entity>>
@@ -23,24 +23,30 @@ activate AUTHZ
 AUTHZ --> CTRL : ok
 deactivate AUTHZ
 
-CTRL -> CTRL : extension = extractExtension(filePath)
-CTRL -> FACTORY : getImporter(extension)
+CTRL -> FACTORY : getReader(filePath)
 activate FACTORY
 note right of FACTORY
-  Simple Factory decides internally
-  which concrete adapter to instantiate
-  based on the file extension.
-  ".csv"  → CsvWeatherDataImporter
-  ".json" → JsonWeatherDataImporter
+  Simple Factory inspects the file
+  extension and instantiates the
+  appropriate concrete Strategy.
+  ".csv" → CsvWeatherDataReader
   Controller never sees concrete types.
 end note
-FACTORY --> CTRL : WeatherDataImporter
+FACTORY --> CTRL : WeatherDataReader
 deactivate FACTORY
 
-CTRL -> IMPORTER : parse(filePath)
-activate IMPORTER
-IMPORTER --> CTRL : List<WeatherDataDTO>
-deactivate IMPORTER
+CTRL -> READER : read(filePath)
+note right of READER
+  Strategy pattern — the controller
+  calls the same interface method
+  regardless of the file format.
+  CsvWeatherDataReader, or any future
+  strategy, can be swapped here
+  with zero impact on the controller.
+end note
+activate READER
+READER --> CTRL : List<WeatherDataDTO>
+deactivate READER
 
 CTRL -> RESULT ** : new ImportResult()
 

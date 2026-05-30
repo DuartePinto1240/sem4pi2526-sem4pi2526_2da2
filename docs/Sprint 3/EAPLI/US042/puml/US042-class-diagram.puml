@@ -7,7 +7,6 @@ package "UI Layer" {
     + doShow() : boolean
     + headline() : String
     - promptFilePath() : String
-    - promptFormat() : String
     - displaySummary(result : ImportResult) : void
   }
 }
@@ -18,41 +17,36 @@ package "Application Layer" {
     - authz : AuthorizationService
     - areaRepo : AirControlAreaRepository
     - weatherRepo : WeatherDataRepository
-    - importerFactory : WeatherDataImporterFactory
+    - readerFactory : WeatherDataReaderFactory
     + ImportBulkWeatherDataController()
-    + ImportBulkWeatherDataController(authz, areaRepo,\n  weatherRepo, importerFactory)
-    + importWeatherData(filePath : String,\n  format : String) : ImportResult
-    + allAreas() : Iterable<AirControlArea>
+    + ImportBulkWeatherDataController(authz, areaRepo,\n  weatherRepo, readerFactory)
+    + importWeatherData(filePath : String) : ImportResult
     - processRecord(dto : WeatherDataDTO,\n  area : AirControlArea,\n  result : ImportResult) : void
   }
 
-  note right of ImportBulkWeatherDataController
-    Follows the same pattern as
-    ImportFlightPlanController (Sprint 2):
-    auth + delegate to adapter via factory
-    + loop + accumulate ImportResult.
-    No separate Application Service needed
-    (single aggregate, single repository).
-  end note
-
-  class WeatherDataImporterFactory <<factory>> {
-    + getImporter(format : String) : WeatherDataImporter
+  class WeatherDataReaderFactory <<factory>> {
+    + getReader(filePath : String) : WeatherDataReader
   }
 
-  note bottom of WeatherDataImporterFactory
-    Simple Factory — justified because
-    multiple concrete variants are already
-    foreseen by the requirements.
-    Avoids growing if/else in the controller.
+  note right of WeatherDataReaderFactory
+    Simple Factory — inspects the file
+    extension and returns the appropriate
+    concrete Strategy.
   end note
 
-  interface WeatherDataImporter <<interface>> {
-    + parse(filePath : String) : List<WeatherDataDTO>
+  interface WeatherDataReader <<interface>> {
+    + read(filePath : String) : List<WeatherDataDTO>
   }
 
-  class CsvWeatherDataImporter <<Adapter>> {
-    - SEPARATOR : String = ","
-    + parse(filePath : String) : List<WeatherDataDTO>
+  note left of WeatherDataReader
+    Strategy interface — defines the
+    contract for the family of
+    interchangeable reading algorithms.
+  end note
+
+  class CsvWeatherDataReader <<Strategy>> {
+    - SEPARATOR : String
+    + read(filePath : String) : List<WeatherDataDTO>
     - parseLine(line : String, lineNo : int) : WeatherDataDTO
   }
 
@@ -85,6 +79,7 @@ package "Application Layer" {
   }
 }
 
+
 package "Domain Layer" {
 
   class WeatherData <<entity>> <<AggregateRoot>> {
@@ -99,8 +94,6 @@ package "Domain Layer" {
   }
 
   class WeatherSubArea <<ValueObject>> {
-    - subBoundary : GeographicBoundary
-    - altitudeRange : AltitudeRange
     + isInsideBoundary(parent : GeographicBoundary) : boolean
     + overlapsWith(other : WeatherSubArea) : boolean
   }
@@ -125,6 +118,7 @@ package "Domain Layer" {
   }
 }
 
+
 package "Infrastructure Layer" {
   class JpaWeatherDataRepository <<infrastructure>> {
     + save(wd : WeatherData) : WeatherData
@@ -138,23 +132,21 @@ package "Infrastructure Layer" {
   }
 }
 
-
-
 ImportBulkWeatherDataUI --> ImportBulkWeatherDataController
 
 ImportBulkWeatherDataController --> AuthorizationService
 ImportBulkWeatherDataController --> AirControlAreaRepository
 ImportBulkWeatherDataController --> WeatherDataRepository
-ImportBulkWeatherDataController --> WeatherDataImporterFactory
-ImportBulkWeatherDataController ..> WeatherDataDTO   : <<reads>>
-ImportBulkWeatherDataController ..> WeatherData      : <<creates via new>>
-ImportBulkWeatherDataController --> ImportResult     : <<builds>>
+ImportBulkWeatherDataController --> WeatherDataReaderFactory
+ImportBulkWeatherDataController ..> WeatherDataDTO  : <<reads>>
+ImportBulkWeatherDataController ..> WeatherData     : <<creates via new>>
+ImportBulkWeatherDataController --> ImportResult    : <<builds>>
 
-WeatherDataImporterFactory ..> WeatherDataImporter        : <<returns>>
-WeatherDataImporterFactory ..> CsvWeatherDataImporter     : <<creates>>
+WeatherDataReaderFactory ..> WeatherDataReader        : <<returns>>
+WeatherDataReaderFactory ..> CsvWeatherDataReader     : <<creates>>
 
-CsvWeatherDataImporter  ..|> WeatherDataImporter
-CsvWeatherDataImporter  ..> WeatherDataDTO : <<creates>>
+CsvWeatherDataReader ..|> WeatherDataReader
+CsvWeatherDataReader ..> WeatherDataDTO : <<creates>>
 
 WeatherData *-- AirControlAreaCode
 WeatherData *-- WeatherSubArea
