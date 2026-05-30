@@ -1,0 +1,40 @@
+@startuml
+left to right direction
+
+actor "Pilot" as PILOT
+
+rectangle "Flight Management Module" {
+  usecase "Insert Weather Data\nin Flight Plan" as UC_Insert
+  usecase "Validate Authorization" as UC_Authz
+  usecase "List Own Flight Plans" as UC_List
+  usecase "Validate Ownership" as UC_Own
+  usecase "Check Flight Plan State" as UC_State
+  usecase "Select Weather Data" as UC_Select
+  usecase "Associate Weather Data" as UC_Associate
+  usecase "Void Previous Test Result" as UC_Void
+  usecase "Persist Updated\nFlight Plan" as UC_Persist
+}
+
+PILOT --> UC_Insert
+
+UC_Insert ..> UC_Authz    : <<include>>
+UC_Insert ..> UC_List     : <<include>>
+UC_Insert ..> UC_Own      : <<include>>
+UC_Insert ..> UC_State    : <<include>>
+UC_Insert ..> UC_Select   : <<include>>
+UC_Insert ..> UC_Associate : <<include>>
+UC_Insert ..> UC_Persist  : <<include>>
+UC_Associate ..> UC_Void  : <<extend>>
+
+note bottom of UC_Void
+  Only triggered if
+  flight plan was
+  previously TESTED
+end note
+
+note bottom of UC_State
+  Flight plan must be
+  in DRAFT or TESTED
+  state to be modified
+end note
+@enduml

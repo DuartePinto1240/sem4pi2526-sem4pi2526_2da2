@@ -1,0 +1,66 @@
+@startuml SD_US077
+title US077 – Remove (Deactivate) a Pilot\n(Sequence Diagram)
+
+skinparam sequence {
+    ActorBorderColor #534AB7
+    ActorBackgroundColor #D0C8F8
+    ParticipantBorderColor #0F6E56
+    ParticipantBackgroundColor #C2EAD8
+    LifeLineBorderColor #854F0B
+    NoteBackgroundColor #FAE8C0
+    NoteBorderColor #854F0B
+    ArrowColor #333333
+}
+
+actor "ATCC" as ATCC
+participant "RemovePilotUI" as UI
+participant "RemovePilotController" as CTRL
+participant "AirTransportCompanyRepository" as CREPO
+participant "FlightPlanRepository" as FPREPO
+participant "AirTransportCompany" as COMPANY
+
+ATCC -> UI : requests to remove a pilot
+activate UI
+
+UI -> CTRL : getActivePilots()
+activate CTRL
+CTRL -> CREPO : findByCollaborator(email)
+CREPO --> CTRL : AirTransportCompany
+CTRL -> COMPANY : listActivePilots()
+activate COMPANY
+COMPANY --> CTRL : List<Pilot>
+deactivate COMPANY
+CTRL --> UI : List<PilotDTO>
+deactivate CTRL
+
+UI --> ATCC : displays active pilots
+
+ATCC -> UI : selects pilot
+
+UI -> CTRL : removePilot(pilotEmail)
+activate CTRL
+
+CTRL -> FPREPO : existsAssignedFlightPlansForPilot(pilotEmail)
+FPREPO --> CTRL : boolean
+
+alt pilot has assigned flight plans
+    CTRL --> UI : throws BusinessRuleViolationException
+    UI --> ATCC : displays error message
+else no assigned flight plans
+    CTRL -> COMPANY : deactivatePilot(pilotEmail)
+    activate COMPANY
+    COMPANY -> COMPANY : pilot.deactivate()
+    COMPANY --> CTRL : void
+    deactivate COMPANY
+
+    CTRL -> CREPO : save(company)
+
+    CTRL --> UI : success
+    deactivate CTRL
+
+    UI --> ATCC : displays success message
+end
+
+deactivate UI
+
+@enduml

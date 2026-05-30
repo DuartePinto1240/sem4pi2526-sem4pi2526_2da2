@@ -1,0 +1,80 @@
+@startuml
+
+package "Presentation" {
+  class InsertWeatherDataUI {
+    +doShow(): boolean
+    +headline(): String
+  }
+}
+
+package "Application" {
+  class InsertWeatherDataController {
+    -authz: AuthorizationService
+    -flightPlanRepo: FlightPlanRepository
+    -weatherRepo: WeatherDataRepository
+    +getPilotFlightPlans(): List<FlightPlanDTO>
+    +getAvailableWeatherData(areaCode: String): List<WeatherDataDTO>
+    +insertWeatherData(flightPlanId: Long, weatherDataId: Long): void
+  }
+  class FlightPlanDTO {
+    +id: Long
+    +designator: String
+    +status: String
+    +pilotEmail: String
+  }
+  class WeatherDataDTO {
+    +id: Long
+    +areaCode: String
+    +date: LocalDate
+    +description: String
+  }
+}
+
+package "Domain" {
+  class FlightPlan <<AggregateRoot>> {
+    -id: Long
+    -designator: String
+    -status: FlightPlanStatus
+    -pilotEmail: String
+    -weatherDataId: Long
+    +addWeatherData(weatherDataId: Long): void
+    +isOwnedBy(email: String): boolean
+    +isModifiable(): boolean
+  }
+  enum FlightPlanStatus {
+    DRAFT
+    TESTED
+    SUBMITTED
+    IN_FLIGHT
+  }
+  class WeatherData <<AggregateRoot>> {
+    -id: Long
+    -areaCode: String
+    -date: LocalDate
+    -temperature: double
+    -windSpeed: double
+    -windDirection: double
+  }
+}
+
+package "Repository" {
+  interface FlightPlanRepository {
+    +findByPilot(email: String): List<FlightPlan>
+    +save(plan: FlightPlan): FlightPlan
+  }
+  interface WeatherDataRepository {
+    +findByArea(areaCode: String): List<WeatherData>
+    +ofIdentity(id: Long): Optional<WeatherData>
+  }
+}
+
+InsertWeatherDataUI ..> InsertWeatherDataController
+InsertWeatherDataController ..> FlightPlanRepository
+InsertWeatherDataController ..> WeatherDataRepository
+InsertWeatherDataController ..> FlightPlanDTO
+InsertWeatherDataController ..> WeatherDataDTO
+FlightPlan *-- FlightPlanStatus
+FlightPlanRepository ..> FlightPlan
+WeatherDataRepository ..> WeatherData
+
+@enduml

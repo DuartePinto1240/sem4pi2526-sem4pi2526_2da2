@@ -1,0 +1,68 @@
+@startuml
+
+package "Presentation" {
+  class RemovePilotUI {
+    +doShow(): boolean
+    +headline(): String
+  }
+}
+
+package "Application" {
+  class RemovePilotController {
+    -authz: AuthorizationService
+    -companyRepo: AirTransportCompanyRepository
+    -flightPlanRepo: FlightPlanRepository
+    +getActivePilots(): List<PilotDTO>
+    +removePilot(pilotEmail: String): void
+  }
+  class PilotDTO {
+    +email: String
+    +name: String
+    +licenseNumber: String
+    +active: boolean
+  }
+}
+
+package "Domain" {
+  class AirTransportCompany <<AggregateRoot>> {
+    -companyCode: CompanyCode
+    -name: String
+    -pilots: List<Pilot>
+    +listActivePilots(): List<Pilot>
+    +deactivatePilot(email: String): void
+    +findPilotByEmail(email: String): Optional<Pilot>
+  }
+  class Pilot <<Entity>> {
+    -email: String
+    -name: String
+    -licenseNumber: String
+    -active: boolean
+    -certifiedModels: List<AircraftModel>
+    +deactivate(): void
+    +isActive(): boolean
+  }
+  class CompanyCode <<ValueObject>> {
+    -iata: String
+    -icao: String
+  }
+}
+
+package "Repository" {
+  interface AirTransportCompanyRepository {
+    +findByCollaborator(email: String): Optional<AirTransportCompany>
+    +save(company: AirTransportCompany): AirTransportCompany
+  }
+  interface FlightPlanRepository {
+    +existsAssignedFlightPlansForPilot(pilotEmail: String): boolean
+  }
+}
+
+RemovePilotUI ..> RemovePilotController
+RemovePilotController ..> AirTransportCompanyRepository
+RemovePilotController ..> FlightPlanRepository
+RemovePilotController ..> PilotDTO
+AirTransportCompany "1" *-- "0..*" Pilot
+AirTransportCompany *-- CompanyCode
+AirTransportCompanyRepository ..> AirTransportCompany
+
+@enduml

@@ -1,0 +1,76 @@
+@startuml
+
+package "Client Application" {
+  class AirTransportCompanyApp {
+    +main(args: String[]): void
+    +run(): void
+  }
+  class TCPClient {
+    -host: String
+    -port: int
+    -socket: Socket
+    +connect(): void
+    +authenticate(email: String, password: String): boolean
+    +send(request: Request): Response
+    +disconnect(): void
+  }
+  class ClientUI {
+    +showMenu(): void
+    +handleSelection(option: int): void
+  }
+}
+
+package "Server (embedded in system)" {
+  class AirTransportCompanyServer {
+    -port: int
+    -serverSocket: ServerSocket
+    +start(): void
+    +stop(): void
+  }
+  class TCPRequestHandler <<Runnable>> {
+    -socket: Socket
+    -authz: AuthorizationService
+    +run(): void
+    +handleRequest(request: Request): Response
+  }
+}
+
+package "Application (reused)" {
+  class AddAircraftController
+  class DeleteFlightRouteController
+  class RemovePilotController
+  class ListFleetController
+}
+
+package "Network Protocol" {
+  class Request {
+    +operation: String
+    +payload: Object
+    +credentials: String
+  }
+  class Response {
+    +code: ResponseCode
+    +payload: Object
+  }
+  enum ResponseCode {
+    OK
+    UNAUTHORIZED
+    NOT_FOUND
+    ERROR
+  }
+}
+
+AirTransportCompanyApp ..> TCPClient
+AirTransportCompanyApp ..> ClientUI
+AirTransportCompanyServer ..> TCPRequestHandler
+TCPRequestHandler ..> AddAircraftController
+TCPRequestHandler ..> DeleteFlightRouteController
+TCPRequestHandler ..> RemovePilotController
+TCPRequestHandler ..> ListFleetController
+TCPClient ..> Request
+TCPClient ..> Response
+TCPRequestHandler ..> Request
+TCPRequestHandler ..> Response
+Response *-- ResponseCode
+
+@enduml

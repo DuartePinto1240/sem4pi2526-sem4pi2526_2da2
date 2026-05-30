@@ -1,0 +1,79 @@
+@startuml SD_US082
+title US082 – Insert Weather Data in a Flight Plan\n(Sequence Diagram)
+
+skinparam sequence {
+    ActorBorderColor #534AB7
+    ActorBackgroundColor #D0C8F8
+    ParticipantBorderColor #0F6E56
+    ParticipantBackgroundColor #C2EAD8
+    LifeLineBorderColor #854F0B
+    NoteBackgroundColor #FAE8C0
+    NoteBorderColor #854F0B
+    ArrowColor #333333
+}
+
+actor "Pilot" as PILOT
+participant "InsertWeatherDataUI" as UI
+participant "InsertWeatherDataController" as CTRL
+participant "FlightPlanRepository" as FPREPO
+participant "WeatherDataRepository" as WREPO
+participant "FlightPlan" as FP
+
+PILOT -> UI : requests to insert weather data
+activate UI
+
+UI -> CTRL : getPilotFlightPlans()
+activate CTRL
+CTRL -> FPREPO : findByPilot(email)
+FPREPO --> CTRL : List<FlightPlan>
+CTRL --> UI : List<FlightPlanDTO>
+deactivate CTRL
+
+UI --> PILOT : displays own flight plans
+
+PILOT -> UI : selects flight plan
+
+UI -> CTRL : getAvailableWeatherData(areaCode)
+activate CTRL
+CTRL -> WREPO : findByArea(areaCode)
+WREPO --> CTRL : List<WeatherData>
+CTRL --> UI : List<WeatherDataDTO>
+deactivate CTRL
+
+UI --> PILOT : displays available weather data
+
+PILOT -> UI : selects weather data
+
+UI -> CTRL : insertWeatherData(flightPlanId, weatherDataId)
+activate CTRL
+
+CTRL -> FPREPO : ofIdentity(flightPlanId)
+FPREPO --> CTRL : FlightPlan
+
+CTRL -> FP : isOwnedBy(pilotEmail)
+activate FP
+FP --> CTRL : true
+
+CTRL -> FP : isModifiable()
+FP --> CTRL : true
+
+CTRL -> FP : addWeatherData(weatherDataId)
+
+alt status was TESTED
+    FP -> FP : status = DRAFT
+    note right : test result voided
+end
+
+FP --> CTRL : void
+deactivate FP
+
+CTRL -> FPREPO : save(flightPlan)
+
+CTRL --> UI : success
+deactivate CTRL
+
+UI --> PILOT : displays success message
+
+deactivate UI
+
+@enduml

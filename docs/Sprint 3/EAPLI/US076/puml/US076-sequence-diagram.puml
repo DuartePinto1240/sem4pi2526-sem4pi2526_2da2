@@ -1,0 +1,23 @@
+@startuml SD_US076
+
+title Sequence Diagram — US076: List Pilot Roster (Design)
+
+actor "ATCC" as ATCC
+participant ":ListPilotRosterUI" as UI
+participant ":ListPilotRosterController" as CTRL
+participant ":AirTranspCompRepository" as ATCR
+participant ":PilotRepository" as PR
+
+ATCC -> UI : doShow()
+UI -> CTRL : activePilotsOfMyCompany()
+
+CTRL -> ATCR : findByCurrentUser()
+ATCR --> CTRL : AirTransportCompany
+
+CTRL -> PR : findActiveByCompany(company)
+PR --> CTRL : List<Pilot>
+
+CTRL --> UI : List<Pilot>
+UI --> ATCC : displayPilotRoster(pilotList)
+
+@enduml
