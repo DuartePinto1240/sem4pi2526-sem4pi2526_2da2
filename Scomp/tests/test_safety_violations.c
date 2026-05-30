@@ -53,7 +53,7 @@ void test_violation_below_threshold() {
     st[0] = mkstate(0, 41.0, -9.0, 10000.0);
     st[1] = mkstate(1, 41.0, -9.0, 10000.0);
     SimulationReport r; memset(&r, 0, sizeof(r));
-    int v = check_safety_violations(st, 2, 500.0, &r, 0.0);
+    int v = check_safety_violations(st, 2, 500.0, &r, 0.0, NULL);
     usleep(5000);
     CHECK(v > 0, "expected at least one violation");
 }
@@ -64,7 +64,7 @@ void test_no_violation_above_threshold() {
     st[0] = mkstate(0, 41.0, -9.0, 10000.0);
     st[1] = mkstate(1, 38.0, -8.0,  5000.0);
     SimulationReport r; memset(&r, 0, sizeof(r));
-    int v = check_safety_violations(st, 2, 500.0, &r, 0.0);
+    int v = check_safety_violations(st, 2, 500.0, &r, 0.0, NULL);
     CHECK(v == 0, "expected zero violations");
 }
 
@@ -74,7 +74,7 @@ void test_no_violation_at_threshold() {
     st[0] = mkstate(0, 41.0, -9.0, 10000.0);
     st[1] = mkstate(1, 41.0, -9.0, 10500.0); /* exactly 500 m alt diff */
     SimulationReport r; memset(&r, 0, sizeof(r));
-    int v = check_safety_violations(st, 2, 500.0, &r, 0.0);
+    int v = check_safety_violations(st, 2, 500.0, &r, 0.0, NULL);
     CHECK(v == 0, "expected zero violations when distance == threshold");
 }
 
@@ -84,7 +84,7 @@ void test_violation_is_logged() {
     st[0] = mkstate(0, 41.0, -9.0, 10000.0);
     st[1] = mkstate(1, 41.0, -9.0, 10000.0);
     SimulationReport r; memset(&r, 0, sizeof(r));
-    check_safety_violations(st, 2, 500.0, &r, 42.0);
+    check_safety_violations(st, 2, 500.0, &r, 42.0, NULL);
     usleep(5000);
     CHECK(r.total_violations > 0, "expected total_violations > 0");
 }
@@ -95,7 +95,7 @@ void test_violation_timestamp() {
     st[0] = mkstate(0, 41.0, -9.0, 10000.0);
     st[1] = mkstate(1, 41.0, -9.0, 10000.0);
     SimulationReport r; memset(&r, 0, sizeof(r));
-    check_safety_violations(st, 2, 500.0, &r, 15.0);
+    check_safety_violations(st, 2, 500.0, &r, 15.0, NULL);
     usleep(5000);
     CHECK(fabs(r.violations[0].timestamp - 15.0) < 1e-6, "wrong timestamp");
 }
@@ -106,7 +106,7 @@ void test_violation_flight_ids() {
     st[0] = mkstate(3, 41.0, -9.0, 10000.0);
     st[1] = mkstate(7, 41.0, -9.0, 10000.0);
     SimulationReport r; memset(&r, 0, sizeof(r));
-    check_safety_violations(st, 2, 500.0, &r, 0.0);
+    check_safety_violations(st, 2, 500.0, &r, 0.0, NULL);
     usleep(5000);
     CHECK(r.violations[0].flight_id_1 == 3 && r.violations[0].flight_id_2 == 7,
           "expected IDs 3 and 7");
@@ -118,7 +118,7 @@ void test_violation_positions() {
     st[0] = mkstate(0, 41.2, -9.1, 10000.0);
     st[1] = mkstate(1, 41.2, -9.1, 10200.0);
     SimulationReport r; memset(&r, 0, sizeof(r));
-    check_safety_violations(st, 2, 500.0, &r, 0.0);
+    check_safety_violations(st, 2, 500.0, &r, 0.0, NULL);
     usleep(5000);
     CHECK(fabs(r.violations[0].position_1.latitude - 41.2) < 1e-6 &&
           fabs(r.violations[0].position_2.altitude - 10200.0) < 0.1,
@@ -131,7 +131,7 @@ void test_flight_statuses_on_violation() {
     st[0] = mkstate(0, 41.0, -9.0, 10000.0);
     st[1] = mkstate(1, 41.0, -9.0, 10000.0);
     SimulationReport r; memset(&r, 0, sizeof(r));
-    check_safety_violations(st, 2, 500.0, &r, 0.0);
+    check_safety_violations(st, 2, 500.0, &r, 0.0, NULL);
     usleep(5000);
     CHECK(r.flight_statuses[0] == 1 && r.flight_statuses[1] == 1,
           "expected flight_statuses to be 1");
@@ -144,7 +144,7 @@ void test_inactive_flight_skipped() {
     st[1] = mkstate(1, 41.0, -9.0, 10000.0);
     st[1].active = 0;
     SimulationReport r; memset(&r, 0, sizeof(r));
-    int v = check_safety_violations(st, 2, 500.0, &r, 0.0);
+    int v = check_safety_violations(st, 2, 500.0, &r, 0.0, NULL);
     CHECK(v == 0, "inactive flight should be skipped");
 }
 
@@ -155,7 +155,7 @@ void test_three_colocated_flights() {
     st[1] = mkstate(1, 41.0, -9.0, 10000.0);
     st[2] = mkstate(2, 41.0, -9.0, 10000.0);
     SimulationReport r; memset(&r, 0, sizeof(r));
-    int v = check_safety_violations(st, 3, 500.0, &r, 0.0);
+    int v = check_safety_violations(st, 3, 500.0, &r, 0.0, NULL);
     usleep(5000);
     CHECK(v == 3, "expected 3 violations for pairs (0,1) (0,2) (1,2)");
 }

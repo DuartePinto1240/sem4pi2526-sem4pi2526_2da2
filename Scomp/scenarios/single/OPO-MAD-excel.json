@@ -1,0 +1,63 @@
+{
+    "_comment": "OPO-MAD com parâmetros reais do Excel: fuel=40200 kg, perfil IAS e taxas de climb/descend extraídos do simulador de referência",
+    "SimulationConfig": {
+        "TotalSteps": 120,
+        "TimeStepSeconds": 60,
+        "SafetyThresholdM": 5000,
+        "MaxViolations": 3
+    },
+    "Flights": [
+        {
+            "ID": 500001,
+            "Type": "regular",
+            "Route": "AA123",
+            "DepartureTime": "09:00",
+            "Leg": [{
+                "Departure": "OPO",
+                "Arrival": "MAD",
+                "Fuel": { "Quantity": 40200, "Unit": "kg" },
+                "Flight Profile": {
+                    "_comment_climb": "IAS da tabela Flight sheet; RateClimb calculado pelo Excel (coluna dh/dt, indexado por altitude)",
+                    "Climb": [
+                        { "Altitude": { "Value": 0,     "Unit": "m" }, "Speed": { "Value": 210, "Unit": "Knots" }, "RateClimb": { "Value": 27.7, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 1000,  "Unit": "m" }, "Speed": { "Value": 210, "Unit": "Knots" }, "RateClimb": { "Value": 24.0, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 2000,  "Unit": "m" }, "Speed": { "Value": 220, "Unit": "Knots" }, "RateClimb": { "Value": 21.5, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 3000,  "Unit": "m" }, "Speed": { "Value": 230, "Unit": "Knots" }, "RateClimb": { "Value": 18.8, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 4000,  "Unit": "m" }, "Speed": { "Value": 250, "Unit": "Knots" }, "RateClimb": { "Value": 16.0, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 5000,  "Unit": "m" }, "Speed": { "Value": 260, "Unit": "Knots" }, "RateClimb": { "Value": 12.7, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 6000,  "Unit": "m" }, "Speed": { "Value": 290, "Unit": "Knots" }, "RateClimb": { "Value": 10.7, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 7000,  "Unit": "m" }, "Speed": { "Value": 290, "Unit": "Knots" }, "RateClimb": { "Value":  9.0, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 8000,  "Unit": "m" }, "Speed": { "Value": 290, "Unit": "Knots" }, "RateClimb": { "Value":  7.6, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 9000,  "Unit": "m" }, "Speed": { "Value": 290, "Unit": "Knots" }, "RateClimb": { "Value":  5.5, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 10000, "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateClimb": { "Value":  2.8, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 11000, "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateClimb": { "Value":  1.3, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 12000, "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateClimb": { "Value":  0.5, "Unit": "m/s" } }
+                    ],
+                    "_comment_descend": "IAS e RateDescent da tabela Flight sheet",
+                    "Descend": [
+                        { "Altitude": { "Value": 0,     "Unit": "m" }, "Speed": { "Value": 140, "Unit": "Knots" }, "RateDescent": { "Value":  -5, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 1000,  "Unit": "m" }, "Speed": { "Value": 180, "Unit": "Knots" }, "RateDescent": { "Value":  -7, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 2000,  "Unit": "m" }, "Speed": { "Value": 250, "Unit": "Knots" }, "RateDescent": { "Value":  -7, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 3000,  "Unit": "m" }, "Speed": { "Value": 250, "Unit": "Knots" }, "RateDescent": { "Value":  -8, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 4000,  "Unit": "m" }, "Speed": { "Value": 270, "Unit": "Knots" }, "RateDescent": { "Value":  -8, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 5000,  "Unit": "m" }, "Speed": { "Value": 290, "Unit": "Knots" }, "RateDescent": { "Value": -10, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 6000,  "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateDescent": { "Value": -10, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 7000,  "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateDescent": { "Value": -10, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 8000,  "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateDescent": { "Value": -10, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 9000,  "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateDescent": { "Value": -10, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 10000, "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateDescent": { "Value": -10, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 11000, "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateDescent": { "Value": -10, "Unit": "m/s" } },
+                        { "Altitude": { "Value": 12000, "Unit": "m" }, "Speed": { "Value": 300, "Unit": "Knots" }, "RateDescent": { "Value": -10, "Unit": "m/s" } }
+                    ],
+                    "_comment_cruise": "IAS=290 kn a 9249 m, igual ao Excel (Cruise sheet)",
+                    "Cruise": { "Speed": { "Value": 290, "Unit": "Knots" } }
+                },
+                "Segments": [
+                    { "Mode": "climb",   "Start": { "Latitude": 41.262891, "Longitude": -8.685216, "Altitude": { "Quantity": 69,   "Unit": "m" } }, "End": { "Latitude": 42.0,  "Longitude": -8.01, "Altitude": { "Quantity": 9249, "Unit": "m" } } },
+                    { "Mode": "cruise",  "Start": { "Latitude": 42.0,      "Longitude": -8.01,     "Altitude": { "Quantity": 9249, "Unit": "m" } }, "End": { "Latitude": 41.0,  "Longitude": -4.3,  "Altitude": { "Quantity": 9249, "Unit": "m" } } },
+                    { "Mode": "descend", "Start": { "Latitude": 41.0,      "Longitude": -4.3,      "Altitude": { "Quantity": 9249, "Unit": "m" } }, "End": { "Latitude": 40.49, "Longitude": -3.56, "Altitude": { "Quantity": 610,  "Unit": "m" } } }
+                ]
+            }]
+        }
+    ]
+}

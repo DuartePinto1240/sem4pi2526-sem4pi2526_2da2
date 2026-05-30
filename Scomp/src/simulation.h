@@ -2,19 +2,23 @@
 #define SIMULATION_H
 
 #include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <semaphore.h>
+#include <pthread.h>
 #include <signal.h>
 
-/* ─────────────────────────────────────────
+/* -----------------------------------------
  * Constants
- * ───────────────────────────────────────── */
+ * ----------------------------------------- */
 
-#define MAX_FLIGHTS   20
-#define MAX_HISTORY   100
+#define MAX_FLIGHTS    20
+#define MAX_HISTORY    100
 #define MAX_VIOLATIONS 50
 
-/* ─────────────────────────────────────────
+/* -----------------------------------------
  * Data Structures
- * ───────────────────────────────────────── */
+ * ----------------------------------------- */
 
 /* Position of an aircraft at a given time step */
 typedef struct {
@@ -31,12 +35,30 @@ typedef struct {
     double vz;
 } VelocityVector;
 
+/* -----------------------------------------
+ * Shared Memory Layout  (US105)
+ *
+ * One shmget() segment holds the state shared by the parent
+ * process and all child flight processes.  Each child writes
+ * only to its own slot (positions[i], steps_completed[i],
+ * active[i]) so no mutex is needed for those writes.
+ * total_violations and abort_flag are written only by the
+ * parent and are protected by a mutex in simulation.c.
+ * ----------------------------------------- */
+typedef struct {
+    Position positions[MAX_FLIGHTS];       /* current position per flight    */
+    int      steps_completed[MAX_FLIGHTS]; /* step counter per flight        */
+    int      active[MAX_FLIGHTS];          /* 1=running, 0=finished          */
+    int      violations[MAX_FLIGHTS];      /* per-flight violation count      */
+    int      total_violations;             /* global counter (mutex-protected)*/
+    int      abort_flag;                   /* 1=simulation must stop          */
+} SharedSimulationData;
+
 /* State of one flight in the simulation */
 typedef struct {
     int           flight_id;
     pid_t         pid;
-    int           pipe_read;        /* read end of pipe from child */
-    int           pipe_step;        /* parent writes step tokens to child */
+    char          sem_name[32];     /* named semaphore, e.g. "/flight_0" */
     Position      current;
     Position      history[MAX_HISTORY];
     int           history_count;
@@ -73,26 +95,64 @@ typedef struct {
     int            flight_statuses[MAX_FLIGHTS]; /* 0=ok, 1=violated, 2=aborted */
 } SimulationReport;
 
-/* ─────────────────────────────────────────
+/* -----------------------------------------
  * Function Declarations
- * ───────────────────────────────────────── */
+ * ----------------------------------------- */
 
 /* Validate simulation parameters.
  * Returns 0 if valid, -1 if invalid. */
 int validate_parameters(const SimulationConfig *config);
 
-/* Start the simulation.
- * Forks one child process per flight,
- * tracks positions and detects violations. */
+/* -- US105: Initialisation -- */
+
+/* Allocate and attach a shared memory segment (shmget/shmat).
+ * Zeroes all fields; sets active[i]=1 for first num_flights entries.
+ * Stores the shmid in *out_shmid.
+ * Returns a pointer to the attached segment, or NULL on error. */
+SharedSimulationData *init_shared_memory(int num_flights, int *out_shmid);
+
+/* Create one named semaphore per flight (e.g. "/flight_0").
+ * Each semaphore is initialised to 0 so children block immediately
+ * on sem_wait() until the parent posts.
+ * Semaphore names are written into states[i].sem_name.
+ * Returns 0 on success, -1 on error. */
+int init_semaphores(FlightState *states, int num_flights);
+
+/* Spawn the three parent-process threads:
+ *   SimulationController, ViolationDetector, ReportGenerator.
+ * Thread IDs are stored in out_tids[0..2].
+ * Returns 0 on success, -1 on error. */
+int spawn_parent_threads(pthread_t *out_tids,
+                         const SimulationConfig *config,
+                         FlightState *states,
+                         SimulationReport *report,
+                         SharedSimulationData *shm);
+
+/* Detach and remove the shared memory segment (shmdt + shmctl IPC_RMID).
+ * Unlinks all named semaphores stored in states[].sem_name.
+ * Joins all parent threads listed in tids[0..2]. */
+void cleanup_simulation(int shmid,
+                        SharedSimulationData *shm,
+                        FlightState *states,
+                        int num_flights,
+                        pthread_t *tids);
+
+/* -- Simulation loop -- */
+
+/* Start the simulation: sets up shared memory, semaphores and parent
+ * threads, forks one child per flight, runs the simulation loop,
+ * and cleans up on exit. */
 int start_simulation(const SimulationConfig *config,
                      FlightState *states,
                      SimulationReport *report);
 
-/* Send a step token to all active flight processes,
- * then block until every active flight has replied with its
- * position update for that step.
- * Returns the number of position updates received. */
-int synchronize_step(FlightState *states, int num_flights, int step);
+/* Post the step semaphore to every active flight, then poll
+ * shm->steps_completed[i] until every active flight replies.
+ * Returns the number of flights that completed the step. */
+int synchronize_step(FlightState *states,
+                     int num_flights,
+                     int step,
+                     SharedSimulationData *shm);
 
 /* Check for safety violations among all current positions.
  * Returns the number of new violations detected. */
@@ -100,7 +160,8 @@ int check_safety_violations(FlightState *states,
                              int num_flights,
                              double threshold_m,
                              SimulationReport *report,
-                             double timestamp);
+                             double timestamp,
+                             SharedSimulationData *shm);
 
 /* Check for predicted violations using position history.
  * Returns number of predicted violations found. */
