@@ -1,5 +1,6 @@
 package domain;
 
+import dto.WeatherDataDTO;
 import eapli.framework.domain.model.AggregateRoot;
 import eapli.framework.validations.Preconditions;
 
@@ -58,10 +59,8 @@ public class WeatherData implements AggregateRoot<Long> {
      * @param wind     wind direction and speed
      * @throws IllegalArgumentException if any argument is null
      */
-    public WeatherData(final AirControlAreaCode areaCode,
-                       final WeatherSubArea subArea,
-                       final ObservationPeriod period,
-                       final WindCondition wind) {
+    public WeatherData(final AirControlAreaCode areaCode, final WeatherSubArea subArea,
+                       final ObservationPeriod period, final WindCondition wind) {
         Preconditions.nonNull(areaCode, "Area code must not be null");
         Preconditions.nonNull(subArea,  "Sub-area must not be null");
         Preconditions.nonNull(period,   "Observation period must not be null");
@@ -81,15 +80,34 @@ public class WeatherData implements AggregateRoot<Long> {
     public boolean sameAs(final Object other) {
         if (!(other instanceof WeatherData)) return false;
         final WeatherData that = (WeatherData) other;
-        return this.areaCode.equals(that.areaCode)
-                && this.subArea.equals(that.subArea)
-                && this.period.equals(that.period);
+        return this.areaCode.equals(that.areaCode) && this.subArea.equals(that.subArea) && this.period.equals(that.period);
     }
 
     public AirControlAreaCode areaCode() { return areaCode; }
     public WeatherSubArea subArea()       { return subArea;  }
     public ObservationPeriod period()     { return period;   }
     public WindCondition wind()           { return wind;     }
+
+    /**
+     * Creates a {@link WeatherDataDTO} from this aggregate.
+     *
+     * @return a DTO containing all display-relevant fields
+     */
+    public WeatherDataDTO toDTO() {
+        return new WeatherDataDTO(
+                id,
+                areaCode.code(),
+                subArea.subBoundary().minLat(),
+                subArea.subBoundary().maxLat(),
+                subArea.subBoundary().minLon(),
+                subArea.subBoundary().maxLon(),
+                subArea.altitudeRange().minAltitude(),
+                subArea.altitudeRange().maxAltitude(),
+                period.startDateTime(),
+                period.endDateTime(),
+                wind.windDirection(),
+                wind.windSpeed());
+    }
 
     @Override
     public String toString() {

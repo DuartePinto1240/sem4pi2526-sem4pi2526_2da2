@@ -2,6 +2,7 @@ package domain;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -92,6 +93,40 @@ public class ObservationPeriodTest {
     public void ensureOverlapWithNullReturnsFalse() {
         final ObservationPeriod p = new ObservationPeriod(T1, T2);
         assertFalse(p.overlapsWith(null));
+    }
+
+    // containsDate
+
+    @Test
+    public void ensureContainsDateReturnsTrueForDayWithinPeriod() {
+        // period: 2026-06-01 00:00 → 2026-06-02 23:59
+        final ObservationPeriod period = new ObservationPeriod(
+                LocalDateTime.of(2026, 6, 1, 0, 0),
+                LocalDateTime.of(2026, 6, 2, 23, 59));
+        assertTrue(period.containsDate(LocalDate.of(2026, 6, 1)));
+        assertTrue(period.containsDate(LocalDate.of(2026, 6, 2)));
+    }
+
+    @Test
+    public void ensureContainsDateReturnsFalseForDayBeforePeriod() {
+        final ObservationPeriod period = new ObservationPeriod(
+                LocalDateTime.of(2026, 6, 1, 0, 0),
+                LocalDateTime.of(2026, 6, 2, 23, 59));
+        assertFalse(period.containsDate(LocalDate.of(2026, 5, 31)));
+    }
+
+    @Test
+    public void ensureContainsDateReturnsFalseForDayAfterPeriod() {
+        final ObservationPeriod period = new ObservationPeriod(
+                LocalDateTime.of(2026, 6, 1, 0, 0),
+                LocalDateTime.of(2026, 6, 2, 23, 59));
+        assertFalse(period.containsDate(LocalDate.of(2026, 6, 3)));
+    }
+
+    @Test
+    public void ensureContainsDateReturnsFalseForNull() {
+        final ObservationPeriod period = new ObservationPeriod(T1, T2);
+        assertFalse(period.containsDate(null));
     }
 
     // Equality

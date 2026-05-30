@@ -61,20 +61,6 @@ public class RegisterWeatherDataController {
     }
 
     /**
-     * Returns all existing weather data records for a given air control area.
-     *
-     * <p>Called by the UI after the user selects an area, so they can see
-     * which sub-areas are already covered and choose non-conflicting coordinates.</p>
-     *
-     * @param areaCode the area code chosen by the user
-     * @return iterable of existing {@link WeatherData} records for that area
-     */
-    public Iterable<WeatherData> existingWeatherDataForArea(final String areaCode) {
-        authz.ensureAuthenticatedUserHasAnyOf(BaseRoles.WEATHER_PERSON);
-        return weatherRepo.findByArea(new AirControlAreaCode(areaCode));
-    }
-
-    /**
      * Registers a new weather data record.
      *
      * @param areaCode      code of the air control area (must exist)

@@ -6,6 +6,7 @@ import domain.WeatherData;
 import domain.WeatherSubArea;
 import repositories.WeatherDataRepository;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -63,26 +64,26 @@ public class InMemoryWeatherDataRepository implements WeatherDataRepository {
 
     @Override
     public Iterable<WeatherData> findByArea(final AirControlAreaCode areaCode) {
-        return store.stream()
-                .filter(w -> w.areaCode().equals(areaCode))
-                .collect(Collectors.toList());
+        return store.stream().filter(w -> w.areaCode().equals(areaCode)).collect(Collectors.toList());
     }
 
     @Override
-    public boolean existsConflicting(final AirControlAreaCode areaCode,
-                                     final WeatherSubArea subArea,
+    public Iterable<WeatherData> findByAreaAndDate(final AirControlAreaCode areaCode, final LocalDate date) {
+        return store.stream().filter(w -> w.areaCode().equals(areaCode))
+                .filter(w -> w.period().containsDate(date)).collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean existsConflicting(final AirControlAreaCode areaCode, final WeatherSubArea subArea,
                                      final ObservationPeriod period) {
-        return store.stream()
-                .filter(w -> w.areaCode().equals(areaCode))
-                .filter(w -> w.subArea().overlapsWith(subArea))
-                .anyMatch(w -> w.period().overlapsWith(period));
+        return store.stream().filter(w -> w.areaCode().equals(areaCode))
+                .filter(w -> w.subArea().overlapsWith(subArea)).anyMatch(w -> w.period().overlapsWith(period));
     }
 
     /** Injects the generated Long id into the entity via reflection. */
     private static void injectId(final WeatherData entity, final long value) {
         try {
-            final java.lang.reflect.Field f =
-                    WeatherData.class.getDeclaredField("id");
+            final java.lang.reflect.Field f = WeatherData.class.getDeclaredField("id");
             f.setAccessible(true);
             f.set(entity, value);
         } catch (final Exception e) {

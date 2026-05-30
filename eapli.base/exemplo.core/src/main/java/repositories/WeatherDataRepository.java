@@ -6,6 +6,8 @@ import domain.WeatherData;
 import domain.WeatherSubArea;
 import eapli.framework.domain.repositories.DomainRepository;
 
+import java.time.LocalDate;
+
 /**
  * Repository interface for {@link WeatherData} aggregate roots (US041).
  *
@@ -23,6 +25,16 @@ public interface WeatherDataRepository
     Iterable<WeatherData> findByArea(AirControlAreaCode areaCode);
 
     /**
+     * Returns all weather data records for a given area whose observation period
+     * includes the specified date.
+     *
+     * @param areaCode the air control area code to filter by
+     * @param date     the calendar day that must fall within the observation period
+     * @return iterable of matching records
+     */
+    Iterable<WeatherData> findByAreaAndDate(AirControlAreaCode areaCode, LocalDate date);
+
+    /**
      * Returns {@code true} if a conflicting record already exists.
      *
      * <p>A conflict exists when area codes match AND sub-areas overlap
@@ -33,7 +45,5 @@ public interface WeatherDataRepository
      * @param period   the period to test for temporal overlap
      * @return {@code true} if at least one conflicting record exists
      */
-    boolean existsConflicting(AirControlAreaCode areaCode,
-                              WeatherSubArea subArea,
-                              ObservationPeriod period);
+    boolean existsConflicting(AirControlAreaCode areaCode, WeatherSubArea subArea, ObservationPeriod period);
 }

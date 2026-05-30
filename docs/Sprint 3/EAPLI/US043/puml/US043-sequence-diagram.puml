@@ -20,7 +20,7 @@ USER -> UI : doShow()
 UI -> CTRL : availableAreas()
 activate CTRL
 
-CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(\n  WEATHER_PERSON, PILOT, FLIGHT_CONTROL_OPERATOR)
+CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(WEATHER_PERSON)
 activate AUTHZ
 AUTHZ --> CTRL : ok
 deactivate AUTHZ
@@ -43,11 +43,6 @@ USER -> UI : selects areaCode, enters date (LocalDate)
 
 UI -> CTRL : weatherDataByAreaAndDate(areaCode : String,\n  date : LocalDate)
 activate CTRL
-
-CTRL -> AUTHZ : ensureAuthenticatedUserHasAnyOf(\n  WEATHER_PERSON, PILOT, FLIGHT_CONTROL_OPERATOR)
-activate AUTHZ
-AUTHZ --> CTRL : ok
-deactivate AUTHZ
 
 CTRL -> SVC : weatherDataByAreaAndDate(areaCode, date)
 activate SVC

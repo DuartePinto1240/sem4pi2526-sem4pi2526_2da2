@@ -191,29 +191,6 @@ class RegisterWeatherDataControllerTest {
         assertTrue(areas.iterator().hasNext());
     }
 
-    @Test
-    void ensureExistingWeatherDataForAreaReturnsRegisteredRecord() {
-        // Arrange
-        doRegister(controller);
-
-        // Act
-        final Iterable<WeatherData> existing =
-                controller.existingWeatherDataForArea(AREA_CODE);
-
-        // Assert
-        assertTrue(existing.iterator().hasNext());
-    }
-
-    @Test
-    void ensureExistingWeatherDataForAreaReturnsEmptyWhenNoneRegistered() {
-        // Act
-        final Iterable<WeatherData> existing =
-                controller.existingWeatherDataForArea(AREA_CODE);
-
-        // Assert
-        assertFalse(existing.iterator().hasNext());
-    }
-
     // Referenced area must exist
 
     @Test

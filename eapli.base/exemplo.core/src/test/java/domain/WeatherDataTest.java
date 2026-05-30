@@ -1,5 +1,6 @@
 package domain;
 
+import dto.WeatherDataDTO;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -64,6 +65,23 @@ class WeatherDataTest {
     void ensureNullWindIsRejected() {
         assertThrows(IllegalArgumentException.class,
                 () -> new WeatherData(CODE, SUB, PER, null));
+    }
+
+    // DTO
+
+    @Test
+    void ensureToDTOReturnsCorrectData() {
+        // Arrange
+        final WeatherData wd = new WeatherData(CODE, SUB, PER, WIND);
+        // Act
+        final WeatherDataDTO dto = wd.toDTO();
+        // Assert
+        assertEquals("LPPC", dto.areaCode);
+        assertEquals(90.0,   dto.windDirection, 0.001);
+        assertEquals(10.0,   dto.windSpeed,     0.001);
+        assertEquals(PER.startDateTime(), dto.startDateTime);
+        assertEquals(PER.endDateTime(),   dto.endDateTime);
+        assertNull(dto.id); // id is null before JPA persist
     }
 
     // sameAs

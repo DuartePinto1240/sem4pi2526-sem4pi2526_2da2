@@ -4,6 +4,8 @@ import eapli.framework.domain.model.ValueObject;
 import eapli.framework.validations.Preconditions;
 
 import jakarta.persistence.Embeddable;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -11,8 +13,7 @@ import java.util.Objects;
  * Value Object representing the temporal validity period of a weather observation.
  *
  * <p>A weather observation is valid from a start date/time to an end date/time
- * (inclusive). This models the professor's clarification: "the user can define the
- * time period — the start and the end time".</p>
+ * (inclusive).</p>
  *
  * <p>Invariants enforced:</p>
  * <ul>
@@ -33,13 +34,11 @@ public class ObservationPeriod implements ValueObject {
      * @param endDateTime   end of the period; must not be null and must be after start
      * @throws IllegalArgumentException if either argument is null or end is not after start
      */
-    public ObservationPeriod(final LocalDateTime startDateTime,
-                              final LocalDateTime endDateTime) {
+    public ObservationPeriod(final LocalDateTime startDateTime, final LocalDateTime endDateTime) {
         Preconditions.nonNull(startDateTime, "Start date/time must not be null");
         Preconditions.nonNull(endDateTime,   "End date/time must not be null");
         if (!endDateTime.isAfter(startDateTime)) {
-            throw new IllegalArgumentException(
-                    "End date/time must be strictly after start date/time");
+            throw new IllegalArgumentException("End date/time must be strictly after start date/time");
         }
         this.startDateTime = startDateTime;
         this.endDateTime   = endDateTime;
@@ -67,8 +66,23 @@ public class ObservationPeriod implements ValueObject {
      */
     public boolean overlapsWith(final ObservationPeriod other) {
         if (other == null) return false;
-        return this.startDateTime.isBefore(other.endDateTime)
-                && other.startDateTime.isBefore(this.endDateTime);
+        return this.startDateTime.isBefore(other.endDateTime) && other.startDateTime.isBefore(this.endDateTime);
+    }
+
+    /**
+     * Returns {@code true} if the given date falls within this observation period.
+     *
+     * <p>A date is considered "within" the period if it is on or after the start
+     * date AND on or before the end date (inclusive on both ends).</p>
+     *
+     * @param date the calendar day to test; must not be null
+     * @return {@code true} if this period covers the given day
+     */
+    public boolean containsDate(final LocalDate date) {
+        if (date == null) return false;
+        final LocalDate startDate = startDateTime.toLocalDate();
+        final LocalDate endDate   = endDateTime.toLocalDate();
+        return !date.isBefore(startDate) && !date.isAfter(endDate);
     }
 
     @Override

@@ -60,30 +60,6 @@ public class RegisterWeatherDataUI extends AbstractUI {
         // choose area
         final String areaCode = Console.readLine("\nArea code: ").trim().toUpperCase();
 
-        // show existing sub-areas for the chosen area
-        System.out.println("\nExisting weather data for area " + areaCode + ":");
-        boolean hasExisting = false;
-        for (final WeatherData wd : ctrl.existingWeatherDataForArea(areaCode)) {
-            hasExisting = true;
-            System.out.printf(
-                    "  [%d] SubArea Lat[%.2f, %.2f] Lon[%.2f, %.2f] Alt[%.0f,%.0f]m  "
-                            + "Period: %s → %s  Wind: %.1f° / %.2f m/s%n",
-                    wd.identity(),
-                    wd.subArea().subBoundary().minLat(),
-                    wd.subArea().subBoundary().maxLat(),
-                    wd.subArea().subBoundary().minLon(),
-                    wd.subArea().subBoundary().maxLon(),
-                    wd.subArea().altitudeRange().minAltitude(),
-                    wd.subArea().altitudeRange().maxAltitude(),
-                    wd.period().startDateTime().format(DATETIME_FMT),
-                    wd.period().endDateTime().format(DATETIME_FMT),
-                    wd.wind().windDirection(),
-                    wd.wind().windSpeed());
-        }
-        if (!hasExisting) {
-            System.out.println("  (none yet — this area has no weather data registered)");
-        }
-
         // sub-area bounding box
         System.out.println("\nSub-area bounding box (must lie inside the chosen area):");
         final double subMinLat = Console.readDouble("  Sub-area min latitude: ");
