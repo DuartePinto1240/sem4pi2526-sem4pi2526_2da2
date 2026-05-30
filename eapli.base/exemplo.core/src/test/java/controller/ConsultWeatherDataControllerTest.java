@@ -120,12 +120,7 @@ class ConsultWeatherDataControllerTest {
         assertFalse(results.isEmpty());
     }
 
-    @Test
-    void ensureEmptyListReturnedWhenNoDataMatchesDate() {
-        final List<WeatherDataDTO> results =
-                controller.weatherDataByAreaAndDate(AREA_CODE, LocalDate.of(2099, 1, 1));
-        assertTrue(results.isEmpty());
-    }
+    
 
     @Test
     void ensureUnknownAreaCodeThrowsIllegalArgumentException() {

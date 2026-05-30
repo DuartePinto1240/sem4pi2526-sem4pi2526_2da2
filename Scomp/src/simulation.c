@@ -16,8 +16,15 @@
 #include <time.h>
 #include <errno.h>
 
-/* Mutex protecting shared counters total_violations and abort_flag */
-static pthread_mutex_t g_shm_mutex = PTHREAD_MUTEX_INITIALIZER;
+/* -----------------------------------------
+ * Mutexes and condition variables (US106)
+ * ----------------------------------------- */
+
+static pthread_mutex_t g_shm_mutex    = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t g_report_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  g_report_cond  = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t g_done_mutex   = PTHREAD_MUTEX_INITIALIZER;
+static volatile int    g_sim_done     = 0;
 
 /* -----------------------------------------
  * Parameter Validation
@@ -67,10 +74,6 @@ double compute_distance(const Position *p1, const Position *p2) {
 
 /* -----------------------------------------
  * US105 -- Shared Memory Initialisation
- *
- * Allocates one shared memory segment via shmget/shmat.
- * Zeroes all fields; sets active[i]=1 for the first
- * num_flights entries.  Stores shmid via out_shmid.
  * ----------------------------------------- */
 
 SharedSimulationData *init_shared_memory(int num_flights, int *out_shmid) {
@@ -101,11 +104,6 @@ SharedSimulationData *init_shared_memory(int num_flights, int *out_shmid) {
 
 /* -----------------------------------------
  * US105 -- Per-Flight Semaphore Initialisation
- *
- * Creates one named semaphore per flight, initial value 0.
- * Children call sem_open + sem_wait and block until the parent
- * posts for each step.  Stale semaphores from previous runs
- * are unlinked first.
  * ----------------------------------------- */
 
 int init_semaphores(FlightState *states, int num_flights) {
@@ -113,7 +111,7 @@ int init_semaphores(FlightState *states, int num_flights) {
         snprintf(states[i].sem_name, sizeof(states[i].sem_name),
                  "/flight_%d", i);
 
-        sem_unlink(states[i].sem_name);  /* remove stale if present */
+        sem_unlink(states[i].sem_name);
 
         sem_t *sem = sem_open(states[i].sem_name,
                               O_CREAT | O_EXCL, 0644, 0);
@@ -133,11 +131,7 @@ int init_semaphores(FlightState *states, int num_flights) {
 }
 
 /* -----------------------------------------
- * US105 -- Parent Thread Functions
- *
- * Three dedicated threads satisfy US105.1 and US105.5.
- * Full logic is defined in US106-US109; here we provide
- * the skeletons so pthread_create/join is exercised.
+ * Thread Args struct
  * ----------------------------------------- */
 
 typedef struct {
@@ -147,29 +141,197 @@ typedef struct {
     SharedSimulationData   *shm;
 } ThreadArgs;
 
-static void *simulation_controller_thread(void *arg) {
-    (void)arg;
-    printf("[THREAD] SimulationController started\n");
-    return NULL;
-}
+/* -----------------------------------------
+ * US106.1 -- Violation Detector Thread
+ *
+ * Scans shm->positions[] for pairs of flights
+ * closer than the safety threshold.
+ * On detection: increments counters, sends
+ * SIGUSR1 to both processes, signals the
+ * report thread via pthread_cond_signal (US107).
+ * ----------------------------------------- */
 
 static void *violation_detector_thread(void *arg) {
-    (void)arg;
-    printf("[THREAD] ViolationDetector started\n");
+    ThreadArgs *args = (ThreadArgs *)arg;
+    printf("[THREAD] ViolationDetector started (tid=%lu)\n",
+           (unsigned long)pthread_self());
+
+    while (!g_sim_done) {
+        pthread_mutex_lock(&g_shm_mutex);
+
+        for (int i = 0; i < args->config->num_flights; i++) {
+            if (!args->shm->active[i]) continue;
+            for (int j = i + 1; j < args->config->num_flights; j++) {
+                if (!args->shm->active[j]) continue;
+
+                double dist = compute_distance(
+                        &args->shm->positions[i],
+                        &args->shm->positions[j]);
+
+                if (dist < args->config->safety_threshold_m) {
+                    args->shm->total_violations++;
+                    args->report->total_violations++;
+                    args->report->flight_statuses[i] = 1;
+                    args->report->flight_statuses[j] = 1;
+
+                    if (args->report->total_violations <= MAX_VIOLATIONS) {
+                        ViolationEvent *v =
+                            &args->report->violations[
+                                args->report->total_violations - 1];
+                        v->timestamp   = (double)args->shm->steps_completed[i];
+                        v->flight_id_1 = i;
+                        v->flight_id_2 = j;
+                        v->position_1  = args->shm->positions[i];
+                        v->position_2  = args->shm->positions[j];
+                    }
+
+                    printf("[VD] Violation: flight %d and flight %d"
+                           " -- dist=%.1f m\n", i, j, dist);
+
+                    kill(args->states[i].pid, SIGUSR1);
+                    kill(args->states[j].pid, SIGUSR1);
+
+                    /* US107 -- signal report generator */
+                    pthread_mutex_lock(&g_report_mutex);
+                    pthread_cond_signal(&g_report_cond);
+                    pthread_mutex_unlock(&g_report_mutex);
+
+                    if (args->shm->total_violations >=
+                            args->config->max_violations) {
+                        args->shm->abort_flag = 1;
+                        printf("[VD] Max violations reached"
+                               " -- setting abort flag\n");
+                        for (int k = 0; k < args->config->num_flights; k++) {
+                            if (args->shm->active[k])
+                                kill(args->states[k].pid, SIGTERM);
+                        }
+                    }
+                }
+            }
+        }
+
+        pthread_mutex_unlock(&g_shm_mutex);
+        usleep(10000); /* 10 ms */
+    }
+
+    printf("[THREAD] ViolationDetector exiting\n");
     return NULL;
 }
 
+/* -----------------------------------------
+ * US106.2 -- Report Generator Thread
+ *
+ * Waits on g_report_cond (US107 condition variable).
+ * Logs each violation event as it arrives.
+ * When g_sim_done is set, writes the final
+ * report file (US109).
+ * ----------------------------------------- */
+
 static void *report_generator_thread(void *arg) {
-    (void)arg;
-    printf("[THREAD] ReportGenerator started\n");
+    ThreadArgs *args = (ThreadArgs *)arg;
+    printf("[THREAD] ReportGenerator started (tid=%lu)\n",
+           (unsigned long)pthread_self());
+
+    pthread_mutex_lock(&g_report_mutex);
+
+    while (!g_sim_done) {
+        /* US107 -- block until violation detected */
+        pthread_cond_wait(&g_report_cond, &g_report_mutex);
+
+        if (args->report->total_violations > 0) {
+            printf("[RG] Violation event received"
+                   " -- total so far: %d\n",
+                   args->report->total_violations);
+        }
+    }
+
+    pthread_mutex_unlock(&g_report_mutex);
+
+    /* US109 -- write final report */
+    printf("[RG] Simulation done -- writing final report\n");
+    write_report(args->report, NULL);
+
+    printf("[THREAD] ReportGenerator exiting\n");
     return NULL;
 }
+
+/* -----------------------------------------
+ * US106.3 -- Simulation Controller Thread
+ *
+ * Posts step semaphores to unblock each flight
+ * process, then polls shared memory until all
+ * active flights complete the step.
+ * Sets g_sim_done and broadcasts when done.
+ * ----------------------------------------- */
+
+static void *simulation_controller_thread(void *arg) {
+    ThreadArgs *args = (ThreadArgs *)arg;
+    printf("[THREAD] SimulationController started (tid=%lu)\n",
+           (unsigned long)pthread_self());
+
+    for (int step = 0; step < args->config->total_steps; step++) {
+
+        if (args->shm->abort_flag) {
+            printf("[SC] Abort flag at step %d -- stopping\n", step);
+            break;
+        }
+
+        printf("[SC] Posting step %d semaphores\n", step);
+
+        for (int i = 0; i < args->config->num_flights; i++) {
+            if (!args->states[i].active) continue;
+            sem_t *sem = sem_open(args->states[i].sem_name, 0);
+            if (sem != SEM_FAILED) {
+                sem_post(sem);
+                sem_close(sem);
+            }
+        }
+
+        /* poll until all active flights complete this step */
+        for (int i = 0; i < args->config->num_flights; i++) {
+            if (!args->states[i].active) continue;
+            while (args->shm->steps_completed[i] <= step
+                   && args->shm->active[i]) {
+                struct timespec ts = { 0, 1000000 }; /* 1 ms */
+                nanosleep(&ts, NULL);
+            }
+            if (!args->shm->active[i]) {
+                args->states[i].active = 0;
+                printf("[SC] Flight %d inactive at step %d\n", i, step);
+            } else {
+                args->states[i].current = args->shm->positions[i];
+            }
+        }
+
+        if (args->config->time_step_seconds > 0)
+            sleep(args->config->time_step_seconds);
+    }
+
+    /* signal simulation done */
+    pthread_mutex_lock(&g_done_mutex);
+    g_sim_done = 1;
+    pthread_mutex_unlock(&g_done_mutex);
+
+    pthread_mutex_lock(&g_report_mutex);
+    pthread_cond_broadcast(&g_report_cond);
+    pthread_mutex_unlock(&g_report_mutex);
+
+    printf("[THREAD] SimulationController exiting\n");
+    return NULL;
+}
+
+/* -----------------------------------------
+ * US105 -- Spawn Parent Threads
+ * ----------------------------------------- */
 
 int spawn_parent_threads(pthread_t *out_tids,
                          const SimulationConfig *config,
                          FlightState *states,
                          SimulationReport *report,
                          SharedSimulationData *shm) {
+    /* reset done flag for this run */
+    g_sim_done = 0;
+
     ThreadArgs *args = malloc(sizeof(ThreadArgs));
     if (!args) { perror("[MAIN] malloc ThreadArgs"); return -1; }
     args->config = config;
@@ -204,9 +366,6 @@ int spawn_parent_threads(pthread_t *out_tids,
 
 /* -----------------------------------------
  * US105 -- Cleanup
- *
- * Joins all parent threads, removes shared memory
- * (shmdt + shmctl IPC_RMID), and unlinks all semaphores.
  * ----------------------------------------- */
 
 void cleanup_simulation(int shmid,
@@ -230,19 +389,16 @@ void cleanup_simulation(int shmid,
 }
 
 /* -----------------------------------------
- * Step Synchronisation  (US105 / US108)
- *
- * 1. Post the step semaphore of every active flight.
- * 2. Poll shm->steps_completed[i] until the child replies
- *    or shm->active[i] drops to 0 (flight ended).
- * 3. Copy the new position from shm into FlightState.
+ * Step Synchronisation (US105 / US108)
+ * Used by the main loop fallback only.
+ * In US106 the SimulationController thread
+ * handles step coordination directly.
  * ----------------------------------------- */
 
 int synchronize_step(FlightState *states,
                      int num_flights,
                      int step,
                      SharedSimulationData *shm) {
-    /* unblock all active children */
     for (int i = 0; i < num_flights; i++) {
         if (!states[i].active) continue;
         sem_t *sem = sem_open(states[i].sem_name, 0);
@@ -255,13 +411,12 @@ int synchronize_step(FlightState *states,
         sem_close(sem);
     }
 
-    /* collect updated positions */
     int updates = 0;
     for (int i = 0; i < num_flights; i++) {
         if (!states[i].active) continue;
 
         while (shm->steps_completed[i] <= step && shm->active[i]) {
-            struct timespec ts = { 0, 1000000 }; /* 1 ms */
+            struct timespec ts = { 0, 1000000 };
             nanosleep(&ts, NULL);
         }
 
@@ -281,7 +436,7 @@ int synchronize_step(FlightState *states,
 }
 
 /* -----------------------------------------
- * Safety Violation Detection -- US102
+ * Safety Violation Detection (US102)
  * ----------------------------------------- */
 
 int check_safety_violations(FlightState *states,
@@ -357,7 +512,7 @@ int check_safety_violations(FlightState *states,
 }
 
 /* -----------------------------------------
- * Predicted Violation Detection -- US101
+ * Predicted Violation Detection (US101)
  * ----------------------------------------- */
 
 int check_predicted_violations(FlightState *states,
@@ -407,14 +562,11 @@ int check_predicted_violations(FlightState *states,
 }
 
 /* -----------------------------------------
- * Main Simulation Loop -- US100 / US105
+ * Main Simulation Loop (US100 / US105 / US106)
  *
- * Sprint 3 changes vs Sprint 2:
- *   - Pipes replaced by shared memory + named semaphores.
- *   - Three parent threads spawned (US105.1).
- *   - execute_flight() receives shmid instead of pipe fds.
- *   - synchronize_step() posts semaphores and reads shm.
- *   - cleanup_simulation() removes shm and semaphores.
+ * US106: simulation loop is handled by the
+ * SimulationController thread. Main process
+ * forks children and waits for them to exit.
  * ----------------------------------------- */
 
 int start_simulation(const SimulationConfig *config,
@@ -425,19 +577,19 @@ int start_simulation(const SimulationConfig *config,
     report->total_flights = config->num_flights;
     memset(states, 0, sizeof(FlightState) * config->num_flights);
 
-    /* US105.3: allocate shared memory */
+    /* US105.3 -- allocate shared memory */
     int shmid;
     SharedSimulationData *shm = init_shared_memory(config->num_flights, &shmid);
     if (!shm) return -1;
 
-    /* US105.4: create per-flight semaphores */
+    /* US105.4 -- create per-flight semaphores */
     if (init_semaphores(states, config->num_flights) != 0) {
         shmdt(shm);
         shmctl(shmid, IPC_RMID, NULL);
         return -1;
     }
 
-    /* US105.1 / US105.5: spawn parent threads */
+    /* US105.1 / US105.5 -- spawn parent threads (US106) */
     pthread_t parent_threads[3];
     if (spawn_parent_threads(parent_threads, config, states, report, shm) != 0) {
         shmdt(shm);
@@ -447,7 +599,7 @@ int start_simulation(const SimulationConfig *config,
         return -1;
     }
 
-    /* US105.2: fork one child per flight */
+    /* US105.2 -- fork one child per flight */
     for (int i = 0; i < config->num_flights; i++) {
         fflush(stdout);
         fflush(stderr);
@@ -461,7 +613,7 @@ int start_simulation(const SimulationConfig *config,
         }
 
         if (pid == 0) {
-            shmdt(shm);  /* child detaches and re-attaches its own */
+            shmdt(shm);
             execute_flight(i, shmid,
                            config->total_steps,
                            config->time_step_seconds);
@@ -478,68 +630,16 @@ int start_simulation(const SimulationConfig *config,
                i, pid, states[i].sem_name);
     }
 
-    /* simulation loop */
-    for (int step = 0; step < config->total_steps; step++) {
-        printf("[MAIN] --- Time step %d ---\n", step);
-
-        int updates = synchronize_step(states, config->num_flights, step, shm);
-        printf("[MAIN] Step %d: received %d position update(s)\n",
-               step, updates);
-        (void)updates;
-
-        double timestamp = (double)step * config->time_step_seconds;
-
-        int violations = check_safety_violations(
-                states, config->num_flights,
-                config->safety_threshold_m,
-                report, timestamp, shm);
-
-        check_predicted_violations(states, config->num_flights,
-                                   config->safety_threshold_m,
-                                   report, timestamp);
-
-        pthread_mutex_lock(&g_shm_mutex);
-        int do_abort = (report->total_violations >= config->max_violations);
-        if (do_abort) shm->abort_flag = 1;
-        pthread_mutex_unlock(&g_shm_mutex);
-
-        if (do_abort) {
-            printf("[MAIN] Max violations reached -- aborting.\n");
-            for (int i = 0; i < config->num_flights; i++) {
-                if (states[i].active) {
-                    sem_t *sem = sem_open(states[i].sem_name, 0);
-                    if (sem != SEM_FAILED) {
-                        sem_post(sem);
-                        sem_close(sem);
-                    }
-                    kill(states[i].pid, SIGTERM);
-                    report->flight_statuses[i] = 2;
-                    states[i].active = 0;
-                }
-            }
-            break;
-        }
-
-        (void)violations;
-    }
-
-    /* signal still-active children that there are no more steps */
-    shm->abort_flag = 1;
-    for (int i = 0; i < config->num_flights; i++) {
-        if (states[i].active) {
-            sem_t *sem = sem_open(states[i].sem_name, 0);
-            if (sem != SEM_FAILED) {
-                sem_post(sem);
-                sem_close(sem);
-            }
-        }
-    }
-
+    /* US106: simulation loop runs in SimulationController thread.
+     * Main process waits for all children to exit. */
     for (int i = 0; i < config->num_flights; i++) {
         int status;
         waitpid(states[i].pid, &status, 0);
         printf("[MAIN] Flight %d exited\n", states[i].flight_id);
     }
+
+    /* ensure abort flag is set so threads exit cleanly */
+    shm->abort_flag = 1;
 
     report->pass = (report->total_violations < config->max_violations) ? 1 : 0;
 
