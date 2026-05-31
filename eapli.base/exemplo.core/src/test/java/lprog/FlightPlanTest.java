@@ -154,4 +154,85 @@ class FlightPlanTest {
         assertTrue(result.contains("regular"));
         assertTrue(result.contains("DRAFT"));
     }
+
+
+    // ── US080 constructor (route / aircraft / pilot) ──────────────────────────
+
+    @Test
+    void ensureUs080ConstructorSetsRouteDesignator() {
+        final FlightPlan fp = new FlightPlan("TP001", "regular", List.of(validLeg()),
+                "TP123", "CS-TUA", 1L);
+        assertEquals("TP123", fp.routeDesignator());
+    }
+
+    @Test
+    void ensureUs080ConstructorSetsAircraftRegistration() {
+        final FlightPlan fp = new FlightPlan("TP001", "regular", List.of(validLeg()),
+                "TP123", "CS-TUA", 1L);
+        assertEquals("CS-TUA", fp.aircraftRegistration());
+    }
+
+    @Test
+    void ensureUs080ConstructorSetsPilotId() {
+        final FlightPlan fp = new FlightPlan("TP001", "regular", List.of(validLeg()),
+                "TP123", "CS-TUA", 42L);
+        assertEquals(42L, fp.pilotId());
+    }
+
+    @Test
+    void ensureUs080ConstructorStillSetsDraftStatus() {
+        final FlightPlan fp = new FlightPlan("TP001", "regular", List.of(validLeg()),
+                "TP123", "CS-TUA", 1L);
+        assertEquals(FlightPlanStatus.DRAFT, fp.status());
+    }
+
+    @Test
+    void ensureUs080ConstructorRouteDesignatorCannotBeEmpty() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new FlightPlan("TP001", "regular", List.of(validLeg()),
+                        "", "CS-TUA", 1L));
+    }
+
+    @Test
+    void ensureUs080ConstructorAircraftRegistrationCannotBeEmpty() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new FlightPlan("TP001", "regular", List.of(validLeg()),
+                        "TP123", "", 1L));
+    }
+
+    @Test
+    void ensureUs080ConstructorAcceptsNullPilotId() {
+        final FlightPlan fp = new FlightPlan("TP001", "regular", List.of(validLeg()),
+                "TP123", "CS-TUA", null);
+        assertNull(fp.pilotId());
+    }
+
+    // ── dslContent ────────────────────────────────────────────────────────────
+
+    @Test
+    void ensureDslContentIsNullByDefault() {
+        assertNull(validFlightPlan().dslContent());
+    }
+
+    @Test
+    void ensureSetDslContentStoresDsl() {
+        final FlightPlan fp = validFlightPlan();
+        fp.setDslContent("flight TP001 { type: regular }");
+        assertEquals("flight TP001 { type: regular }", fp.dslContent());
+    }
+
+    @Test
+    void ensureDslContentIsNullByDefaultOnUs080Constructor() {
+        final FlightPlan fp = new FlightPlan("TP001", "regular", List.of(validLeg()),
+                "TP123", "CS-TUA", 1L);
+        assertNull(fp.dslContent());
+    }
+
+    @Test
+    void ensureUs081ConstructorFieldsAreNullByDefault() {
+        final FlightPlan fp = validFlightPlan();
+        assertNull(fp.routeDesignator());
+        assertNull(fp.aircraftRegistration());
+        assertNull(fp.pilotId());
+    }
 }

@@ -26,25 +26,31 @@ public class FlightPlanImporter {
         private final List<FlightData> flights;
         private final List<ValidationError> errors;
 
+        private final String rawSource;
+
         private FlightPlanImportResult(boolean success,
                                        List<FlightData> flights,
-                                       List<ValidationError> errors) {
-            this.success = success;
-            this.flights = flights;
-            this.errors  = errors;
+                                       List<ValidationError> errors,
+                                       String rawSource) {
+            this.success   = success;
+            this.flights   = flights;
+            this.errors    = errors;
+            this.rawSource = rawSource;
         }
 
-        public static FlightPlanImportResult success(List<FlightData> flights) {
-            return new FlightPlanImportResult(true, flights, List.of());
+        public static FlightPlanImportResult success(List<FlightData> flights, String rawSource) {
+            return new FlightPlanImportResult(true, flights, List.of(), rawSource);
         }
 
         public static FlightPlanImportResult failure(List<ValidationError> errors) {
-            return new FlightPlanImportResult(false, List.of(), errors);
+            return new FlightPlanImportResult(false, List.of(), errors, null);
         }
 
-        public boolean isSuccess()               { return success; }
-        public List<FlightData> getFlights()     { return flights; }
-        public List<ValidationError> getErrors() { return errors;  }
+        public boolean isSuccess()               { return success;   }
+        public List<FlightData> getFlights()     { return flights;   }
+        public List<ValidationError> getErrors() { return errors;    }
+        /** The raw DSL source text — available only on success. */
+        public String getRawSource()             { return rawSource; }
     }
 
     // ─────────────────────────────────────────
@@ -55,14 +61,15 @@ public class FlightPlanImporter {
         final ErrorCollector errorCollector = new ErrorCollector();
 
         // ── Step 1: Lexical analysis ──────────────────────────────
-        CharStream input;
+        String rawSource;
         try {
-            input = CharStreams.fromFileName(filePath);
+            rawSource = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(filePath)));
         } catch (IOException e) {
             errorCollector.addSemanticError(0, 0,
                     "Cannot open file: " + filePath + " — " + e.getMessage());
             return FlightPlanImportResult.failure(errorCollector.getErrors());
         }
+        CharStream input = CharStreams.fromString(rawSource);
 
         errorCollector.setPhase(ErrorType.LEXICAL);
         FlightPlanLexer lexer = new FlightPlanLexer(input);
@@ -95,7 +102,7 @@ public class FlightPlanImporter {
         FlightPlanBuilderListener builder = new FlightPlanBuilderListener();
         ParseTreeWalker.DEFAULT.walk(builder, tree);
 
-        return FlightPlanImportResult.success(builder.getFlights());
+        return FlightPlanImportResult.success(builder.getFlights(), rawSource);
     }
 
     // ─────────────────────────────────────────
@@ -144,6 +151,6 @@ public class FlightPlanImporter {
         FlightPlanBuilderListener builder = new FlightPlanBuilderListener();
         ParseTreeWalker.DEFAULT.walk(builder, tree);
 
-        return FlightPlanImportResult.success(builder.getFlights());
+        return FlightPlanImportResult.success(builder.getFlights(), input);
     }
 }

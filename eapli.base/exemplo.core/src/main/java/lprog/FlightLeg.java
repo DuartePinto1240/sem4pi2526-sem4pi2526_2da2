@@ -3,6 +3,9 @@ package lprog;
 import eapli.framework.validations.Preconditions;
 
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @Entity
 @Table(name = "FLIGHT_LEG")
@@ -33,6 +36,10 @@ public class FlightLeg {
     @Column(name = "fuel_unit", nullable = false)
     private String fuelUnit;
 
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    @JoinColumn(name = "flight_leg_id")
+    private List<FlightSegment> segments = new ArrayList<>();
+
     public FlightLeg(final String departureAirport,
                      final String departureDate,
                      final String departureTime,
@@ -57,13 +64,19 @@ public class FlightLeg {
         this.fuelUnit         = fuelUnit;
     }
 
-    public String departureAirport() { return departureAirport; }
-    public String departureDate()    { return departureDate;    }
-    public String departureTime()    { return departureTime;    }
-    public String arrivalAirport()   { return arrivalAirport;   }
-    public String arrivalTime()      { return arrivalTime;      }
-    public double fuelQuantity()     { return fuelQuantity;     }
-    public String fuelUnit()         { return fuelUnit;         }
+    public void addSegment(final FlightSegment segment) {
+        Preconditions.nonNull(segment, "Segment cannot be null");
+        this.segments.add(segment);
+    }
+
+    public String              departureAirport() { return departureAirport; }
+    public String              departureDate()    { return departureDate;    }
+    public String              departureTime()    { return departureTime;    }
+    public String              arrivalAirport()   { return arrivalAirport;   }
+    public String              arrivalTime()      { return arrivalTime;      }
+    public double              fuelQuantity()     { return fuelQuantity;     }
+    public String              fuelUnit()         { return fuelUnit;         }
+    public List<FlightSegment> segments()         { return Collections.unmodifiableList(segments); }
 
     @Override
     public String toString() {

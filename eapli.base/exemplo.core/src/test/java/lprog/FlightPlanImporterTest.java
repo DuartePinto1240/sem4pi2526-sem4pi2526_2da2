@@ -264,4 +264,75 @@ class FlightPlanImporterTest {
         assertTrue(error.getLine() > 0);
         assertTrue(error.getColumn() >= 0);
     }
+
+    // ─────────────────────────────────────────
+    // ─────────────────────────────────────────
+    // Syntactic errors
+    // ─────────────────────────────────────────
+
+    @Test
+    void missingClosingBraceProducesSyntacticError() {
+        String input =
+                "flight TP007 {\n" +
+                        "    type: regular\n" +
+                        "    leg {\n" +
+                        "        departure: OPO 2026-05-17 14:00\n" +
+                        "        arrival:   LIS 15:00\n" +
+                        "        fuel:      5000 kg\n" +
+                        "        segment {\n" +
+                        "            from: (41.2481, -8.6814)\n" +
+                        "            to:   (38.7813, -9.1359)\n" +
+                        "            altitude_slots: [8000]\n" +
+                        "            width: 50 m\n" +
+                        "            wind:  270 deg 10 m/s\n" +
+                        "        }\n" +
+                        "    }\n";
+                        // missing closing }
+
+        FlightPlanImportResult result = importer.importFromString(input);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getErrors().stream()
+                .anyMatch(e -> e.getType() == ErrorType.SYNTACTIC));
+    }
+
+    // ─────────────────────────────────────────
+    // rawSource preservation (US081)
+    // ─────────────────────────────────────────
+
+    @Test
+    void ensureSuccessResultContainsRawSource() {
+        String input =
+                "flight TP008 {\n" +
+                        "    type: regular\n" +
+                        "    leg {\n" +
+                        "        departure: OPO 2026-05-17 14:00\n" +
+                        "        arrival:   LIS 15:00\n" +
+                        "        fuel:      5000 kg\n" +
+                        "        segment {\n" +
+                        "            from: (41.2481, -8.6814)\n" +
+                        "            to:   (38.7813, -9.1359)\n" +
+                        "            altitude_slots: [8000]\n" +
+                        "            width: 50 m\n" +
+                        "            wind:  270 deg 10 m/s\n" +
+                        "        }\n" +
+                        "    }\n" +
+                        "}";
+
+        FlightPlanImportResult result = importer.importFromString(input);
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getRawSource());
+        assertFalse(result.getRawSource().isEmpty());
+    }
+
+    @Test
+    void ensureFailureResultHasNullRawSource() {
+        String input = "flight TP009 { type: regular }"; // missing leg
+
+        FlightPlanImportResult result = importer.importFromString(input);
+
+        assertFalse(result.isSuccess());
+        assertNull(result.getRawSource());
+    }
 }

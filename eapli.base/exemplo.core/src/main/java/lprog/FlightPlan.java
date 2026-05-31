@@ -35,6 +35,28 @@ public class FlightPlan implements AggregateRoot<Long> {
     @JoinColumn(name = "flight_plan_id")
     private List<FlightLeg> legs = new ArrayList<>();
 
+    /** Set by US080 manual creation; null for file-imported plans (US081). */
+    @Column(name = "route_designator")
+    private String routeDesignator;
+
+    /** Registration of the assigned aircraft; null for file-imported plans. */
+    @Column(name = "aircraft_registration")
+    private String aircraftRegistration;
+
+    /** Database id of the assigned pilot; null for file-imported plans. */
+    @Column(name = "pilot_id")
+    private Long pilotId;
+
+    /**
+     * Raw DSL content of this flight plan.
+     * Set by US081 (validated DSL from file) or US080 (unvalidated DSL string/file).
+     * Used by US085 to run the C simulator.
+     */
+    @Lob
+    @Column(name = "dsl_content")
+    private String dslContent;
+
+    /** US081 constructor: file import — no route/aircraft/pilot references. */
     public FlightPlan(final String flightId,
                       final String flightType,
                       final List<FlightLeg> legs) {
@@ -50,6 +72,23 @@ public class FlightPlan implements AggregateRoot<Long> {
         this.importedAt = LocalDateTime.now();
     }
 
+    /** US080 constructor: manual creation — includes route, aircraft and pilot. */
+    public FlightPlan(final String flightId,
+                      final String flightType,
+                      final List<FlightLeg> legs,
+                      final String routeDesignator,
+                      final String aircraftRegistration,
+                      final Long pilotId) {
+        this(flightId, flightType, legs);
+        Preconditions.nonEmpty(routeDesignator,      "Route designator cannot be empty");
+        Preconditions.nonEmpty(aircraftRegistration, "Aircraft registration cannot be empty");
+        // pilotId may be null before persistence in tests; business rule enforced by controller
+
+        this.routeDesignator      = routeDesignator;
+        this.aircraftRegistration = aircraftRegistration;
+        this.pilotId              = pilotId;
+    }
+
     @Override
     public Long identity() { return id; }
 
@@ -60,11 +99,20 @@ public class FlightPlan implements AggregateRoot<Long> {
         return this.flightId.equalsIgnoreCase(that.flightId);
     }
 
-    public String           flightId()   { return flightId;   }
-    public String           flightType() { return flightType; }
-    public FlightPlanStatus status()     { return status;     }
-    public LocalDateTime    importedAt() { return importedAt; }
-    public List<FlightLeg>  legs()       { return Collections.unmodifiableList(legs); }
+    public String           flightId()             { return flightId;             }
+    public String           flightType()           { return flightType;           }
+    public FlightPlanStatus status()               { return status;               }
+    public LocalDateTime    importedAt()           { return importedAt;           }
+    public List<FlightLeg>  legs()                 { return Collections.unmodifiableList(legs); }
+    public String           routeDesignator()      { return routeDesignator;      }
+    public String           aircraftRegistration() { return aircraftRegistration; }
+    public Long             pilotId()              { return pilotId;              }
+    public String           dslContent()           { return dslContent;           }
+
+    /** Stores the DSL content. Called by US080 (no validation) and US081 (post-validation). */
+    public void setDslContent(final String dslContent) {
+        this.dslContent = dslContent;
+    }
 
     @Override
     public String toString() {

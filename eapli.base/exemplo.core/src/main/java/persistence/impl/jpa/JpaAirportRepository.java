@@ -9,6 +9,7 @@ import repositories.AirportRepository;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * JPA implementation of {@link AirportRepository} backed by H2 (US052).
@@ -51,5 +52,12 @@ public class JpaAirportRepository
         final Map<String, Object> params = new HashMap<>();
         params.put("iata", iataCode.code());
         return matchOne("e.iataCode.iata = :iata", params).isPresent();
+    }
+
+    @Override
+    public Optional<Airport> findByIataCode(final IATACode iataCode) {
+        final Map<String, Object> params = new HashMap<>();
+        params.put("iata", iataCode.code());
+        return matchOne("e.iataCode.iata = :iata", params);
     }
 }

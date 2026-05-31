@@ -128,21 +128,22 @@ public class FlightPlanBuilderListener extends FlightPlanBaseListener {
         currentSegment.toLat = Double.parseDouble(to.NUMBER(0).getText());
         currentSegment.toLon = Double.parseDouble(to.NUMBER(1).getText());
 
-        // altitude slots
-        for (int i = 2; i < ctx.NUMBER().size(); i++) {
-            String text = ctx.NUMBER(i).getText();
-            // altitude slots are between the coordinates and the width/wind numbers
-            // stop when we reach the width and wind values (last 3 numbers)
-            if (i < ctx.NUMBER().size() - 2) {
-                currentSegment.altitudeSlots.add(Double.parseDouble(text));
-            }
-        }
-
-        // width — second to last NUMBER in the segment
+        // ctx.NUMBER() contains ONLY the direct NUMBER tokens of the segment rule:
+        //   [alt1, alt2, ..., width, windAngle, windSpeed]
+        // The coordinates NUMBERs live inside coordinates sub-rules and are
+        // accessed via ctx.coordinates(n).NUMBER(n), NOT via ctx.NUMBER().
+        //
+        // Layout: indices 0..(total-4) → altitude slots
+        //         index  total-3       → width
+        //         index  total-2       → wind angle
+        //         index  total-1       → wind speed
         int total = ctx.NUMBER().size();
-        currentSegment.width      = Double.parseDouble(ctx.NUMBER(total - 2).getText());
-        currentSegment.windAngle  = Double.parseDouble(ctx.NUMBER(total - 3).getText());
-        currentSegment.windSpeed  = Double.parseDouble(ctx.NUMBER(total - 1).getText());
+        for (int i = 0; i < total - 3; i++) {
+            currentSegment.altitudeSlots.add(Double.parseDouble(ctx.NUMBER(i).getText()));
+        }
+        currentSegment.width     = Double.parseDouble(ctx.NUMBER(total - 3).getText());
+        currentSegment.windAngle = Double.parseDouble(ctx.NUMBER(total - 2).getText());
+        currentSegment.windSpeed = Double.parseDouble(ctx.NUMBER(total - 1).getText());
     }
 
     @Override

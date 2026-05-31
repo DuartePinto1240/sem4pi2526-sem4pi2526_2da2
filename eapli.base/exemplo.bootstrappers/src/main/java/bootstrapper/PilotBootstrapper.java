@@ -40,8 +40,10 @@ public class PilotBootstrapper implements Action {
         companyRepo.findAll().forEach(companies::add);
 
         findCompany(companies, "TP").ifPresent(tap -> {
-            register(ctrl, "João Silva",   "joao.silva@tap.pt",   "+351910000001", tap, models.subList(0, 1));
+            register(ctrl, "Joao Silva",   "joao.silva@tap.pt",   "+351910000001", tap, models.subList(0, 1));
             register(ctrl, "Maria Santos", "maria.santos@tap.pt", "+351910000002", tap, models.subList(0, 1));
+            // Demo pilot account — same email as the PILOT system user for US080 auto-association
+            register(ctrl, "AlSafe Pilot", "pilot@alsafe.com",    "+351910000099", tap, models.subList(0, 1));
         });
 
         findCompany(companies, "FR").ifPresent(ryr ->
