@@ -120,7 +120,7 @@ class ConsultWeatherDataControllerTest {
         assertFalse(results.isEmpty());
     }
 
-    
+
 
     @Test
     void ensureUnknownAreaCodeThrowsIllegalArgumentException() {
