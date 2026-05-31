@@ -9,47 +9,64 @@ participant FlightPlanBuilderListener as BLD <<listener>>
 participant FlightPlanRepository as REPO <<repository>>
 
 Pilot -> UI : doShow()
-UI -> CTRL : availableFiles()
-CTRL --> UI : file list
+UI -> CTRL : availableFlightPlanFiles()
+CTRL --> UI : List<File> (.fp files from flightplans/)
 UI --> Pilot : shows numbered file list
 
 Pilot -> UI : selects file number
-UI -> CTRL : importFromFile(filename)
+UI -> CTRL : importFromFile(file)
 activate CTRL
-CTRL -> IMP : importFromFile(path)
-activate IMP
 
-IMP -> ERR : setPhase(LEXICAL)
-IMP -> IMP : FlightPlanLexer(input)
+CTRL -> CTRL : check file.getName().endsWith(".fp")
+alt not .fp extension
+    CTRL --> UI : FlightPlanImportResult.failure("Unsupported file format")
+    UI --> Pilot : error message
+else .fp file
+    CTRL -> IMP : importFromFile(path)
+    activate IMP
 
-IMP -> ERR : setPhase(SYNTACTIC)
-IMP -> IMP : FlightPlanParser(tokens) → ParseTree
+    IMP -> ERR : registers as lexer error listener
+    IMP -> IMP : FlightPlanLexer(input)
 
-alt has lexical or syntactic errors
-    IMP --> CTRL : FlightPlanImportResult.failure(errors)
-else no errors so far
-    IMP -> VIS : visit(tree)
-    VIS -> ERR : addSemanticError(...) [if violations]
+    IMP -> IMP : FlightPlanParser(tokens) → ParseTree
 
-    alt has semantic errors
+    alt has lexical or syntactic errors
         IMP --> CTRL : FlightPlanImportResult.failure(errors)
-    else all valid
-        IMP -> BLD : ParseTreeWalker.walk(builder, tree)
-        BLD -> BLD : builds FlightData + LegData
-        IMP --> CTRL : FlightPlanImportResult.success(flights)
+    else no errors so far
+        IMP -> VIS : visit(tree)
+        VIS -> ERR : addSemanticError(...) [if violations]
+
+        alt has semantic errors
+            IMP --> CTRL : FlightPlanImportResult.failure(errors)
+        else all valid
+            IMP -> BLD : ParseTreeWalker.walk(builder, tree)
+            BLD -> BLD : builds FlightData + LegData + SegmentData
+            IMP --> CTRL : FlightPlanImportResult.success(flights, rawSource)
+        end
     end
-end
 
-deactivate IMP
+    deactivate IMP
 
-alt success
-    CTRL -> CTRL : convert FlightData → FlightPlan
-    CTRL -> REPO : save(flightPlan)
-    CTRL --> UI : flightPlan
-    UI --> Pilot : displays success\n(flightId, type, legs, status=DRAFT)
-else failure
-    CTRL --> UI : errors
-    UI --> Pilot : displays all errors\n(type, line, column, message)
+    alt success
+        loop for each FlightData fd
+            CTRL -> CTRL : check existsByFlightId(fd.id) → skip if duplicate
+            loop for each LegData ld
+                CTRL -> CTRL : new FlightLeg(dep, date, time, arr, time, fuel, unit)
+                loop for each SegmentData sd
+                    CTRL -> CTRL : new FlightSegment(fromLat, fromLon, toLat, toLon,\n  altitudeSlots, width, windAngle, windSpeed)
+                    CTRL -> CTRL : leg.addSegment(segment)
+                end
+            end
+            CTRL -> CTRL : new FlightPlan(fd.id, fd.type, legs)
+            CTRL -> CTRL : plan.setDslContent(rawSource)
+            CTRL -> REPO : save(plan)
+        end
+        CTRL --> UI : result (success)
+        UI --> Pilot : displays summary\n(flightId, type, legs with airports, status=DRAFT)
+    else failure
+        CTRL --> UI : result (errors)
+        UI --> Pilot : displays all errors\n(type, line, column, message)
+    end
 end
 
 deactivate CTRL

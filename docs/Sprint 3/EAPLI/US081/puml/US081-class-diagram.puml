@@ -4,45 +4,82 @@ skinparam classAttributeIconSize 0
 package "UI" {
   class ImportFlightPlanUI <<boundary>> {
     +doShow(): boolean
+    -printSuccess(result): void
+    -printErrors(result): void
   }
 }
 
 package "Application" {
   class ImportFlightPlanController <<control>> {
-    +availableFiles(): List<String>
-    +importFromFile(filename): FlightPlan
+    +availableFlightPlanFiles(): List<File>
+    +importFromFile(file: File): FlightPlanImportResult
+    -persistFlightPlans(flights, rawSource): void
+    -resolveFlightPlansDir(): File
+    -unsupportedFormatResult(fileName): FlightPlanImportResult
   }
 }
 
 package "LPROG" {
   class FlightPlanImporter <<service>> {
-    +importFromFile(path): FlightPlanImportResult
-    +importFromString(input): FlightPlanImportResult
+    +importFromFile(path: String): FlightPlanImportResult
+    +importFromString(input: String): FlightPlanImportResult
   }
   class FlightPlanImportResult <<result>> {
     +isSuccess(): boolean
     +getFlights(): List<FlightData>
     +getErrors(): List<ValidationError>
+    +getRawSource(): String
+    +{static} success(flights, raw): FlightPlanImportResult
+    +{static} failure(errors): FlightPlanImportResult
   }
   class ErrorCollector <<listener>> {
-    +setPhase(ErrorType)
-    +addSemanticError(line, col, msg)
+    +addSemanticError(line, col, msg): void
     +hasErrors(): boolean
     +getErrors(): List<ValidationError>
   }
   class FlightPlanSemanticVisitor <<visitor>> {
-    +visitFlight(ctx)
-    +visitLeg(ctx)
-    +visitFuel(ctx)
-    +visitSegment(ctx)
-    +visitAirportCode(ctx)
+    +visitFlight(ctx): Void
+    +visitLeg(ctx): Void
+    +visitFuel(ctx): Void
+    +visitSegment(ctx): Void
+    +visitAirportCode(ctx): Void
   }
   class FlightPlanBuilderListener <<listener>> {
-    +enterFlight(ctx)
-    +exitFlight(ctx)
-    +enterLeg(ctx)
-    +exitLeg(ctx)
+    +enterFlight(ctx): void
+    +exitFlight(ctx): void
+    +enterLeg(ctx): void
+    +exitLeg(ctx): void
+    +enterDeparture(ctx): void
+    +enterArrival(ctx): void
+    +enterFuel(ctx): void
+    +enterSegment(ctx): void
+    +exitSegment(ctx): void
     +getFlights(): List<FlightData>
+  }
+  class FlightData <<dto>> {
+    +id: String
+    +type: String
+    +legs: List<LegData>
+  }
+  class LegData <<dto>> {
+    +departureAirport: String
+    +departureDate: String
+    +departureTime: String
+    +arrivalAirport: String
+    +arrivalTime: String
+    +fuelQuantity: double
+    +fuelUnit: String
+    +segments: List<SegmentData>
+  }
+  class SegmentData <<dto>> {
+    +fromLat: double
+    +fromLon: double
+    +toLat: double
+    +toLon: double
+    +altitudeSlots: List<Double>
+    +width: double
+    +windAngle: double
+    +windSpeed: double
   }
 }
 
@@ -52,28 +89,67 @@ package "Domain" {
     -flightType: String
     -status: FlightPlanStatus
     -legs: List<FlightLeg>
+    -dslContent: String
+    +setDslContent(String): void
+    +dslContent(): String
   }
   class FlightLeg <<entity>> {
     -departureAirport: String
     -arrivalAirport: String
     -fuelQuantity: double
+    -fuelUnit: String
+    -segments: List<FlightSegment>
+    +addSegment(FlightSegment): void
+    +segments(): List<FlightSegment>
+  }
+  class FlightSegment <<entity>> {
+    -fromLat: double
+    -fromLon: double
+    -toLat: double
+    -toLon: double
+    -altitudeSlots: List<Double>
+    -widthMeters: double
+    -windAngleDeg: double
+    -windSpeedMs: double
+  }
+}
+
+package "Infrastructure.Persistence" {
+  interface FlightPlanRepository <<repository>> {
+    +save(FlightPlan): FlightPlan
+    +existsByFlightId(String): boolean
+    +findByFlightId(String): Optional<FlightPlan>
+    +count(): long
   }
 }
 
 ImportFlightPlanUI ..> ImportFlightPlanController
 ImportFlightPlanController ..> FlightPlanImporter
+ImportFlightPlanController ..> FlightPlan : creates
+ImportFlightPlanController ..> FlightPlanRepository
 FlightPlanImporter ..> ErrorCollector
 FlightPlanImporter ..> FlightPlanSemanticVisitor
 FlightPlanImporter ..> FlightPlanBuilderListener
 FlightPlanImporter ..> FlightPlanImportResult
-ImportFlightPlanController ..> FlightPlan : creates from FlightData
+FlightPlanImportResult ..> FlightData
+FlightData "1" *-- "1..*" LegData
+LegData "1" *-- "0..*" SegmentData
 FlightPlan "1" *-- "1..*" FlightLeg
+FlightLeg "1" *-- "0..*" FlightSegment
 
-note right of FlightPlanImporter
-  4-step pipeline:
-  1. Lexical (FlightPlanLexer)
-  2. Syntactic (FlightPlanParser)
-  3. Semantic (Visitor)
-  4. Build (Listener)
+note right of FlightPlanBuilderListener
+  enterSegment parses:
+  - coords via ctx.coordinates(0/1)
+  - altSlots: ctx.NUMBER(0..total-4)
+  - width: ctx.NUMBER(total-3)
+  - windAngle: ctx.NUMBER(total-2)
+  - windSpeed: ctx.NUMBER(total-1)
+end note
+
+note bottom of ImportFlightPlanController
+  SegmentData → FlightSegment mapping:
+  fromLat/Lon, toLat/Lon, altitudeSlots,
+  width→widthMeters, windAngle→windAngleDeg,
+  windSpeed→windSpeedMs
 end note
 @enduml
