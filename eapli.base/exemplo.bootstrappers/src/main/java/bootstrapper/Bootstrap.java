@@ -12,5 +12,6 @@ public class Bootstrap {
         new AircraftModelBootstrapper().execute();
         new AircraftBootstrapper().execute();
         new PilotBootstrapper().execute();
+        new FlightRouteBootstrapper().execute();
     }
 }

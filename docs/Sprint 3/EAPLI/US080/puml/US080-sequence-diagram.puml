@@ -2,35 +2,77 @@
 actor Pilot
 participant CreateFlightPlanUI as UI <<boundary>>
 participant CreateFlightPlanController as CTRL <<control>>
+participant FlightPlanDslGenerator as DSL <<service>>
 participant "plan:FlightPlan" as PLAN <<domain>>
 participant FlightPlanRepository as REPO <<repository>>
+participant AirportRepository as AREPO <<repository>>
+participant AirControlAreaRepository as ACREPO <<repository>>
 
 Pilot -> UI : doShow()
-UI -> CTRL : availableRoutes()
-CTRL --> UI : routes
-UI --> Pilot : shows route list
 
-Pilot -> UI : selects route, aircraft, pilot, date, fuel
-UI -> CTRL : createFlightPlan(flightId, type, aircraft, pilot, legs)
+UI -> CTRL : currentPilot()
+CTRL --> UI : pilot (from session email)
+
+UI -> CTRL : activeRoutesForPilot(pilot)
+CTRL --> UI : routes filtered by pilot's company
+
+UI --> Pilot : shows route list (company-filtered)
+Pilot -> UI : selects route
+
+UI -> CTRL : aircraftForRoute(route)
+CTRL --> UI : aircraft list (same company)
+UI --> Pilot : shows aircraft list
+Pilot -> UI : selects aircraft
+
+UI --> Pilot : shows flightId, departure date/time prompt
+Pilot -> UI : enters flightId, departure date/time
+
+note over UI
+  For each leg:
+  - departure airport pre-filled (route.originIata or previous arrival)
+  - departure date/time pre-filled
+  - pilot enters arrival airport (or Enter for destination)
+  - pilot enters arrival time, fuel quantity (kg)
+  - pilot enters segments: from/to coords,
+    altitude slots, width, wind
+end note
+
+Pilot -> UI : enters leg(s) with segments
+
+UI -> CTRL : createFlightPlan(flightId, route, aircraft, pilot, departureDateTime, legs)
 activate CTRL
 
-CTRL -> CTRL : validate pilot belongs to company
-CTRL -> CTRL : validate aircraft in company fleet
+CTRL -> CTRL : validate route is active
+CTRL -> CTRL : validate aircraft.companyIata == route.companyIata
+CTRL -> CTRL : validate pilot.companyIata == route.companyIata
+CTRL -> CTRL : validate departureDateTime is in the future
 
 loop for each leg
-    CTRL -> PLAN : new FlightLeg(dep, date, time, arr, time, fuel, unit)
+    loop for each segment
+        CTRL -> AREPO : findByIataCode(leg.departureAirport)
+        AREPO --> CTRL : Optional<Airport>
+        alt airport found
+            CTRL -> ACREPO : ofIdentity(airport.airControlAreaCode)
+            ACREPO --> CTRL : Optional<AirControlArea>
+            CTRL -> CTRL : validate from/to coords within boundary
+        end
+    end
 end
 
-CTRL -> PLAN : new FlightPlan(flightId, type, legs)
+CTRL -> DSL : generate(flightId, flightType, legs)
+DSL --> CTRL : dslContent (with segment blocks)
+
+CTRL -> PLAN : new FlightPlan(flightId, flightType, legs,\n  routeDesignator, aircraftReg, pilotId)
 activate PLAN
 PLAN -> PLAN : status = DRAFT
 PLAN -> PLAN : importedAt = now()
 PLAN --> CTRL : plan
 deactivate PLAN
 
+CTRL -> PLAN : setDslContent(dsl)
 CTRL -> REPO : save(plan)
 CTRL --> UI : plan
 deactivate CTRL
 
-UI --> Pilot : displays confirmation\n(flightId, type, legs, status=DRAFT)
+UI --> Pilot : displays confirmation\n(flightId, type, route, aircraft,\n legs with segment count, status=DRAFT, DSL stored)
 @enduml

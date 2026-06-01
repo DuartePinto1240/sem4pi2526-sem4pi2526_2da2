@@ -32,6 +32,13 @@ public class InMemoryAirportRepository implements AirportRepository {
     }
 
     @Override
+    public Optional<Airport> findByIataCode(final IATACode iataCode) {
+        return airports.stream()
+                .filter(a -> a.iataCode().equals(iataCode))
+                .findFirst();
+    }
+
+    @Override
     public Airport save(final Airport airport) {
         airports.removeIf(a -> a.identity().equals(airport.identity()));
         airports.add(airport);

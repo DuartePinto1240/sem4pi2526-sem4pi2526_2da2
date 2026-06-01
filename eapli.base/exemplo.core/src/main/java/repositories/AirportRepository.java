@@ -31,4 +31,12 @@ public interface AirportRepository extends DomainRepository<ICAOCode, Airport> {
      * @return {@code true} if an airport with that IATA code already exists
      */
     boolean existsByIATACode(IATACode iataCode);
+
+    /**
+     * Finds an airport by its IATA code.
+     *
+     * @param iataCode the IATA code to look up (e.g. "OPO", "LIS")
+     * @return Optional containing the matching airport, or empty if not found
+     */
+    java.util.Optional<Airport> findByIataCode(IATACode iataCode);
 }

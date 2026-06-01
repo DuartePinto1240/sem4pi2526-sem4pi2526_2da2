@@ -1,0 +1,56 @@
+@startuml
+participant Caller as C
+participant FlightPlanImporter as IMP <<service>>
+participant ErrorCollector as ERR <<listener>>
+participant FlightPlanSemanticVisitor as VIS <<visitor>>
+participant FlightPlanBuilderListener as BLD <<listener>>
+participant FlightPlanImportResult as RES <<result>>
+
+C -> IMP : importFromFile(path)\n  or importFromString(input)
+activate IMP
+
+IMP -> IMP : read input to String (rawSource)
+
+IMP -> ERR : new ErrorCollector()
+IMP -> IMP : FlightPlanLexer(input)\n  — registers ERR as error listener
+note right : lexical errors → ERR
+
+IMP -> IMP : FlightPlanParser(tokenStream)\n  — registers ERR as error listener
+IMP -> IMP : parse() → ParseTree
+note right : syntactic errors → ERR
+
+alt has lexical or syntactic errors
+    IMP -> RES : FlightPlanImportResult.failure(ERR.getErrors())
+    IMP --> C : result (failure)
+else no errors so far
+    IMP -> VIS : new FlightPlanSemanticVisitor(ERR)
+    IMP -> VIS : visit(parseTree)
+    note right : semantic errors → ERR\n(all collected, no fail-fast)
+
+    alt has semantic errors
+        IMP -> RES : FlightPlanImportResult.failure(ERR.getErrors())
+        IMP --> C : result (failure)
+    else all valid
+        IMP -> BLD : new FlightPlanBuilderListener()
+        IMP -> IMP : ParseTreeWalker.walk(BLD, parseTree)
+
+        note over BLD
+          enterSegment:
+          - fromLat/Lon via ctx.coordinates(0)
+          - toLat/Lon   via ctx.coordinates(1)
+          - altSlots: ctx.NUMBER(0..total-4)
+          - width:    ctx.NUMBER(total-3)
+          - windAngle:ctx.NUMBER(total-2)
+          - windSpeed: ctx.NUMBER(total-1)
+        end note
+
+        IMP -> BLD : getFlights()
+        BLD --> IMP : List<FlightData>\n  (with LegData + SegmentData)
+
+        IMP -> RES : FlightPlanImportResult.success(flights, rawSource)
+        IMP --> C : result (success)\n  .getFlights() → FlightData\n  .getRawSource() → String
+    end
+end
+
+deactivate IMP
+@enduml

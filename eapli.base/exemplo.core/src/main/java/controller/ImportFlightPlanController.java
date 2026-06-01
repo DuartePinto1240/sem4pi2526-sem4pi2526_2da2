@@ -4,6 +4,8 @@ import lprog.FlightLeg;
 import lprog.FlightPlan;
 import lprog.FlightPlanBuilderListener.FlightData;
 import lprog.FlightPlanBuilderListener.LegData;
+import lprog.FlightPlanBuilderListener.SegmentData;
+import lprog.FlightSegment;
 import lprog.FlightPlanImporter;
 import lprog.FlightPlanImporter.FlightPlanImportResult;
 import persistence.PersistenceContext;
@@ -67,7 +69,7 @@ public class ImportFlightPlanController {
         }
         final FlightPlanImportResult result = importer.importFromFile(file.getAbsolutePath());
         if (result.isSuccess()) {
-            persistFlightPlans(result.getFlights());
+            persistFlightPlans(result.getFlights(), result.getRawSource());
         }
         return result;
     }
@@ -127,23 +129,35 @@ public class ImportFlightPlanController {
         return FlightPlanImportResult.failure(collector.getErrors());
     }
 
-    private void persistFlightPlans(final List<FlightData> flights) {
+    private void persistFlightPlans(final List<FlightData> flights, final String rawSource) {
         for (final FlightData fd : flights) {
             if (flightPlanRepo.existsByFlightId(fd.id)) {
                 continue;
             }
             final List<FlightLeg> legs = new ArrayList<>();
             for (final LegData ld : fd.legs) {
-                legs.add(new FlightLeg(
+                final FlightLeg leg = new FlightLeg(
                         ld.departureAirport,
                         ld.departureDate,
                         ld.departureTime,
                         ld.arrivalAirport,
                         ld.arrivalTime,
                         ld.fuelQuantity,
-                        ld.fuelUnit));
+                        ld.fuelUnit);
+                for (final SegmentData sd : ld.segments) {
+                    leg.addSegment(new FlightSegment(
+                            sd.fromLat, sd.fromLon,
+                            sd.toLat,   sd.toLon,
+                            sd.altitudeSlots,
+                            sd.width,
+                            sd.windAngle,
+                            sd.windSpeed));
+                }
+                legs.add(leg);
             }
-            flightPlanRepo.save(new FlightPlan(fd.id, fd.type, legs));
+            final FlightPlan plan = new FlightPlan(fd.id, fd.type, legs);
+            plan.setDslContent(rawSource);
+            flightPlanRepo.save(plan);
         }
     }
 }

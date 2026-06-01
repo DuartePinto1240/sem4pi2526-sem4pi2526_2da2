@@ -19,8 +19,6 @@ public class AircraftBootstrapper implements Action {
         ctrl.availableAircraftModels().forEach(models::add);
 
         if (models.isEmpty()) {
-            System.out.println(
-                    ">> AircraftBootstrapper: no aircraft models available, skipping.");
             return true;
         }
 
