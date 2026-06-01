@@ -13,7 +13,6 @@ public class ImportBulkWeatherDataUI extends AbstractUI {
     protected boolean doShow() {
         final ImportBulkWeatherDataController ctrl = new ImportBulkWeatherDataController();
 
-        System.out.println("\n--- Import Bulk Weather Data ---\n");
         System.out.println("Supported formats: CSV (.csv)");
 
         final String filePath = Console.readLine("File path: ").trim();

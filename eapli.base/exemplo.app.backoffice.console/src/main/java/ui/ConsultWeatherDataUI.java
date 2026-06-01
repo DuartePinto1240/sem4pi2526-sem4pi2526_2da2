@@ -30,8 +30,6 @@ public class ConsultWeatherDataUI extends AbstractUI {
     protected boolean doShow() {
         final ConsultWeatherDataController ctrl = new ConsultWeatherDataController();
 
-        System.out.println("\n--- Consult Weather Data ---\n");
-
         // list available areas
         System.out.println("Available Air Control Areas:");
         boolean hasAreas = false;
