@@ -24,6 +24,8 @@
         <class>domain.AirportName</class>
         <class>domain.AirportCoordinates</class>
         <class>domain.Elevation</class>
+        <class>domain.Collaborator</class>
+        <class>domain.pilot.Pilot</class>
         <properties>
             <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:file:./db/alsafe;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE"/>
             <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
@@ -31,6 +33,44 @@
             <property name="jakarta.persistence.jdbc.password" value=""/>
             <property name="hibernate.hbm2ddl.auto" value="update"/>
             <property name="hibernate.show_sql" value="false"/>
+        </properties>
+    </persistence-unit>
+
+    <persistence-unit name="eapli.base.AlSafePU.postgres" transaction-type="RESOURCE_LOCAL">
+        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+        <!--  Framework authentication entities (SystemUser, roles)  -->
+        <class>eapli.framework.infrastructure.authz.domain.model.SystemUser</class>
+        <class>eapli.framework.infrastructure.authz.domain.model.Role</class>
+        <class>eapli.framework.infrastructure.authz.domain.model.RoleSet</class>
+        <class>eapli.framework.infrastructure.authz.domain.model.RoleAssignment</class>
+        <!--  Domain entities  -->
+        <class>domain.User</class>
+        <class>domain.EmailAddress</class>
+        <class>domain.AirTransportCompany</class>
+        <class>domain.CompanyCode</class>
+        <class>domain.enginemodel.EngineModel</class>
+        <class>domain.enginemodel.Thrust</class>
+        <class>domain.enginemodel.TSFC</class>
+        <class>domain.AirControlArea</class>
+        <class>domain.AirControlAreaCode</class>
+        <class>domain.GeographicBoundary</class>
+        <class>domain.WeatherData</class>
+        <class>domain.Airport</class>
+        <class>domain.ICAOCode</class>
+        <class>domain.IATACode</class>
+        <class>domain.AirportName</class>
+        <class>domain.AirportCoordinates</class>
+        <class>domain.Elevation</class>
+        <class>domain.Collaborator</class>
+        <class>domain.pilot.Pilot</class>
+        <properties>
+            <property name="jakarta.persistence.jdbc.driver"   value="org.postgresql.Driver"/>
+            <property name="jakarta.persistence.jdbc.url"      value="jdbc:postgresql://vsgate-s1.dei.isep.ipp.pt:10466/alsafe"/>
+            <property name="jakarta.persistence.jdbc.user"     value="postgres"/>
+            <property name="jakarta.persistence.jdbc.password" value="AXfIVQJIUOIc"/>
+            <property name="hibernate.dialect"                 value="org.hibernate.dialect.PostgreSQLDialect"/>
+            <property name="hibernate.hbm2ddl.auto"            value="update"/>
+            <property name="hibernate.show_sql"                value="false"/>
         </properties>
     </persistence-unit>
 </persistence>

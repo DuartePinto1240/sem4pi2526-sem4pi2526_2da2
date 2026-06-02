@@ -21,7 +21,16 @@ import java.util.HashMap;
  */
 public class Main {
 
-    private static final String PERSISTENCE_UNIT = "eapli.base.AlSafePU";
+    private static String loadPersistenceUnit() {
+        final java.util.Properties props = new java.util.Properties();
+        try (final java.io.InputStream is = Main.class
+                .getClassLoader().getResourceAsStream("application.properties")) {
+            if (is != null) props.load(is);
+        } catch (final java.io.IOException e) {
+            // fall back to default
+        }
+        return props.getProperty("persistence.persistenceUnit", "eapli.base.AlSafePU");
+    }
 
     /**
      * Starts the AlSafe application.
@@ -32,8 +41,9 @@ public class Main {
         printBanner();
 
         // 1. Configure AuthzRegistry — must be done before any bootstrap or login
+        final String persistenceUnit = loadPersistenceUnit();
         AuthzRegistry.configure(
-                new JpaAutoTxUserRepository(PERSISTENCE_UNIT, new HashMap<>()),
+                new JpaAutoTxUserRepository(persistenceUnit, new HashMap<>()),
                 new AlSafePasswordPolicy(),
                 new PlainTextEncoder()
         );
