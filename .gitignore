@@ -30,6 +30,7 @@ Thumbs.db
 out/
 
 # Database files (generated at runtime, not versioned)
+.env
 db/
 *.mv.db
 *.lock.db

@@ -28,11 +28,7 @@ import eapli.exemplo.app.common.console.BaseApp;
 import eapli.exemplo.app.common.console.presentation.authz.LoginUI;
 import eapli.exemplo.infrastructure.authz.AuthenticationCredentialHandler;
 import eapli.exemplo.infrastructure.persistence.PersistenceContext;
-import eapli.exemplo.usermanagement.application.eventhandlers.SignupAcceptedWatchDog;
 import eapli.exemplo.usermanagement.domain.ExemploPasswordPolicy;
-import eapli.exemplo.utentemanagement.application.eventhandlers.NewUserRegisteredFromSignupWatchDog;
-import eapli.exemplo.utentemanagement.domain.events.NewUserRegisteredFromSignupEvent;
-import eapli.exemplo.utentemanagement.domain.events.SignupAcceptedEvent;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.domain.model.PlainTextEncoder;
 import eapli.framework.infrastructure.pubsub.EventDispatcher;
@@ -81,10 +77,8 @@ public final class ExemploBackoffice extends BaseApp {
 		return "Back Office";
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	protected void doSetupEventHandlers(final EventDispatcher dispatcher) {
-		dispatcher.subscribe(new NewUserRegisteredFromSignupWatchDog(), NewUserRegisteredFromSignupEvent.class);
-		dispatcher.subscribe(new SignupAcceptedWatchDog(), SignupAcceptedEvent.class);
+		// no domain event handlers
 	}
 }

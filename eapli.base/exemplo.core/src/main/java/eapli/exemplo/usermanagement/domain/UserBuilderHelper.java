@@ -23,7 +23,6 @@
  */
 package eapli.exemplo.usermanagement.domain;
 
-import eapli.exemplo.utentemanagement.domain.SignupRequestBuilder;
 import eapli.framework.infrastructure.authz.domain.model.PlainTextEncoder;
 import eapli.framework.infrastructure.authz.domain.model.SystemUserBuilder;
 import eapli.framework.util.Utility;
@@ -41,9 +40,5 @@ public class UserBuilderHelper {
 
     public static SystemUserBuilder builder() {
         return new SystemUserBuilder(new ExemploPasswordPolicy(), new PlainTextEncoder());
-    }
-
-    public static SignupRequestBuilder signupBuilder() {
-        return new SignupRequestBuilder(new ExemploPasswordPolicy(), new PlainTextEncoder());
     }
 }

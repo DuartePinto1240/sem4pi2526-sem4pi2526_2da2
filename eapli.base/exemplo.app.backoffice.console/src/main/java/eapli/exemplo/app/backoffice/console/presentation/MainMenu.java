@@ -27,7 +27,6 @@ import eapli.exemplo.Application;
 import eapli.exemplo.app.backoffice.console.presentation.authz.AddUserUI;
 import eapli.exemplo.app.backoffice.console.presentation.authz.DeactivateUserAction;
 import eapli.exemplo.app.backoffice.console.presentation.authz.ListUsersAction;
-import eapli.exemplo.app.backoffice.console.presentation.utente.AcceptRefuseSignupRequestAction;
 import eapli.exemplo.app.common.console.presentation.authz.MyUserMenu;
 import eapli.exemplo.usermanagement.domain.ExemploRoles;
 import eapli.framework.actions.Actions;
@@ -58,7 +57,6 @@ public class MainMenu extends AbstractUI {
 	private static final int ADD_USER_OPTION = 1;
 	private static final int LIST_USERS_OPTION = 2;
 	private static final int DEACTIVATE_USER_OPTION = 3;
-	private static final int ACCEPT_REFUSE_SIGNUP_REQUEST_OPTION = 4;
 
 	// SETTINGS
 	private static final int SET_KITCHEN_ALERT_LIMIT_OPTION = 1;
@@ -142,8 +140,6 @@ public class MainMenu extends AbstractUI {
 		menu.addItem(ADD_USER_OPTION, "Add User", new AddUserUI()::show);
 		menu.addItem(LIST_USERS_OPTION, "List all Users", new ListUsersAction());
 		menu.addItem(DEACTIVATE_USER_OPTION, "Deactivate User", new DeactivateUserAction());
-		menu.addItem(ACCEPT_REFUSE_SIGNUP_REQUEST_OPTION, "Accept/Refuse Signup Request",
-				new AcceptRefuseSignupRequestAction());
 		menu.addItem(EXIT_OPTION, RETURN_LABEL, Actions.SUCCESS);
 
 		return menu;

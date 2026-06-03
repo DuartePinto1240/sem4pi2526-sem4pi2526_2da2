@@ -20,8 +20,6 @@
  */
 package eapli.exemplo.infrastructure.persistence;
 
-import eapli.exemplo.utentemanagement.repositories.UtenteRepository;
-import eapli.exemplo.utentemanagement.repositories.SignupRequestRepository;
 import eapli.framework.domain.repositories.TransactionalContext;
 import eapli.framework.infrastructure.authz.domain.repositories.UserRepository;
 
@@ -52,36 +50,6 @@ public interface RepositoryFactory {
      * @return
      */
     UserRepository users();
-
-    /**
-     *
-     * @param autoTx
-     *            the transactional context to enroll
-     * @return
-     */
-    UtenteRepository utentes(TransactionalContext autoTx);
-
-    /**
-     * repository will be created in auto transaction mode
-     *
-     * @return
-     */
-    UtenteRepository utentes();
-
-    /**
-     *
-     * @param autoTx
-     *            the transactional context to enroll
-     * @return
-     */
-    SignupRequestRepository signupRequests(TransactionalContext autoTx);
-
-    /**
-     * repository will be created in auto transaction mode
-     *
-     * @return
-     */
-    SignupRequestRepository signupRequests();
 
     TransactionalContext transactionalContext();
 }

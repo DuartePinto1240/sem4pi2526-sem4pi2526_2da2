@@ -23,8 +23,6 @@ package eapli.exemplo.persistence.impl.inmemory;
 import eapli.exemplo.infrastructure.persistence.RepositoryFactory;
 import eapli.exemplo.usermanagement.domain.ExemploRoles;
 import eapli.exemplo.usermanagement.domain.UserBuilderHelper;
-import eapli.exemplo.utentemanagement.repositories.SignupRequestRepository;
-import eapli.exemplo.utentemanagement.repositories.UtenteRepository;
 import eapli.framework.domain.repositories.TransactionalContext;
 import eapli.framework.infrastructure.authz.domain.repositories.UserRepository;
 import eapli.framework.infrastructure.authz.repositories.impl.inmemory.InMemoryUserRepository;
@@ -50,27 +48,6 @@ public abstract class InMemoryRepositoryFactory implements RepositoryFactory {
 	@Override
 	public UserRepository users() {
 		return users(null);
-	}
-
-	@Override
-	public UtenteRepository utentes(final TransactionalContext tx) {
-
-		return new InMemoryUtenteRepository();
-	}
-
-	@Override
-	public UtenteRepository utentes() {
-		return utentes(null);
-	}
-
-	@Override
-	public SignupRequestRepository signupRequests() {
-		return signupRequests(null);
-	}
-
-	@Override
-	public SignupRequestRepository signupRequests(final TransactionalContext tx) {
-		return new InMemorySignupRequestRepository();
 	}
 
 	@Override
