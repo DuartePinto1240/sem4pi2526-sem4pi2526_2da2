@@ -212,6 +212,11 @@ public class MainMenu extends AbstractUI {
         final String email = Console.readLine("  Email:");
         final String pass  = Console.readLine("  Password:");
 
+        if (email == null || email.isBlank() || pass == null || pass.isBlank()) {
+            System.out.println("\n  >> Email and password cannot be empty.");
+            return;
+        }
+
         final Optional<UserSession> result = loginController.login(email, pass);
 
         if (result.isPresent()) {
