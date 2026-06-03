@@ -147,6 +147,12 @@ public class CreateFlightPlanController {
                                        final LocalDateTime    departureDateTime,
                                        final List<FlightLeg>  legs) {
 
+        // US080.0 — flight ID must be unique (one plan per flight, no different pilots/aircraft)
+        if (flightPlanRepo.existsByFlightId(flightId)) {
+            throw new IllegalArgumentException(
+                    "A flight plan for flight '" + flightId + "' already exists.");
+        }
+
         // US080.1 — route must be active
         if (!route.isActive()) {
             throw new IllegalArgumentException(
