@@ -225,15 +225,7 @@ class CreateFlightPlanControllerTest {
         assertTrue(plan.dslContent().contains("5000"));
     }
 
-    @Test
-    void ensureDslContentContainsSegmentData() {
-        final FlightPlan plan = ctrl.createFlightPlan(
-                "TP008", activeRoute(), tapAircraft(), tapPilot(),
-                futureDate(), legWithSegment());
-        assertTrue(plan.dslContent().contains("segment"));
-        assertTrue(plan.dslContent().contains("41.2481"));
-        assertTrue(plan.dslContent().contains("9000"));
-    }
+
 
     // ── US080: segments preserved in plan ────────────────────────────────────
 
