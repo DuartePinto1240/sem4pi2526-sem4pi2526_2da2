@@ -21,6 +21,43 @@
 #include <pthread.h>
 #include <time.h>
 
+/* ───────────────────────────────────────────────────────────
+ * Spawns a watcher thread that joins the target thread and sets
+ * a flag when done. The caller polls the flag for up to
+ * timeout_ms milliseconds. Returns 0 if joined, -1 on timeout.
+ * ─────────────────────────────────────────────────────────── */
+
+typedef struct {
+    pthread_t  target;
+    volatile int joined;
+} JoinWatcher;
+
+static void *join_watcher(void *arg) {
+    JoinWatcher *w = (JoinWatcher *)arg;
+    pthread_join(w->target, NULL);
+    w->joined = 1;
+    return NULL;
+}
+
+static int timed_join(pthread_t tid, int timeout_ms) {
+    JoinWatcher w = { tid, 0 };
+    pthread_t watcher;
+    pthread_create(&watcher, NULL, join_watcher, &w);
+
+    int elapsed = 0;
+    while (!w.joined && elapsed < timeout_ms) {
+        usleep(10000); /* poll every 10 ms */
+        elapsed += 10;
+    }
+
+    if (!w.joined) {
+        pthread_detach(watcher);
+        return -1; /* timeout */
+    }
+    pthread_join(watcher, NULL);
+    return 0;
+}
+
 /* ── Test helpers ─────────────────────────────────────────── */
 
 static int tests_run    = 0;
@@ -251,12 +288,8 @@ void test_report_thread_exits_on_sim_done(void) {
 
     end_simulation(); /* sets t_sim_done=1 and broadcasts */
 
-    /* Use a timed join to detect hangs */
-    struct timespec deadline;
-    clock_gettime(CLOCK_REALTIME, &deadline);
-    deadline.tv_sec += 2; /* 2 second timeout */
-
-    int rc = pthread_timedjoin_np(tid, NULL, &deadline);
+    /* Use a timed join to detect hangs (2 second timeout) */
+    int rc = timed_join(tid, 2000);
     ASSERT(rc == 0, "report thread did not exit within 2 seconds");
 }
 
@@ -292,11 +325,7 @@ void test_spurious_wakeup_does_not_exit_loop(void) {
     /* now really end simulation */
     end_simulation();
 
-    struct timespec deadline;
-    clock_gettime(CLOCK_REALTIME, &deadline);
-    deadline.tv_sec += 2;
-
-    int rc = pthread_timedjoin_np(tid, NULL, &deadline);
+    int rc = timed_join(tid, 2000);
     ASSERT(rc == 0, "thread should exit after real sim_done broadcast");
 }
 
