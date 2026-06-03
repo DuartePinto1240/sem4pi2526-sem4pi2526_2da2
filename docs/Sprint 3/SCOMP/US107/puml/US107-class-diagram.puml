@@ -1,0 +1,114 @@
+@startuml CD_US107
+
+title Component & Data Structure Diagram — US107
+
+package "simulation.c (parent process)" {
+
+    package "Global Synchronisation Primitives" {
+        object g_shm_mutex {
+            type: pthread_mutex_t
+            init: PTHREAD_MUTEX_INITIALIZER
+            protects: SharedSimulationData
+        }
+
+        object g_report_mutex {
+            type: pthread_mutex_t
+            init: PTHREAD_MUTEX_INITIALIZER
+            protects: g_report_cond access
+        }
+
+        object g_report_cond {
+            type: pthread_cond_t
+            init: PTHREAD_COND_INITIALIZER
+            purpose: US107 — signals report\ngenerator on violation
+        }
+
+        object g_done_mutex {
+            type: pthread_mutex_t
+            init: PTHREAD_MUTEX_INITIALIZER
+            protects: g_sim_done flag
+        }
+
+        object g_sim_done {
+            type: volatile int
+            values: 0 = running\n1 = finished
+        }
+    }
+
+    package "Threads (US106)" {
+        object violation_detector_thread {
+            function: violation_detector_thread()
+            loop: while (!g_sim_done)
+            reads: shm->positions[]
+            writes: shm->total_violations\nreport->violations[]
+            signals: pthread_cond_signal(g_report_cond)
+            sends: SIGUSR1 to flight processes
+        }
+
+        object report_generator_thread {
+            function: report_generator_thread()
+            waits: pthread_cond_wait(g_report_cond)
+            logs: violation events
+            writes: final report file (US109)
+        }
+
+        object simulation_controller_thread {
+            function: simulation_controller_thread()
+            controls: step-by-step progression
+            sets: g_sim_done = 1
+            broadcasts: pthread_cond_broadcast(g_report_cond)
+        }
+    }
+
+    package "Shared Data" {
+        object ThreadArgs {
+            config: const SimulationConfig*
+            states: FlightState*
+            report: SimulationReport*
+            shm: SharedSimulationData*
+        }
+
+        object SharedSimulationData {
+            positions[MAX_FLIGHTS]: Position
+            steps_completed[MAX_FLIGHTS]: int
+            active[MAX_FLIGHTS]: int
+            violations[MAX_FLIGHTS]: int
+            total_violations: int
+            abort_flag: int
+        }
+
+        object SimulationReport {
+            total_flights: int
+            total_violations: int
+            pass: int
+            violations[MAX_VIOLATIONS]: ViolationEvent
+            flight_statuses[MAX_FLIGHTS]: int
+        }
+    }
+}
+
+' US107 core relationship
+violation_detector_thread --> g_report_mutex : lock/unlock
+violation_detector_thread --> g_report_cond  : pthread_cond_signal
+report_generator_thread   --> g_report_mutex : lock (held during wait)
+report_generator_thread   --> g_report_cond  : pthread_cond_wait
+
+' shared memory protection
+violation_detector_thread --> g_shm_mutex         : lock/unlock
+violation_detector_thread --> SharedSimulationData : reads positions\nwrites violations
+
+' sim done
+simulation_controller_thread --> g_done_mutex   : lock/unlock
+simulation_controller_thread --> g_sim_done     : sets to 1
+simulation_controller_thread --> g_report_cond  : pthread_cond_broadcast
+
+' thread args
+violation_detector_thread    --> ThreadArgs : reads
+report_generator_thread      --> ThreadArgs : reads
+simulation_controller_thread --> ThreadArgs : reads
+
+' report and shm
+ThreadArgs --> SharedSimulationData : shm*
+ThreadArgs --> SimulationReport     : report*
+
+@enduml

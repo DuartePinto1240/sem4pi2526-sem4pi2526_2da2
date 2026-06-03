@@ -1,0 +1,58 @@
+@startuml SD_US107
+
+title Sequence Diagram — US107: Notify Report Thread via Condition Variables
+
+participant "violation_detector\n_thread" as VD
+participant "g_shm_mutex\n(pthread_mutex_t)" as SHMM
+participant "g_report_mutex\n(pthread_mutex_t)" as RM
+participant "g_report_cond\n(pthread_cond_t)" as COND
+participant "report_generator\n_thread" as RG
+
+== Initialisation (spawn_parent_threads) ==
+
+note over RG: pthread_cond_wait blocks\nwaiting for violations
+
+RG -> RM : pthread_mutex_lock(&g_report_mutex)
+RG -> COND : pthread_cond_wait(&g_report_cond, &g_report_mutex)
+note over RG: thread sleeps —\nmutex released atomically
+
+== Violation Detected ==
+
+VD -> SHMM : pthread_mutex_lock(&g_shm_mutex)
+note over VD: scan shm->positions[]\nfor pairs < safety_threshold_m
+VD -> VD : dist = compute_distance(pos_i, pos_j)
+
+alt dist < safety_threshold_m
+
+    VD -> VD : shm->total_violations++\nreport->total_violations++\nreport->flight_statuses[i/j] = 1\nlog ViolationEvent
+    VD -> VD : kill(states[i].pid, SIGUSR1)\nkill(states[j].pid, SIGUSR1)
+
+    VD -> SHMM : pthread_mutex_unlock(&g_shm_mutex)
+
+    note over VD: US107 — notify report thread
+
+    VD -> RM : pthread_mutex_lock(&g_report_mutex)
+    VD -> COND : pthread_cond_signal(&g_report_cond)
+    VD -> RM : pthread_mutex_unlock(&g_report_mutex)
+
+    == Report Thread Wakes Up ==
+
+    COND -> RG : [woken by signal]
+    note over RG: re-acquires g_report_mutex\nautomatically
+    RG -> RG : log violation event\n(total_violations printed)
+    RG -> COND : pthread_cond_wait(&g_report_cond, &g_report_mutex)
+    note over RG: blocks again waiting\nfor next violation
+
+else dist >= safety_threshold_m
+    VD -> SHMM : pthread_mutex_unlock(&g_shm_mutex)
+end
+
+== Simulation Ends (SimulationController) ==
+
+note over VD: g_sim_done = 1\npthread_cond_broadcast
+COND -> RG : [woken by broadcast]
+RG -> RM : pthread_mutex_unlock(&g_report_mutex)
+RG -> RG : write_report() to file
+note over RG: US109 — final report written
+
+@enduml
