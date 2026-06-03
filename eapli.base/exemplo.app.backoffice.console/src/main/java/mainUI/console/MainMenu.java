@@ -124,7 +124,7 @@ public class MainMenu extends AbstractUI {
     }
 
     private void printLogoutExit() {
-        System.out.println("  ║  9.  Logout                              ║");
+        System.out.println("  ║  99.  Logout                             ║");
         System.out.println("  ║  0.  Exit                                ║");
     }
 
@@ -211,6 +211,11 @@ public class MainMenu extends AbstractUI {
         System.out.println("\n  --- Login ---");
         final String email = Console.readLine("  Email:");
         final String pass  = Console.readLine("  Password:");
+
+        if (email == null || email.isBlank() || pass == null || pass.isBlank()) {
+            System.out.println("\n  >> Email and password cannot be empty.");
+            return;
+        }
 
         final Optional<UserSession> result = loginController.login(email, pass);
 

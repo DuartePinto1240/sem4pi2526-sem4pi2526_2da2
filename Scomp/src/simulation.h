@@ -2,8 +2,7 @@
 #define SIMULATION_H
 
 #include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include <sys/mman.h>
 #include <semaphore.h>
 #include <pthread.h>
 #include <signal.h>
@@ -38,7 +37,7 @@ typedef struct {
 /* -----------------------------------------
  * Shared Memory Layout  (US105)
  *
- * One shmget() segment holds the state shared by the parent
+ * One shm_open() segment holds the state shared by the parent
  * process and all child flight processes.  Each child writes
  * only to its own slot (positions[i], steps_completed[i],
  * active[i]) so no mutex is needed for those writes.
@@ -105,11 +104,10 @@ int validate_parameters(const SimulationConfig *config);
 
 /* -- US105: Initialisation -- */
 
-/* Allocate and attach a shared memory segment (shmget/shmat).
+/* Allocate and map a shared memory segment (shm_open/mmap).
  * Zeroes all fields; sets active[i]=1 for first num_flights entries.
- * Stores the shmid in *out_shmid.
- * Returns a pointer to the attached segment, or NULL on error. */
-SharedSimulationData *init_shared_memory(int num_flights, int *out_shmid);
+ * Returns a pointer to the mapped segment, or NULL on error. */
+SharedSimulationData *init_shared_memory(int num_flights);
 
 /* Create one named semaphore per flight (e.g. "/flight_0").
  * Each semaphore is initialised to 0 so children block immediately
@@ -128,11 +126,10 @@ int spawn_parent_threads(pthread_t *out_tids,
                          SimulationReport *report,
                          SharedSimulationData *shm);
 
-/* Detach and remove the shared memory segment (shmdt + shmctl IPC_RMID).
+/* Unmap and unlink the shared memory segment (munmap + shm_unlink).
  * Unlinks all named semaphores stored in states[].sem_name.
  * Joins all parent threads listed in tids[0..2]. */
-void cleanup_simulation(int shmid,
-                        SharedSimulationData *shm,
+void cleanup_simulation(SharedSimulationData *shm,
                         FlightState *states,
                         int num_flights,
                         pthread_t *tids);

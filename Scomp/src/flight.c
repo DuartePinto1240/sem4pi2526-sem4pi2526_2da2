@@ -8,7 +8,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <semaphore.h>
-#include <sys/shm.h>
 
 /* ================================================================
  * Per-Flight JSON Config Registry
@@ -495,19 +494,12 @@ Position compute_next_position(int flight_id, int step, int total_steps) {
  * ================================================================ */
 
 void execute_flight(int flight_id,
-                    int shmid,
+                    SharedSimulationData *shm,
                     int total_steps,
                     int time_step_seconds) {
 
     signal(SIGUSR1, handle_sigusr1);
     signal(SIGTERM, handle_sigterm);
-
-    /* attach shared memory */
-    SharedSimulationData *shm = shmat(shmid, NULL, 0);
-    if (shm == (void *)-1) {
-        perror("[FLIGHT] shmat");
-        exit(1);
-    }
 
     /* open the named semaphore created by the parent */
     char sem_name[32];
@@ -515,7 +507,6 @@ void execute_flight(int flight_id,
     sem_t *step_sem = sem_open(sem_name, 0);
     if (step_sem == SEM_FAILED) {
         perror("[FLIGHT] sem_open");
-        shmdt(shm);
         exit(1);
     }
 
@@ -596,7 +587,6 @@ void execute_flight(int flight_id,
     shm->active[flight_id] = 0;
 
     sem_close(step_sem);
-    shmdt(shm);
 
     printf("[FLIGHT %d] Finished | lat=%.4f lon=%.4f alt=%.1f m | "
            "Remaining fuel: %.1f kg (%.1f%% of initial)\n",

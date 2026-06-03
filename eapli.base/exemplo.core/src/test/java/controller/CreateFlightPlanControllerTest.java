@@ -176,6 +176,19 @@ class CreateFlightPlanControllerTest {
         assertTrue(flightPlanRepo.existsByFlightId("TP002"));
     }
 
+    // ── US080: duplicate flight ID rejected (one plan per flight) ────────────
+
+    @Test
+    void ensureDuplicateFlightIdIsRejected() {
+        ctrl.createFlightPlan(
+                "TP-DUP", activeRoute(), tapAircraft(), tapPilot(),
+                futureDate(), oneValidLeg());
+        assertThrows(IllegalArgumentException.class, () ->
+                ctrl.createFlightPlan(
+                        "TP-DUP", activeRoute(), tapAircraft(), tapPilot(),
+                        futureDate(), oneValidLeg()));
+    }
+
     // ── US080.6: correct metadata stored ─────────────────────────────────────
 
     @Test

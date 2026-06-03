@@ -24,7 +24,7 @@ import java.util.Set;
 public class ATCCServer {
 
     private static final int    PORT             = 2225;
-    private static final String PERSISTENCE_UNIT = "eapli.base.AlSafePU";
+    private static final String PERSISTENCE_UNIT = "eapli.base.AlSafePU.postgres";
 
     public static void main(final String[] args) {
         System.out.println("[SERVER] AISafe ATCC Server starting on port " + PORT);

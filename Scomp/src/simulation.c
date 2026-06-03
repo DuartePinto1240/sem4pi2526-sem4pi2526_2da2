@@ -8,8 +8,7 @@
 #include <signal.h>
 #include <math.h>
 #include <sys/wait.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include <sys/mman.h>
 #include <semaphore.h>
 #include <pthread.h>
 #include <fcntl.h>
@@ -76,19 +75,30 @@ double compute_distance(const Position *p1, const Position *p2) {
  * US105 -- Shared Memory Initialisation
  * ----------------------------------------- */
 
-SharedSimulationData *init_shared_memory(int num_flights, int *out_shmid) {
-    int shmid = shmget(IPC_PRIVATE,
-                       sizeof(SharedSimulationData),
-                       IPC_CREAT | 0666);
-    if (shmid == -1) {
-        perror("[MAIN] shmget");
+SharedSimulationData *init_shared_memory(int num_flights) {
+    shm_unlink("/aisafe_sim"); /* remove stale segment if present */
+
+    int fd = shm_open("/aisafe_sim", O_CREAT | O_EXCL | O_RDWR, 0644);
+    if (fd == -1) {
+        perror("[MAIN] shm_open");
         return NULL;
     }
 
-    SharedSimulationData *shm = shmat(shmid, NULL, 0);
-    if (shm == (void *)-1) {
-        perror("[MAIN] shmat");
-        shmctl(shmid, IPC_RMID, NULL);
+    if (ftruncate(fd, sizeof(SharedSimulationData)) == -1) {
+        perror("[MAIN] ftruncate");
+        close(fd);
+        shm_unlink("/aisafe_sim");
+        return NULL;
+    }
+
+    SharedSimulationData *shm = mmap(NULL, sizeof(SharedSimulationData),
+                                      PROT_READ | PROT_WRITE,
+                                      MAP_SHARED, fd, 0);
+    close(fd); /* fd já não é necessário após mmap */
+
+    if (shm == MAP_FAILED) {
+        perror("[MAIN] mmap");
+        shm_unlink("/aisafe_sim");
         return NULL;
     }
 
@@ -96,9 +106,8 @@ SharedSimulationData *init_shared_memory(int num_flights, int *out_shmid) {
     for (int i = 0; i < num_flights; i++)
         shm->active[i] = 1;
 
-    *out_shmid = shmid;
-    printf("[MAIN] Shared memory allocated (shmid=%d, size=%zu bytes)\n",
-           shmid, sizeof(SharedSimulationData));
+    printf("[MAIN] Shared memory allocated (/aisafe_sim, size=%zu bytes)\n",
+           sizeof(SharedSimulationData));
     return shm;
 }
 
@@ -368,18 +377,17 @@ int spawn_parent_threads(pthread_t *out_tids,
  * US105 -- Cleanup
  * ----------------------------------------- */
 
-void cleanup_simulation(int shmid,
-                        SharedSimulationData *shm,
+void cleanup_simulation(SharedSimulationData *shm,
                         FlightState *states,
                         int num_flights,
                         pthread_t *tids) {
     for (int i = 0; i < 3; i++)
         pthread_join(tids[i], NULL);
 
-    if (shm && shm != (void *)-1) {
-        shmdt(shm);
-        shmctl(shmid, IPC_RMID, NULL);
-        printf("[MAIN] Shared memory removed (shmid=%d)\n", shmid);
+    if (shm && shm != MAP_FAILED) {
+        munmap(shm, sizeof(SharedSimulationData));
+        shm_unlink("/aisafe_sim");
+        printf("[MAIN] Shared memory removed (/aisafe_sim)\n");
     }
 
     for (int i = 0; i < num_flights; i++) {
@@ -578,26 +586,25 @@ int start_simulation(const SimulationConfig *config,
     memset(states, 0, sizeof(FlightState) * config->num_flights);
 
     /* US105.3 -- allocate shared memory */
-    int shmid;
-    SharedSimulationData *shm = init_shared_memory(config->num_flights, &shmid);
-    if (!shm) return -1;
+    SharedSimulationData *shm = init_shared_memory(config->num_flights);
+        if (!shm) return -1;
 
-    /* US105.4 -- create per-flight semaphores */
-    if (init_semaphores(states, config->num_flights) != 0) {
-        shmdt(shm);
-        shmctl(shmid, IPC_RMID, NULL);
-        return -1;
-    }
+        /* US105.4 -- create per-flight semaphores */
+        if (init_semaphores(states, config->num_flights) != 0) {
+            munmap(shm, sizeof(SharedSimulationData));
+            shm_unlink("/aisafe_sim");
+            return -1;
+        }
 
-    /* US105.1 / US105.5 -- spawn parent threads (US106) */
-    pthread_t parent_threads[3];
-    if (spawn_parent_threads(parent_threads, config, states, report, shm) != 0) {
-        shmdt(shm);
-        shmctl(shmid, IPC_RMID, NULL);
-        for (int i = 0; i < config->num_flights; i++)
-            sem_unlink(states[i].sem_name);
-        return -1;
-    }
+        /* US105.1 / US105.5 -- spawn parent threads (US106) */
+        pthread_t parent_threads[3];
+        if (spawn_parent_threads(parent_threads, config, states, report, shm) != 0) {
+            munmap(shm, sizeof(SharedSimulationData));
+            shm_unlink("/aisafe_sim");
+            for (int i = 0; i < config->num_flights; i++)
+                sem_unlink(states[i].sem_name);
+            return -1;
+        }
 
     /* US105.2 -- fork one child per flight */
     for (int i = 0; i < config->num_flights; i++) {
@@ -607,16 +614,15 @@ int start_simulation(const SimulationConfig *config,
         pid_t pid = fork();
         if (pid < 0) {
             perror("[MAIN] fork error");
-            cleanup_simulation(shmid, shm, states, config->num_flights,
-                               parent_threads);
+            cleanup_simulation(shm, states, config->num_flights,
+                                           parent_threads);
             return -1;
         }
 
         if (pid == 0) {
-            shmdt(shm);
-            execute_flight(i, shmid,
-                           config->total_steps,
-                           config->time_step_seconds);
+                    execute_flight(i, shm,
+                                   config->total_steps,
+                                   config->time_step_seconds);
             /* never returns */
         }
 
@@ -643,7 +649,7 @@ int start_simulation(const SimulationConfig *config,
 
     report->pass = (report->total_violations < config->max_violations) ? 1 : 0;
 
-    cleanup_simulation(shmid, shm, states, config->num_flights, parent_threads);
+    cleanup_simulation(shm, states, config->num_flights, parent_threads);
 
     return 0;
 }

@@ -106,10 +106,9 @@ void handle_sigusr1(int sig);
 void handle_sigterm(int sig);
 
 /* Entry point for a child flight process (US105).
- * shmid -- shared memory segment ID; child calls shmat(shmid).
  * Step semaphore name derived as "/flight_<flight_id>". */
 void execute_flight(int flight_id,
-                    int shmid,
+                    SharedSimulationData *shm,
                     int total_steps,
                     int time_step_seconds);
 

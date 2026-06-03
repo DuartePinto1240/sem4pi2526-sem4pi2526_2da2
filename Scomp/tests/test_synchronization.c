@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <sys/shm.h>
+#include <sys/mman.h>
 #include <semaphore.h>
 #include <fcntl.h>
 #include <time.h>
@@ -13,9 +13,7 @@
 #include "../src/simulation.h"
 #include "../src/flight.h"
 
-/* -------------------------------------------------
- * Test helpers
- * ------------------------------------------------- */
+ // Test helpers
 
 static int tests_run    = 0;
 static int tests_passed = 0;
@@ -45,16 +43,13 @@ static int tests_failed = 0;
         else       { FAIL(msg); } \
     } while(0)
 
-/* -------------------------------------------------
- * US103.1 -- synchronize_step posts semaphore and
- *             child advances steps_completed
- * ------------------------------------------------- */
+/* US103.1 -- synchronize_step posts semaphore and
+ *             child advances steps_completed */
 
 void test_synchronize_step_receives_one_position(void) {
     TEST("synchronize_step completes one active flight step");
 
-    int shmid;
-    SharedSimulationData *shm = init_shared_memory(1, &shmid);
+    SharedSimulationData *shm = init_shared_memory(1);
     assert(shm != NULL);
 
     FlightState states[1];
@@ -75,9 +70,7 @@ void test_synchronize_step_receives_one_position(void) {
         sem_t *cs = sem_open(states[0].sem_name, 0);
         sem_wait(cs);
         sem_close(cs);
-        SharedSimulationData *cshm = shmat(shmid, NULL, 0);
-        cshm->steps_completed[0] = 1;
-        shmdt(cshm);
+        shm->steps_completed[0] = 1;
         exit(0);
     }
 
@@ -88,22 +81,19 @@ void test_synchronize_step_receives_one_position(void) {
     int status;
     waitpid(pid, &status, 0);
 
-    shmdt(shm);
-    shmctl(shmid, IPC_RMID, NULL);
+    munmap(shm, sizeof(SharedSimulationData));
+    shm_unlink("/aisafe_sim");
     sem_unlink(states[0].sem_name);
 
     ASSERT(updates == 1, "expected 1 step completion");
 }
 
-/* -------------------------------------------------
- * US103.2 -- synchronize_step stores position from shm
- * ------------------------------------------------- */
+ // US103.2 -- synchronize_step stores position from shm
 
 void test_synchronize_step_updates_current_position(void) {
     TEST("synchronize_step copies position from shared memory");
 
-    int shmid;
-    SharedSimulationData *shm = init_shared_memory(1, &shmid);
+    SharedSimulationData *shm = init_shared_memory(1);
     assert(shm != NULL);
 
     FlightState states[1];
@@ -126,10 +116,8 @@ void test_synchronize_step_updates_current_position(void) {
         sem_t *cs = sem_open(states[0].sem_name, 0);
         sem_wait(cs);
         sem_close(cs);
-        SharedSimulationData *cshm = shmat(shmid, NULL, 0);
-        cshm->positions[0]      = expected;
-        cshm->steps_completed[0] = 1;
-        shmdt(cshm);
+        shm->positions[0] = expected;
+        shm->steps_completed[0] = 1;
         exit(0);
     }
 
@@ -143,22 +131,19 @@ void test_synchronize_step_updates_current_position(void) {
               fabs(shm->positions[0].longitude - expected.longitude) < 1e-6 &&
               fabs(shm->positions[0].altitude  - expected.altitude)  < 1e-6);
 
-    shmdt(shm);
-    shmctl(shmid, IPC_RMID, NULL);
+    munmap(shm, sizeof(SharedSimulationData));
+    shm_unlink("/aisafe_sim");
     sem_unlink(states[0].sem_name);
 
     ASSERT(ok, "position not copied from shared memory");
 }
 
-/* -------------------------------------------------
- * US103.3 -- skips inactive flights
- * ------------------------------------------------- */
+ // US103.3 -- skips inactive flights
 
 void test_synchronize_step_skips_inactive(void) {
     TEST("synchronize_step skips inactive flights");
 
-    int shmid;
-    SharedSimulationData *shm = init_shared_memory(2, &shmid);
+    SharedSimulationData *shm = init_shared_memory(2);
     assert(shm != NULL);
 
     FlightState states[2];
@@ -184,9 +169,7 @@ void test_synchronize_step_skips_inactive(void) {
         sem_t *cs = sem_open(states[0].sem_name, 0);
         sem_wait(cs);
         sem_close(cs);
-        SharedSimulationData *cshm = shmat(shmid, NULL, 0);
-        cshm->steps_completed[0] = 1;
-        shmdt(cshm);
+        shm->steps_completed[0] = 1;
         exit(0);
     }
 
@@ -196,22 +179,19 @@ void test_synchronize_step_skips_inactive(void) {
     int status;
     waitpid(pid, &status, 0);
 
-    shmdt(shm);
-    shmctl(shmid, IPC_RMID, NULL);
+    munmap(shm, sizeof(SharedSimulationData));
+    shm_unlink("/aisafe_sim");
     sem_unlink(states[0].sem_name);
 
     ASSERT(updates == 1, "should only count 1 active flight");
 }
 
-/* -------------------------------------------------
- * US103.4 -- multiple flights all complete
- * ------------------------------------------------- */
+ // US103.4 -- multiple flights all complete
 
 void test_synchronize_step_multiple_flights(void) {
     TEST("synchronize_step handles 3 concurrent flights");
 
-    int shmid;
-    SharedSimulationData *shm = init_shared_memory(3, &shmid);
+    SharedSimulationData *shm = init_shared_memory(3);
     assert(shm != NULL);
 
     FlightState states[3];
@@ -235,9 +215,7 @@ void test_synchronize_step_multiple_flights(void) {
             sem_t *cs = sem_open(states[i].sem_name, 0);
             sem_wait(cs);
             sem_close(cs);
-            SharedSimulationData *cshm = shmat(shmid, NULL, 0);
-            cshm->steps_completed[i] = 1;
-            shmdt(cshm);
+            shm->steps_completed[i] = 1;
             exit(0);
         }
         states[i].pid = pids[i];
@@ -250,23 +228,20 @@ void test_synchronize_step_multiple_flights(void) {
         waitpid(pids[i], &status, 0);
     }
 
-    shmdt(shm);
-    shmctl(shmid, IPC_RMID, NULL);
+    munmap(shm, sizeof(SharedSimulationData));
+    shm_unlink("/aisafe_sim");
     for (int i = 0; i < 3; i++)
         sem_unlink(states[i].sem_name);
 
     ASSERT(updates == 3, "expected 3 step completions");
 }
 
-/* -------------------------------------------------
- * US103.5 -- abort_flag is visible to child
- * ------------------------------------------------- */
+ // US103.5 -- abort_flag is visible to child
 
 void test_abort_flag_visible_to_child(void) {
     TEST("abort_flag in shared memory visible to child process");
 
-    int shmid;
-    SharedSimulationData *shm = init_shared_memory(1, &shmid);
+    SharedSimulationData *shm = init_shared_memory(1);
     assert(shm != NULL);
 
     shm->abort_flag = 1;
@@ -274,25 +249,21 @@ void test_abort_flag_visible_to_child(void) {
     pid_t pid = fork();
     assert(pid >= 0);
     if (pid == 0) {
-        SharedSimulationData *cshm = shmat(shmid, NULL, 0);
-        int flag = cshm->abort_flag;
-        shmdt(cshm);
+        int flag = shm->abort_flag;
         exit(flag == 1 ? 0 : 1);
     }
 
     int status;
     waitpid(pid, &status, 0);
 
-    shmdt(shm);
-    shmctl(shmid, IPC_RMID, NULL);
+    munmap(shm, sizeof(SharedSimulationData));
+    shm_unlink("/aisafe_sim");
 
     ASSERT(WIFEXITED(status) && WEXITSTATUS(status) == 0,
            "child did not see abort_flag=1");
 }
 
-/* -------------------------------------------------
- * Main
- * ------------------------------------------------- */
+ // Main
 
 int main(void) {
     printf("\n=== US103 Synchronization Tests (Shared Memory + Semaphores) ===\n\n");
