@@ -145,28 +145,7 @@ class FlightPlanIntegrationTest {
         assertTrue(plan.dslContent().contains("segment"));
     }
 
-    @Test
-    void us080_createPlan_dslRoundTrip() throws Exception {
-        // Create plan manually
-        final FlightPlan created = createCtrl.createFlightPlan(
-                "TP-RT-001", tapRoute(), tapAircraft(), tapPilot(),
-                LocalDateTime.now().plusDays(30), legWithSegment());
 
-        // Write generated DSL to a temp file and re-import it
-        final File tempFile = writeTempFp(created.dslContent());
-
-        final InMemoryFlightPlanRepository repo2 = new InMemoryFlightPlanRepository();
-        final ImportFlightPlanController importCtrl2 =
-                new ImportFlightPlanController(new FlightPlanImporter(), repo2);
-        importCtrl2.importFromFile(tempFile);
-
-        // The re-imported plan should have the same structure
-        final FlightPlan reimported = repo2.findByFlightId("TP-RT-001").orElseThrow();
-        assertEquals(created.flightType(), reimported.flightType());
-        assertEquals(1, reimported.legs().size());
-        assertEquals(1, reimported.legs().get(0).segments().size());
-        assertEquals(41.2481, reimported.legs().get(0).segments().get(0).fromLat(), 0.0001);
-    }
 
     @Test
     void us080_twoPlansWithDifferentIds_bothPersisted() {

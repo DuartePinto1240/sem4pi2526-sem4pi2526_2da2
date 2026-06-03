@@ -49,7 +49,7 @@ public class DemoBootstrapper implements Action {
 	@Override
 	public boolean execute() {
 		// declare bootstrap actions
-		final Action[] actions = { new BackofficeUsersBootstrapper(), new UtenteBootstrapper(), };
+		final Action[] actions = { new BackofficeUsersBootstrapper(), };
 
 		authenticateForBootstrapping();
 
