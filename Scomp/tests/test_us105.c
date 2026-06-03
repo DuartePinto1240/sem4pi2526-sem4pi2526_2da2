@@ -13,53 +13,39 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include <sys/mman.h>
 #include <semaphore.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include "../src/simulation.h"
 
-/* ─────────────────────────────────────────────────────────────────
- * Test 1 — US105.3
+ /* Test 1 — US105.3
  * Verify that shared memory is allocated and accessible by a child.
- * The child writes a known value; the parent verifies it can read it.
- * ───────────────────────────────────────────────────────────────── */
+ * The child writes a known value; the parent verifies it can read it.*/
 
 void test_shared_memory_accessible_by_child(void) {
-    int shmid = shmget(IPC_PRIVATE,
-                       sizeof(SharedSimulationData),
-                       IPC_CREAT | 0666);
-    assert(shmid != -1);
-
-    SharedSimulationData *shm = shmat(shmid, NULL, 0);
-    assert(shm != (void *)-1);
+    SharedSimulationData *shm = init_shared_memory(1);
+    assert(shm != NULL);
     shm->total_violations = 0;
     shm->abort_flag       = 0;
 
     pid_t pid = fork();
     if (pid == 0) {
-        /* child attaches and writes a sentinel value */
-        SharedSimulationData *child_shm = shmat(shmid, NULL, 0);
-        assert(child_shm != (void *)-1);
-        child_shm->total_violations = 42;
-        shmdt(child_shm);
+        /* child: shm herdado via fork() -- escreve valor sentinela */
+        shm->total_violations = 42;
         exit(0);
     }
     waitpid(pid, NULL, 0);
 
-    /* parent must see the child's write */
     assert(shm->total_violations == 42);
-    shmdt(shm);
-    shmctl(shmid, IPC_RMID, NULL);
+    munmap(shm, sizeof(SharedSimulationData));
+    shm_unlink("/aisafe_sim");
     printf("PASS: test_shared_memory_accessible_by_child\n");
 }
 
-/* ─────────────────────────────────────────────────────────────────
- * Test 2 — US105.4
+ /* Test 2 — US105.4
  * Verify that the named semaphore blocks the child until the parent
- * posts.  A shared memory flag confirms the ordering.
- * ───────────────────────────────────────────────────────────────── */
+ * posts.  A shared memory flag confirms the ordering.*/
 
 void test_semaphore_synchronises_child(void) {
     const char *sem_name = "/test_sem_105";
@@ -87,10 +73,8 @@ void test_semaphore_synchronises_child(void) {
     printf("PASS: test_semaphore_synchronises_child\n");
 }
 
-/* ─────────────────────────────────────────────────────────────────
- * Test 3 — US105.1 / US105.5
- * Verify that the parent can spawn threads with pthread_create.
- * ───────────────────────────────────────────────────────────────── */
+ /* Test 3 — US105.1 / US105.5
+ * Verify that the parent can spawn threads with pthread_create.*/
 
 static int thread_ran = 0;
 
@@ -109,11 +93,10 @@ void test_parent_spawns_threads(void) {
     printf("PASS: test_parent_spawns_threads\n");
 }
 
-/* ─────────────────────────────────────────────────────────────────
- * Test 4 — US105.5
+
+ /* Test 4 — US105.5
  * Verify that a mutex correctly serialises concurrent increments,
- * producing the expected final count.
- * ───────────────────────────────────────────────────────────────── */
+ * producing the expected final count. */
 
 static pthread_mutex_t test_mutex   = PTHREAD_MUTEX_INITIALIZER;
 static int             shared_counter = 0;
@@ -139,9 +122,7 @@ void test_mutex_protects_shared_counter(void) {
     printf("PASS: test_mutex_protects_shared_counter\n");
 }
 
-/* ─────────────────────────────────────────────────────────────────
- * Main
- * ───────────────────────────────────────────────────────────────── */
+ // Main
 
 int main(void) {
     printf("=== US105 Acceptance Tests ===\n\n");
