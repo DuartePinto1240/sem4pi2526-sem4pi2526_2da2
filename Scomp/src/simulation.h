@@ -14,7 +14,8 @@
 #define MAX_HISTORY    100
 #define MAX_VIOLATIONS 50
 #define SEM_NPROC_NAME "/aisafe_nproc"
-#define SEM_BARRIER_NAME "/aisafe_barrier"
+#define SEM_BARRIER1_NAME "/aisafe_barrier1"
+#define SEM_BARRIER2_NAME "/aisafe_barrier2"
 
  // Data Structures
 
