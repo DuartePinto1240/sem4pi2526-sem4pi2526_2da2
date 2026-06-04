@@ -1,8 +1,7 @@
-// ─── domain/flightroute/ScheduledDatesTest.java ────────────────────────────
-
 package domain.flightroute;
 
 import org.junit.jupiter.api.Test;
+import java.lang.reflect.Constructor;
 import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -78,5 +77,14 @@ class ScheduledDatesTest {
     @Test
     void ensureToStringIsNotBlank() {
         assertFalse(new ScheduledDates(DEP, ARR).toString().isBlank());
+    }
+
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<ScheduledDates> ctor =
+                ScheduledDates.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final ScheduledDates instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 }

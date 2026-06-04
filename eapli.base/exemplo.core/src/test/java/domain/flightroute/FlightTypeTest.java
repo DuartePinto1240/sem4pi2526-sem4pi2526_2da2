@@ -1,8 +1,7 @@
-// ─── domain/flightroute/FlightTypeTest.java ────────────────────────────────
-
 package domain.flightroute;
 
 import org.junit.jupiter.api.Test;
+import java.lang.reflect.Constructor;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FlightTypeTest {
@@ -63,5 +62,14 @@ class FlightTypeTest {
     @Test
     void ensureToStringReturnsCharter() {
         assertEquals("CHARTER", FlightType.charter().toString());
+    }
+
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<FlightType> ctor =
+                FlightType.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final FlightType instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 }
