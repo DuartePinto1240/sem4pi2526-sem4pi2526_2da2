@@ -510,6 +510,14 @@ void execute_flight(int flight_id,
         exit(1);
     }
 
+    /* US108 -- abrir semáforos do barrier (criados pelo pai) */
+    sem_t *sem_nproc   = sem_open(SEM_NPROC_NAME,   0);
+    sem_t *sem_barrier = sem_open(SEM_BARRIER_NAME, 0);
+    if (sem_nproc == SEM_FAILED || sem_barrier == SEM_FAILED) {
+        perror("[FLIGHT] sem_open barrier");
+        exit(1);
+    }
+
     FlightPhysics phys;
     init_flight_physics(&phys, flight_id, total_steps);
 
@@ -572,6 +580,16 @@ void execute_flight(int flight_id,
         /* increment steps_completed so the parent detects the write */
         shm->steps_completed[flight_id] = step + 1;
 
+        /* US108 -- entrar no barrier */
+        sem_wait(sem_nproc);
+        shm->nproc_at_barrier++;
+        if (shm->nproc_at_barrier == shm->num_active_flights)
+            sem_post(sem_barrier);
+        sem_post(sem_nproc);
+
+        sem_wait(sem_barrier);
+        sem_post(sem_barrier);
+
         if (sigusr1_received) {
             printf("[FLIGHT %d] Proximity warning at step %d\n",
                    flight_id, step);
@@ -586,7 +604,17 @@ void execute_flight(int flight_id,
     /* mark this flight as finished in shared memory */
     shm->active[flight_id] = 0;
 
+    /* US108 -- saída antecipada: ajustar o contador do barrier */
+    sem_wait(sem_nproc);
+    shm->num_active_flights--;
+    if (shm->nproc_at_barrier >= shm->num_active_flights
+            && shm->num_active_flights > 0)
+        sem_post(sem_barrier);
+    sem_post(sem_nproc);
+
     sem_close(step_sem);
+    sem_close(sem_nproc);
+    sem_close(sem_barrier);
 
     printf("[FLIGHT %d] Finished | lat=%.4f lon=%.4f alt=%.1f m | "
            "Remaining fuel: %.1f kg (%.1f%% of initial)\n",

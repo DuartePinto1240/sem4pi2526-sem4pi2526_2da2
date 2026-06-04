@@ -103,8 +103,10 @@ SharedSimulationData *init_shared_memory(int num_flights) {
     }
 
     memset(shm, 0, sizeof(SharedSimulationData));
-    for (int i = 0; i < num_flights; i++)
-        shm->active[i] = 1;
+        for (int i = 0; i < num_flights; i++)
+            shm->active[i] = 1;
+        shm->num_active_flights = num_flights;
+        shm->nproc_at_barrier   = 0;
 
     printf("[MAIN] Shared memory allocated (/aisafe_sim, size=%zu bytes)\n",
            sizeof(SharedSimulationData));
@@ -136,6 +138,28 @@ int init_semaphores(FlightState *states, int num_flights) {
         sem_close(sem);
         printf("[MAIN] Semaphore created: %s\n", states[i].sem_name);
     }
+
+    /* US108 -- barrier semaphores */
+    sem_unlink(SEM_NPROC_NAME);
+    sem_unlink(SEM_BARRIER_NAME);
+
+    sem_t *sem_nproc = sem_open(SEM_NPROC_NAME, O_CREAT | O_EXCL, 0644, 1);
+    if (sem_nproc == SEM_FAILED) {
+        perror("[MAIN] sem_open nproc");
+        return -1;
+    }
+    sem_close(sem_nproc);
+    printf("[MAIN] Semaphore created: %s\n", SEM_NPROC_NAME);
+
+    sem_t *sem_barrier = sem_open(SEM_BARRIER_NAME, O_CREAT | O_EXCL, 0644, 0);
+    if (sem_barrier == SEM_FAILED) {
+        perror("[MAIN] sem_open barrier");
+        sem_unlink(SEM_NPROC_NAME);
+        return -1;
+    }
+    sem_close(sem_barrier);
+    printf("[MAIN] Semaphore created: %s\n", SEM_BARRIER_NAME);
+
     return 0;
 }
 
@@ -296,14 +320,22 @@ static void *simulation_controller_thread(void *arg) {
             }
         }
 
-        /* poll until all active flights complete this step */
+        /* US108 -- bloqueia passivamente até o último voo postar o barrier */
+        sem_t *sem_barrier = sem_open(SEM_BARRIER_NAME, 0);
+        sem_wait(sem_barrier);
+        sem_post(sem_barrier);  /* reabre para os filhos ainda a passar */
+        sem_close(sem_barrier);
+
+        /* reset do barrier para o próximo step */
+        sem_t *sem_nproc = sem_open(SEM_NPROC_NAME, 0);
+        sem_wait(sem_nproc);
+        args->shm->nproc_at_barrier = 0;
+        sem_post(sem_nproc);
+        sem_close(sem_nproc);
+
+        /* lê posições e marca voos que terminaram */
         for (int i = 0; i < args->config->num_flights; i++) {
             if (!args->states[i].active) continue;
-            while (args->shm->steps_completed[i] <= step
-                   && args->shm->active[i]) {
-                struct timespec ts = { 0, 1000000 }; /* 1 ms */
-                nanosleep(&ts, NULL);
-            }
             if (!args->shm->active[i]) {
                 args->states[i].active = 0;
                 printf("[SC] Flight %d inactive at step %d\n", i, step);
@@ -391,9 +423,14 @@ void cleanup_simulation(SharedSimulationData *shm,
     }
 
     for (int i = 0; i < num_flights; i++) {
-        sem_unlink(states[i].sem_name);
-        printf("[MAIN] Semaphore removed: %s\n", states[i].sem_name);
-    }
+            sem_unlink(states[i].sem_name);
+            printf("[MAIN] Semaphore removed: %s\n", states[i].sem_name);
+        }
+
+        /* US108 -- barrier semaphores */
+        sem_unlink(SEM_NPROC_NAME);
+        sem_unlink(SEM_BARRIER_NAME);
+        printf("[MAIN] Barrier semaphores removed\n");
 }
 
 /* -----------------------------------------

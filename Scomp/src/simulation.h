@@ -7,17 +7,16 @@
 #include <pthread.h>
 #include <signal.h>
 
-/* -----------------------------------------
- * Constants
- * ----------------------------------------- */
+
+ // Constants
 
 #define MAX_FLIGHTS    20
 #define MAX_HISTORY    100
 #define MAX_VIOLATIONS 50
+#define SEM_NPROC_NAME "/aisafe_nproc"
+#define SEM_BARRIER_NAME "/aisafe_barrier"
 
-/* -----------------------------------------
- * Data Structures
- * ----------------------------------------- */
+ // Data Structures
 
 /* Position of an aircraft at a given time step */
 typedef struct {
@@ -51,6 +50,8 @@ typedef struct {
     int      violations[MAX_FLIGHTS];      /* per-flight violation count      */
     int      total_violations;             /* global counter (mutex-protected)*/
     int      abort_flag;                   /* 1=simulation must stop          */
+    int      nproc_at_barrier;             /* flights that finished this step */
+    int      num_active_flights;           /* active flights (barrier target) */
 } SharedSimulationData;
 
 /* State of one flight in the simulation */
