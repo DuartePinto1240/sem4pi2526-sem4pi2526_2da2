@@ -341,8 +341,7 @@ static void *simulation_controller_thread(void *arg) {
             while (args->shm->steps_completed[i] <= step
                    && args->shm->active[i]
                    && !args->shm->abort_flag) {
-                struct timespec ts = {0, 1000000}; /* 1 ms */
-                nanosleep(&ts, NULL);
+                sleep(1);
             }
             if (!args->shm->active[i]) {
                 args->states[i].active = 0;
@@ -471,8 +470,7 @@ int synchronize_step(FlightState *states,
         if (!states[i].active) continue;
 
         while (shm->steps_completed[i] <= step && shm->active[i]) {
-            struct timespec ts = { 0, 1000000 };
-            nanosleep(&ts, NULL);
+            sleep(1);
         }
 
         if (!shm->active[i] && shm->steps_completed[i] <= step) {
