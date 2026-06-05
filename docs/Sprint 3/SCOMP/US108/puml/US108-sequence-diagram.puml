@@ -1,0 +1,73 @@
+@startuml
+title US108 — Two-Phase Turnstile Barrier Synchronisation
+
+participant "SimulationController\n(thread)" as SC
+participant "execute_flight(0)\n(child process)" as F0
+participant "execute_flight(1)\n(child process)" as F1
+participant "execute_flight(2)\n(child process)" as F2
+participant "SharedMemory\n(shm)" as SHM
+
+== Step N begins ==
+
+SC -> F0 : sem_post(/flight_0)
+SC -> F1 : sem_post(/flight_1)
+SC -> F2 : sem_post(/flight_2)
+
+activate F0
+activate F1
+activate F2
+
+F0 -> SHM : positions[0] = pos\nsteps_completed[0]++
+F1 -> SHM : positions[1] = pos\nsteps_completed[1]++
+F2 -> SHM : positions[2] = pos\nsteps_completed[2]++
+
+SC -> SC : sleep polling\non steps_completed[i]
+note right of SC: SC is NOT a barrier\nparticipant — polls passively
+
+== Phase 1: all flights arrive at barrier ==
+
+F0 -> F0 : sem_wait(sem_nproc)\nnproc_at_barrier++ → 1\nsem_post(sem_nproc)
+note right of F0: 1 < 3 → no post\nsem_wait(sem_barrier1)\nblocked
+
+F1 -> F1 : sem_wait(sem_nproc)\nnproc_at_barrier++ → 2\nsem_post(sem_nproc)
+note right of F1: 2 < 3 → no post\nsem_wait(sem_barrier1)\nblocked
+
+F2 -> F2 : sem_wait(sem_nproc)\nnproc_at_barrier++ → 3\nsem_post(sem_nproc)
+note right of F2: 3 == num_active_flights\nlast flight → sem_post(sem_barrier1)
+
+F2 -> F0 : sem_barrier1 token cascade\n(sem_wait → sem_post chain)
+F0 -> F1 : sem_barrier1 token cascade
+F1 -> F2 : sem_barrier1 token returns
+
+== Phase 2: all flights depart from barrier ==
+
+F0 -> F0 : sem_wait(sem_nproc)\nnproc_at_barrier-- → 2\nsem_post(sem_nproc)\nsem_wait(sem_barrier2)\nblocked
+
+F1 -> F1 : sem_wait(sem_nproc)\nnproc_at_barrier-- → 1\nsem_post(sem_nproc)\nsem_wait(sem_barrier2)\nblocked
+
+F2 -> F2 : sem_wait(sem_nproc)\nnproc_at_barrier-- → 0\nsem_post(sem_nproc)
+note right of F2: 0 == 0 → last out\nsem_post(sem_barrier2)
+
+F2 -> F0 : sem_barrier2 token cascade
+F0 -> F1 : sem_barrier2 token cascade
+F1 -> F2 : sem_barrier2 token returns
+
+deactivate F0
+deactivate F1
+deactivate F2
+
+== SimulationController detects step complete ==
+
+SC -> SHM : steps_completed[i] > step\nfor all i → polling done
+SC -> SHM : read positions[]\nupdate states[i].current
+SC -> SC : check violations\n(via ViolationDetector thread)
+
+note over SC: nproc_at_barrier == 0\n(reset naturally by Phase 2)\nReady for step N+1.
+
+== Step N+1 begins ==
+
+SC -> F0 : sem_post(/flight_0)
+SC -> F1 : sem_post(/flight_1)
+SC -> F2 : sem_post(/flight_2)
+
+@enduml

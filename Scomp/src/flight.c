@@ -510,6 +510,15 @@ void execute_flight(int flight_id,
         exit(1);
     }
 
+    /* US108 -- abrir semáforos do barrier (criados pelo pai) */
+    sem_t *sem_nproc = sem_open(SEM_NPROC_NAME,    0);
+    sem_t *sem_b1    = sem_open(SEM_BARRIER1_NAME, 0);
+    sem_t *sem_b2    = sem_open(SEM_BARRIER2_NAME, 0);
+    if (sem_nproc == SEM_FAILED || sem_b1 == SEM_FAILED || sem_b2 == SEM_FAILED) {
+        perror("[FLIGHT] sem_open barrier");
+        exit(1);
+    }
+
     FlightPhysics phys;
     init_flight_physics(&phys, flight_id, total_steps);
 
@@ -572,21 +581,44 @@ void execute_flight(int flight_id,
         /* increment steps_completed so the parent detects the write */
         shm->steps_completed[flight_id] = step + 1;
 
+        /* US108 -- two-phase turnstile barrier */
+        /* Fase 1: chegar ao barrier */
+        sem_wait(sem_nproc);
+        shm->nproc_at_barrier++;
+        if (shm->nproc_at_barrier == shm->num_active_flights)
+            sem_post(sem_b1);
+        sem_post(sem_nproc);
+        sem_wait(sem_b1);
+        sem_post(sem_b1);
+
         if (sigusr1_received) {
             printf("[FLIGHT %d] Proximity warning at step %d\n",
                    flight_id, step);
             sigusr1_received = 0;
         }
 
-        /* pace to real-time only for 1s steps */
-        if (time_step_seconds == 1)
-            sleep(time_step_seconds);
+         /* Fase 2: partir do barrier */
+        sem_wait(sem_nproc);
+        shm->nproc_at_barrier--;
+        if (shm->nproc_at_barrier == 0)
+            sem_post(sem_b2);
+        sem_post(sem_nproc);
+        sem_wait(sem_b2);
+        sem_post(sem_b2);
     }
 
     /* mark this flight as finished in shared memory */
     shm->active[flight_id] = 0;
 
+    /* US108 -- saída antecipada: ajustar o contador do barrier */
+    sem_wait(sem_nproc);
+    shm->num_active_flights--;
+    sem_post(sem_nproc);
+
     sem_close(step_sem);
+    sem_close(sem_nproc);
+    sem_close(sem_b1);
+    sem_close(sem_b2);
 
     printf("[FLIGHT %d] Finished | lat=%.4f lon=%.4f alt=%.1f m | "
            "Remaining fuel: %.1f kg (%.1f%% of initial)\n",

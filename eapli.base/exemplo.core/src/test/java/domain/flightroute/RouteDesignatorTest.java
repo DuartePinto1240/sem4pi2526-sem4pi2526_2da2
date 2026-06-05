@@ -1,8 +1,7 @@
-// ─── domain/flightroute/RouteDesignatorTest.java ───────────────────────────
-
 package domain.flightroute;
 
 import org.junit.jupiter.api.Test;
+import java.lang.reflect.Constructor;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RouteDesignatorTest {
@@ -119,5 +118,14 @@ class RouteDesignatorTest {
     @Test
     void ensureToStringReturnsValue() {
         assertEquals("TP123", new RouteDesignator("TP123").toString());
+    }
+
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<RouteDesignator> ctor =
+                RouteDesignator.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final RouteDesignator instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 }

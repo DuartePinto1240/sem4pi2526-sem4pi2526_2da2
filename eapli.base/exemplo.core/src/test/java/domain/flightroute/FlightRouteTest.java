@@ -156,4 +156,38 @@ class FlightRouteTest {
         final FlightRoute r = new FlightRoute("TP001", "TP", "OPO", "LIS", DATES);
         assertNull(r.deactivationDate());
     }
+    @Test
+    void ensureToStringContainsInactiveWhenDeactivated() {
+        final FlightRoute r = new FlightRoute("TP001", "TP", "OPO", "LIS", DATES);
+        r.deactivate(LocalDate.now());
+        assertTrue(r.toString().contains("INACTIVE"));
+    }
+    @Test
+    void ensureAllGettersReturnCorrectValues() {
+        final FlightRoute r = new FlightRoute("TP001", "TP", "OPO", "LIS", DATES);
+        assertNotNull(r.flightType());
+        assertEquals("OPO", r.originIata());
+        assertEquals("LIS", r.destinationIata());
+        assertEquals("TP", r.companyIata());
+        assertEquals(DATES, r.scheduledDates());
+        assertNull(r.recurringSchedule());
+        assertTrue(r.isActive());
+        assertNull(r.deactivationDate());
+    }
+
+    @Test
+    void ensureRegularRouteGettersReturnCorrectValues() {
+        final FlightRoute r = new FlightRoute("FR001", "FR", "OPO", "LIS", SCHEDULE);
+        assertNotNull(r.recurringSchedule());
+        assertNull(r.scheduledDates());
+        assertTrue(r.flightType().isRegular());
+    }
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final java.lang.reflect.Constructor<FlightRoute> ctor =
+                FlightRoute.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final FlightRoute instance = ctor.newInstance();
+        assertNotNull(instance);
+    }
 }

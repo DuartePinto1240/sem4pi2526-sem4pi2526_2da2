@@ -103,8 +103,10 @@ SharedSimulationData *init_shared_memory(int num_flights) {
     }
 
     memset(shm, 0, sizeof(SharedSimulationData));
-    for (int i = 0; i < num_flights; i++)
-        shm->active[i] = 1;
+        for (int i = 0; i < num_flights; i++)
+            shm->active[i] = 1;
+        shm->num_active_flights = num_flights;
+        shm->nproc_at_barrier   = 0;
 
     printf("[MAIN] Shared memory allocated (/aisafe_sim, size=%zu bytes)\n",
            sizeof(SharedSimulationData));
@@ -136,6 +138,39 @@ int init_semaphores(FlightState *states, int num_flights) {
         sem_close(sem);
         printf("[MAIN] Semaphore created: %s\n", states[i].sem_name);
     }
+
+    /* US108 -- barrier semaphores */
+    sem_unlink(SEM_NPROC_NAME);
+    sem_unlink(SEM_BARRIER1_NAME);
+    sem_unlink(SEM_BARRIER2_NAME);
+
+    sem_t *sem_nproc = sem_open(SEM_NPROC_NAME, O_CREAT | O_EXCL, 0644, 1);
+    if (sem_nproc == SEM_FAILED) {
+        perror("[MAIN] sem_open nproc");
+        return -1;
+    }
+    sem_close(sem_nproc);
+    printf("[MAIN] Semaphore created: %s\n", SEM_NPROC_NAME);
+
+    sem_t *sem_b1 = sem_open(SEM_BARRIER1_NAME, O_CREAT | O_EXCL, 0644, 0);
+    if (sem_b1 == SEM_FAILED) {
+        perror("[MAIN] sem_open barrier1");
+        sem_unlink(SEM_NPROC_NAME);
+        return -1;
+    }
+    sem_close(sem_b1);
+    printf("[MAIN] Semaphore created: %s\n", SEM_BARRIER1_NAME);
+
+    sem_t *sem_b2 = sem_open(SEM_BARRIER2_NAME, O_CREAT | O_EXCL, 0644, 0);
+    if (sem_b2 == SEM_FAILED) {
+        perror("[MAIN] sem_open barrier2");
+        sem_unlink(SEM_NPROC_NAME);
+        sem_unlink(SEM_BARRIER1_NAME);
+        return -1;
+    }
+    sem_close(sem_b2);
+    printf("[MAIN] Semaphore created: %s\n", SEM_BARRIER2_NAME);
+
     return 0;
 }
 
@@ -170,6 +205,7 @@ static void *violation_detector_thread(void *arg) {
 
         for (int i = 0; i < args->config->num_flights; i++) {
             if (!args->shm->active[i]) continue;
+            if (args->shm->steps_completed[i] == 0) continue;
             for (int j = i + 1; j < args->config->num_flights; j++) {
                 if (!args->shm->active[j]) continue;
 
@@ -278,6 +314,9 @@ static void *simulation_controller_thread(void *arg) {
     printf("[THREAD] SimulationController started (tid=%lu)\n",
            (unsigned long)pthread_self());
 
+    // US108 -- O SC não participa no barrier como processo igual.
+    // Apenas posta os semáforos individuais e faz polling em steps_completed.
+
     for (int step = 0; step < args->config->total_steps; step++) {
 
         if (args->shm->abort_flag) {
@@ -296,13 +335,13 @@ static void *simulation_controller_thread(void *arg) {
             }
         }
 
-        /* poll until all active flights complete this step */
+        /* Espera que todos os voos activos completem este step via polling */
         for (int i = 0; i < args->config->num_flights; i++) {
             if (!args->states[i].active) continue;
             while (args->shm->steps_completed[i] <= step
-                   && args->shm->active[i]) {
-                struct timespec ts = { 0, 1000000 }; /* 1 ms */
-                nanosleep(&ts, NULL);
+                   && args->shm->active[i]
+                   && !args->shm->abort_flag) {
+                sleep(1);
             }
             if (!args->shm->active[i]) {
                 args->states[i].active = 0;
@@ -327,6 +366,7 @@ static void *simulation_controller_thread(void *arg) {
 
     printf("[THREAD] SimulationController exiting\n");
     return NULL;
+
 }
 
 /* -----------------------------------------
@@ -391,9 +431,15 @@ void cleanup_simulation(SharedSimulationData *shm,
     }
 
     for (int i = 0; i < num_flights; i++) {
-        sem_unlink(states[i].sem_name);
-        printf("[MAIN] Semaphore removed: %s\n", states[i].sem_name);
-    }
+            sem_unlink(states[i].sem_name);
+            printf("[MAIN] Semaphore removed: %s\n", states[i].sem_name);
+        }
+
+        /* US108 -- barrier semaphores */
+        sem_unlink(SEM_NPROC_NAME);
+        sem_unlink(SEM_BARRIER1_NAME);
+        sem_unlink(SEM_BARRIER2_NAME);
+        printf("[MAIN] Barrier semaphores removed\n");
 }
 
 /* -----------------------------------------
@@ -424,8 +470,7 @@ int synchronize_step(FlightState *states,
         if (!states[i].active) continue;
 
         while (shm->steps_completed[i] <= step && shm->active[i]) {
-            struct timespec ts = { 0, 1000000 };
-            nanosleep(&ts, NULL);
+            sleep(1);
         }
 
         if (!shm->active[i] && shm->steps_completed[i] <= step) {
@@ -585,6 +630,9 @@ int start_simulation(const SimulationConfig *config,
     report->total_flights = config->num_flights;
     memset(states, 0, sizeof(FlightState) * config->num_flights);
 
+    signal(SIGUSR1, SIG_IGN);
+
+
     /* US105.3 -- allocate shared memory */
     SharedSimulationData *shm = init_shared_memory(config->num_flights);
         if (!shm) return -1;
@@ -596,7 +644,40 @@ int start_simulation(const SimulationConfig *config,
             return -1;
         }
 
-        /* US105.1 / US105.5 -- spawn parent threads (US106) */
+        /* US105.2 -- fork one child per flight ANTES de criar as threads,
+         * para que states[i].active já esteja a 1 quando o SC arrancar   */
+        for (int i = 0; i < config->num_flights; i++) {
+            fflush(stdout);
+            fflush(stderr);
+
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("[MAIN] fork error");
+                munmap(shm, sizeof(SharedSimulationData));
+                shm_unlink("/aisafe_sim");
+                for (int j = 0; j < config->num_flights; j++)
+                    sem_unlink(states[j].sem_name);
+                return -1;
+            }
+
+            if (pid == 0) {
+                execute_flight(i, shm,
+                               config->total_steps,
+                               config->time_step_seconds);
+                /* never returns */
+            }
+
+            states[i].flight_id     = i;
+            states[i].pid           = pid;
+            states[i].active        = 1;
+            states[i].history_count = 0;
+            states[i].violated      = 0;
+
+            printf("[MAIN] Forked flight %d (PID %d) sem=%s\n",
+                   i, pid, states[i].sem_name);
+        }
+
+        /* US105.1 / US105.5 -- spawn parent threads (US106) APÓS os forks */
         pthread_t parent_threads[3];
         if (spawn_parent_threads(parent_threads, config, states, report, shm) != 0) {
             munmap(shm, sizeof(SharedSimulationData));
@@ -605,36 +686,6 @@ int start_simulation(const SimulationConfig *config,
                 sem_unlink(states[i].sem_name);
             return -1;
         }
-
-    /* US105.2 -- fork one child per flight */
-    for (int i = 0; i < config->num_flights; i++) {
-        fflush(stdout);
-        fflush(stderr);
-
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("[MAIN] fork error");
-            cleanup_simulation(shm, states, config->num_flights,
-                                           parent_threads);
-            return -1;
-        }
-
-        if (pid == 0) {
-                    execute_flight(i, shm,
-                                   config->total_steps,
-                                   config->time_step_seconds);
-            /* never returns */
-        }
-
-        states[i].flight_id     = i;
-        states[i].pid           = pid;
-        states[i].active        = 1;
-        states[i].history_count = 0;
-        states[i].violated      = 0;
-
-        printf("[MAIN] Forked flight %d (PID %d) sem=%s\n",
-               i, pid, states[i].sem_name);
-    }
 
     /* US106: simulation loop runs in SimulationController thread.
      * Main process waits for all children to exit. */

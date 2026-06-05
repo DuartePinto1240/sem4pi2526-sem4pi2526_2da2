@@ -1,8 +1,7 @@
-// ─── domain/flightroute/RecurringScheduleTest.java ─────────────────────────
-
 package domain.flightroute;
 
 import org.junit.jupiter.api.Test;
+import java.lang.reflect.Constructor;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.Collections;
@@ -88,5 +87,14 @@ class RecurringScheduleTest {
                 DayOfWeek.FRIDAY, LocalTime.of(14, 0), LocalTime.of(15, 0));
         final RecurringSchedule rs = new RecurringSchedule(List.of(ENTRY, second));
         assertEquals(2, rs.entries().size());
+    }
+
+    @Test
+    void ensureProtectedNoArgConstructorExistsForJpa() throws Exception {
+        final Constructor<RecurringSchedule> ctor =
+                RecurringSchedule.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        final RecurringSchedule instance = ctor.newInstance();
+        assertNotNull(instance);
     }
 }
