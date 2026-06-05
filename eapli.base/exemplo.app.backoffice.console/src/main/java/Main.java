@@ -69,7 +69,7 @@ public class Main {
         System.out.println(" \\__,_|___|___/\\__,_|_| \\___|");
         System.out.println();
         System.out.println("  Flight Control Management System");
-        System.out.println("  Backoffice v1.0  |  Sprint 2");
+        System.out.println("  Backoffice v1.0  |  Sprint 3");
         System.out.println("  --------------------------------");
         System.out.println("  Initialising...");
         System.out.println();
