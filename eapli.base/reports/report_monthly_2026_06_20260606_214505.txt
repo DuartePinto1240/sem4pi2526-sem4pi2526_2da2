@@ -1,0 +1,27 @@
+========================================
+  AISafe — Flight Control Management
+  Monthly Statistics Report
+  Period : June 2026
+  Generated: 2026-06-06 21:45:05
+========================================
+
+SUMMARY
+  Total simulations run    : 2
+  Total flights simulated  : 4
+  Total violations         : 0
+  Simulations passed       : 2
+  Simulations failed       : 0
+  Pass rate                : 100.0%
+
+DETAIL
+  Report simulation_report_20260606_210017 | flights:  1 | violations:  0 | PASS
+      Flight 0   → OK
+  Report simulation_report_20260606_210055 | flights:  3 | violations:  0 | PASS
+      Flight 0   → OK
+      Flight 1   → OK
+      Flight 2   → OK
+
+========================================
+  AISafe Flight Control Management System
+  Report generated automatically — do not alter
+========================================

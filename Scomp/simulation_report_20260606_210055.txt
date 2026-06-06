@@ -1,0 +1,21 @@
+========================================
+  AISafe Simulation Report
+  Generated: Sat Jun  6 21:00:55 2026
+========================================
+
+--- Summary ---
+Total flights    : 3
+Total violations : 0
+Result           : PASS
+
+--- Flight Statuses ---
+Flight 0 : OK
+Flight 1 : OK
+Flight 2 : OK
+
+--- Safety Violation Events ---
+No violations recorded.
+
+========================================
+  End of Report
+========================================

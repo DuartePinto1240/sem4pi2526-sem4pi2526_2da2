@@ -591,6 +591,9 @@ void execute_flight(int flight_id,
         sem_wait(sem_b1);
         sem_post(sem_b1);
 
+        /* Abort check after barrier phase 1 */
+        if (shm->abort_flag || sigterm_received) break;
+
         if (sigusr1_received) {
             printf("[FLIGHT %d] Proximity warning at step %d\n",
                    flight_id, step);
@@ -605,14 +608,23 @@ void execute_flight(int flight_id,
         sem_post(sem_nproc);
         sem_wait(sem_b2);
         sem_post(sem_b2);
+
+        /* Abort check after barrier phase 2 */
+        if (shm->abort_flag || sigterm_received) break;
     }
 
     /* mark this flight as finished in shared memory */
     shm->active[flight_id] = 0;
 
-    /* US108 -- saída antecipada: ajustar o contador do barrier */
+    /* US108 -- saída antecipada: ajustar o contador do barrier.
+     * If other flights are blocked in phase 1 waiting for this flight,
+     * release them by posting sem_b1. */
     sem_wait(sem_nproc);
     shm->num_active_flights--;
+    if (shm->num_active_flights > 0 &&
+        shm->nproc_at_barrier >= shm->num_active_flights) {
+        sem_post(sem_b1);
+    }
     sem_post(sem_nproc);
 
     sem_close(step_sem);

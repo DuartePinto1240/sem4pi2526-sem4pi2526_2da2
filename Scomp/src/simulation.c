@@ -200,7 +200,16 @@ static void *violation_detector_thread(void *arg) {
     printf("[THREAD] ViolationDetector started (tid=%lu)\n",
            (unsigned long)pthread_self());
 
+    /* Track the last step at which each pair was flagged.
+     * This prevents firing multiple violations per step when
+     * the VD poll interval (10 ms) is shorter than time_step_seconds. */
+    int last_violation_step[MAX_FLIGHTS][MAX_FLIGHTS];
+    memset(last_violation_step, -1, sizeof(last_violation_step));
+
     while (!g_sim_done) {
+        /* Stop as soon as abort has been requested. */
+        if (args->shm->abort_flag) break;
+
         pthread_mutex_lock(&g_shm_mutex);
 
         for (int i = 0; i < args->config->num_flights; i++) {
@@ -209,11 +218,19 @@ static void *violation_detector_thread(void *arg) {
             for (int j = i + 1; j < args->config->num_flights; j++) {
                 if (!args->shm->active[j]) continue;
 
+                /* One violation per pair per step. */
+                int sc_i = args->shm->steps_completed[i];
+                int sc_j = args->shm->steps_completed[j];
+                int cur_step = (sc_i < sc_j) ? sc_i : sc_j;
+                if (cur_step <= last_violation_step[i][j]) continue;
+
                 double dist = compute_distance(
                         &args->shm->positions[i],
                         &args->shm->positions[j]);
 
                 if (dist < args->config->safety_threshold_m) {
+                    last_violation_step[i][j] = cur_step;
+
                     args->shm->total_violations++;
                     args->report->total_violations++;
                     args->report->flight_statuses[i] = 1;
@@ -223,7 +240,7 @@ static void *violation_detector_thread(void *arg) {
                         ViolationEvent *v =
                             &args->report->violations[
                                 args->report->total_violations - 1];
-                        v->timestamp   = (double)args->shm->steps_completed[i];
+                        v->timestamp   = (double)cur_step;
                         v->flight_id_1 = i;
                         v->flight_id_2 = j;
                         v->position_1  = args->shm->positions[i];
@@ -231,7 +248,7 @@ static void *violation_detector_thread(void *arg) {
                     }
 
                     printf("[VD] Violation: flight %d and flight %d"
-                           " -- dist=%.1f m\n", i, j, dist);
+                           " -- dist=%.1f m (step %d)\n", i, j, dist, cur_step);
 
                     kill(args->states[i].pid, SIGUSR1);
                     kill(args->states[j].pid, SIGUSR1);
@@ -250,6 +267,8 @@ static void *violation_detector_thread(void *arg) {
                             if (args->shm->active[k])
                                 kill(args->states[k].pid, SIGTERM);
                         }
+                        pthread_mutex_unlock(&g_shm_mutex);
+                        goto vd_done;
                     }
                 }
             }
@@ -258,7 +277,7 @@ static void *violation_detector_thread(void *arg) {
         pthread_mutex_unlock(&g_shm_mutex);
         usleep(10000); /* 10 ms */
     }
-
+vd_done:
     printf("[THREAD] ViolationDetector exiting\n");
     return NULL;
 }
@@ -294,7 +313,9 @@ static void *report_generator_thread(void *arg) {
 
     /* US109 -- write final report */
     printf("[RG] Simulation done -- writing final report\n");
-    write_report(args->report, NULL);
+    char report_fname[64];
+    make_report_filename(report_fname, sizeof(report_fname));
+    write_report(args->report, report_fname);
 
     printf("[THREAD] ReportGenerator exiting\n");
     return NULL;
@@ -321,6 +342,27 @@ static void *simulation_controller_thread(void *arg) {
 
         if (args->shm->abort_flag) {
             printf("[SC] Abort flag at step %d -- stopping\n", step);
+            /* Unblock flights waiting on step or barrier semaphores */
+            for (int i = 0; i < args->config->num_flights; i++) {
+                if (args->states[i].active) {
+                    sem_t *s = sem_open(args->states[i].sem_name, 0);
+                    if (s != SEM_FAILED) { sem_post(s); sem_close(s); }
+                }
+            }
+            {
+                sem_t *sb1 = sem_open(SEM_BARRIER1_NAME, 0);
+                if (sb1 != SEM_FAILED) {
+                    for (int i = 0; i < args->config->num_flights; i++)
+                        sem_post(sb1);
+                    sem_close(sb1);
+                }
+                sem_t *sb2 = sem_open(SEM_BARRIER2_NAME, 0);
+                if (sb2 != SEM_FAILED) {
+                    for (int i = 0; i < args->config->num_flights; i++)
+                        sem_post(sb2);
+                    sem_close(sb2);
+                }
+            }
             break;
         }
 

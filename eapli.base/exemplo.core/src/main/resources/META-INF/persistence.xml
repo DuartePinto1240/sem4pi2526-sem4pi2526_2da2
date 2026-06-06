@@ -26,6 +26,12 @@
         <class>domain.Elevation</class>
         <class>domain.Collaborator</class>
         <class>domain.pilot.Pilot</class>
+        <!--  Simulation report entities  -->
+        <class>domain.simulationreport.SimulationReport</class>
+        <class>domain.simulationreport.SimulationReportId</class>
+        <class>domain.simulationreport.FlightExecutionStatus</class>
+        <class>domain.simulationreport.SafetyViolationEvent</class>
+        <class>domain.simulationreport.OverallValidationResult</class>
         <properties>
             <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:file:./db/alsafe;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE"/>
             <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>

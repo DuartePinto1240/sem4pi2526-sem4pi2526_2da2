@@ -2,33 +2,61 @@
 actor "Flight Control Operator" as FCO
 participant MonthlyReportUI as UI <<boundary>>
 participant MonthlyReportController as CTRL <<control>>
+participant SimulationReportRepository as REPO <<repository>>
 participant MonthlyStatisticsReport as REPORT <<concrete>>
 participant AbstractReport as BASE <<template>>
 
 FCO -> UI : doShow()
 UI --> FCO : asks for year and month
 
-FCO -> UI : enters 2026 / 05
-UI -> CTRL : generateMonthlyReport(2026, 5)
+FCO -> UI : enters year / month
+UI -> CTRL : previewMonthlyReport(year, month)
 activate CTRL
 
-CTRL -> CTRL : load simulation results for May 2026
-CTRL -> REPORT : new MonthlyStatisticsReport(2026, 5, data)
-activate REPORT
+CTRL -> CTRL : validateMonth(month)
+note right: throws IllegalArgumentException\nif month < 1 or > 12
 
+CTRL -> REPO : findAll()
+activate REPO
+REPO --> CTRL : Iterable<SimulationReport>
+deactivate REPO
+
+CTRL -> CTRL : filter by generatedAt.year == year\n         && generatedAt.month == month
+CTRL -> REPORT : new MonthlyStatisticsReport(year, month, filtered)
+activate REPORT
 CTRL -> REPORT : generate()
 REPORT -> BASE : generateHeader()
-BASE --> REPORT : header string (AISafe branding)
+BASE --> REPORT : header (AISafe branding + period)
 REPORT -> REPORT : generateBody()
-note right: specific to monthly stats\n(totals, pass/fail, per-flight)
+note right: totals, pass/fail counts,\nper-simulation detail
 REPORT -> BASE : generateFooter()
-BASE --> REPORT : footer string
+BASE --> REPORT : footer
 REPORT --> CTRL : full report content
 deactivate REPORT
 
-CTRL -> CTRL : write to file\nreport_monthly_2026_05_<ts>.txt
+CTRL --> UI : report content
+deactivate CTRL
+UI --> FCO : displays report on screen
+
+FCO -> UI : confirms save
+UI -> CTRL : generateMonthlyReport(year, month)
+activate CTRL
+
+CTRL -> CTRL : validateMonth(month)
+CTRL -> REPO : findAll()
+activate REPO
+REPO --> CTRL : Iterable<SimulationReport>
+deactivate REPO
+CTRL -> CTRL : filter by month/year
+CTRL -> REPORT : new MonthlyStatisticsReport(year, month, filtered)
+activate REPORT
+CTRL -> REPORT : generateToFile(filename)
+REPORT -> BASE : generate()
+BASE --> REPORT : full content
+REPORT -> REPORT : write to reports/report_monthly_YYYY_MM_<ts>.txt
+deactivate REPORT
 CTRL --> UI : filename
 deactivate CTRL
 
-UI --> FCO : "Report saved to report_monthly_2026_05_<ts>.txt"
+UI --> FCO : "Report saved to reports/report_monthly_..."
 @enduml

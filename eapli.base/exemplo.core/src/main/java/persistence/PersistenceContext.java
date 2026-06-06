@@ -62,7 +62,7 @@ public class PersistenceContext {
         this.customerRepository           = new JpaCustomerRepository(persistenceUnit, extendedProps);
         this.flightRouteRepository        = new InMemoryFlightRouteRepository();
         this.pilotRepository              = new JpaPilotRepository(persistenceUnit, extendedProps);
-        this.simulationReportRepository = new InMemorySimulationReportRepository();
+        this.simulationReportRepository = new JpaSimulationReportRepository(persistenceUnit, extendedProps);
 
     }
 

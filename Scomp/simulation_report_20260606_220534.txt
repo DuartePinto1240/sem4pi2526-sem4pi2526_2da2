@@ -1,0 +1,48 @@
+========================================
+  AISafe Simulation Report
+  Generated: Sat Jun  6 22:05:34 2026
+========================================
+
+--- Summary ---
+Total flights    : 4
+Total violations : 3
+Result           : FAIL
+
+--- Flight Statuses ---
+Flight 0 : VIOLATED
+Flight 1 : OK
+Flight 2 : OK
+Flight 3 : VIOLATED
+
+--- Safety Violation Events ---
+
+Violation #1
+  Timestamp : 1.00 s
+  Flight 1  : 0
+    Lat=41.2598 Lon=-8.6887 Alt=81.0
+    Velocity : vx=0.0000 vy=0.0000 vz=0.0000
+  Flight 2  : 3
+    Lat=41.2598 Lon=-8.6887 Alt=81.0
+    Velocity : vx=0.0000 vy=0.0000 vz=0.0000
+
+Violation #2
+  Timestamp : 2.00 s
+  Flight 1  : 0
+    Lat=41.2597 Lon=-8.6875 Alt=93.0
+    Velocity : vx=0.0000 vy=0.0000 vz=0.0000
+  Flight 2  : 3
+    Lat=41.2597 Lon=-8.6875 Alt=93.0
+    Velocity : vx=0.0000 vy=0.0000 vz=0.0000
+
+Violation #3
+  Timestamp : 3.00 s
+  Flight 1  : 0
+    Lat=41.2595 Lon=-8.6862 Alt=105.0
+    Velocity : vx=0.0000 vy=0.0000 vz=0.0000
+  Flight 2  : 3
+    Lat=41.2595 Lon=-8.6862 Alt=105.0
+    Velocity : vx=0.0000 vy=0.0000 vz=0.0000
+
+========================================
+  End of Report
+========================================

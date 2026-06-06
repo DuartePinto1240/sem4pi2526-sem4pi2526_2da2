@@ -19,23 +19,33 @@ import java.util.stream.Collectors;
 
 public class GenerateSimulationReportController {
 
-    private static final String REPORTS_DIR = ".";
     private static final DateTimeFormatter FMT =
             DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss yyyy",
                     java.util.Locale.ENGLISH);
 
     private final SimulationReportRepository repo;
+    private final String reportsDir;
 
     public GenerateSimulationReportController() {
-        this.repo = PersistenceContext.getInstance().simulationReportRepository();
+        this.repo       = PersistenceContext.getInstance().simulationReportRepository();
+        this.reportsDir = System.getProperty("reports.dir", "../Scomp");
     }
 
+    /** Package-private — for unit tests (inject repo only, keeps default dir). */
     GenerateSimulationReportController(final SimulationReportRepository repo) {
-        this.repo = repo;
+        this.repo       = repo;
+        this.reportsDir = System.getProperty("reports.dir", "../Scomp");
+    }
+
+    /** Package-private — for unit tests (inject repo + custom reports directory). */
+    GenerateSimulationReportController(final SimulationReportRepository repo,
+                                        final String reportsDir) {
+        this.repo       = repo;
+        this.reportsDir = reportsDir;
     }
 
     public List<String> availableReportFiles() {
-        final File dir = new File(REPORTS_DIR);
+        final File dir = new File(reportsDir);
         final File[] files = dir.listFiles(
                 f -> f.isFile() && f.getName().startsWith("simulation_report_")
                         && f.getName().endsWith(".txt"));
@@ -47,7 +57,7 @@ public class GenerateSimulationReportController {
     }
 
     public SimulationReport generateReport(final String filename) {
-        final File file = new File(REPORTS_DIR, filename);
+        final File file = new File(reportsDir, filename);
         if (!file.exists())
             throw new IllegalArgumentException("Report file not found: " + filename);
 

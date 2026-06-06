@@ -9,52 +9,71 @@ package "UI" {
 
 package "Application" {
   class MonthlyReportController <<control>> {
-    +generateMonthlyReport(year, month): String
+    -REPORTS_OUT_DIR: String
+    -repo: SimulationReportRepository
+    +MonthlyReportController()
+    +generateMonthlyReport(year: int, month: int): String
+    +previewMonthlyReport(year: int, month: int): String
+    -reportsForMonth(year: int, month: int): List<SimulationReport>
+    -validateMonth(month: int): void
   }
 }
 
 package "Report" {
   abstract class AbstractReport <<template>> {
-    #title: String
-    #generatedAt: LocalDateTime
     +generate(): String
-    +generateToFile(filename)
+    +generateToFile(filePath: String): void
     +generateHeader(): String
-    {abstract} +generateBody(): String
+    {abstract} #generateBody(): String
     +generateFooter(): String
+    {abstract} #reportTitle(): String
+    {abstract} #reportPeriod(): String
   }
+
   class MonthlyStatisticsReport <<concrete>> {
     -year: int
     -month: int
-    -simulationData: List<SimulationSummary>
-    +generateBody(): String
-  }
-  class SimulationSummary <<dto>> {
-    +flightId: String
-    +totalSteps: int
-    +totalViolations: int
-    +passed: boolean
-    +timestamp: LocalDateTime
+    -data: List<SimulationReport>
+    +MonthlyStatisticsReport(year: int, month: int, data: List<SimulationReport>)
+    #generateBody(): String
+    #reportTitle(): String
+    #reportPeriod(): String
   }
 }
 
-MonthlyReportUI ..> MonthlyReportController
+package "Domain" {
+  class SimulationReport <<entity>> {
+    +identity(): SimulationReportId
+    +generatedAt(): LocalDateTime
+    +totalFlights(): int
+    +result(): OverallValidationResult
+    +flightStatuses(): List<FlightExecutionStatus>
+    +violationEvents(): List<SafetyViolationEvent>
+  }
+
+  interface SimulationReportRepository <<repository>> {
+    +findAll(): Iterable<SimulationReport>
+    +save(report: SimulationReport): SimulationReport
+  }
+}
+
+MonthlyReportUI ..> MonthlyReportController : uses
 MonthlyReportController ..> MonthlyStatisticsReport : creates
+MonthlyReportController --> SimulationReportRepository : queries
 MonthlyStatisticsReport --|> AbstractReport
-MonthlyStatisticsReport ..> SimulationSummary
+MonthlyStatisticsReport ..> SimulationReport : reads
 
 note right of AbstractReport
   Template Method Pattern.
-  header + body + footer always
-  called in the same order.
+  generate() = header + body + footer.
   Only generateBody() varies
   per report type.
 end note
 
 note bottom of MonthlyStatisticsReport
-  Future report types:
+  Future report types follow the same pattern:
   ComplianceReport extends AbstractReport
-  IncidentReport extends AbstractReport
-  → only override generateBody()
+  IncidentReport   extends AbstractReport
+  -> only override generateBody()
 end note
 @enduml

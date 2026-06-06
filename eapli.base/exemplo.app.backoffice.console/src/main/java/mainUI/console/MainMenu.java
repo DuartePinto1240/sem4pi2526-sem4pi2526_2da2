@@ -106,6 +106,7 @@ public class MainMenu extends AbstractUI {
             printLoggedInHeader("FLIGHT CONTROL OPERATOR");
             System.out.println("  ║  [ Simulation ]                          ║");
             System.out.println("  ║  1.  Generate Simulation Report          ║");
+            System.out.println("  ║  2.  Monthly Statistics Report           ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
@@ -200,6 +201,7 @@ public class MainMenu extends AbstractUI {
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.FLIGHT_CONTROL_OPERATOR)) {
             switch (option) {
                 case 1:  new GenerateSimulationReportUI().show(); break;
+                case 2:  new MonthlyReportUI().show();            break;
                 case 99: doLogout();                              break;
                 case 0:  doExit();                                break;
                 default: System.out.println("  >> Invalid option or insufficient permissions.");
