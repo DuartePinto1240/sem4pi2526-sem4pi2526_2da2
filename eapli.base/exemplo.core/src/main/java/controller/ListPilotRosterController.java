@@ -1,13 +1,15 @@
 package controller;
 
 import domain.AirTransportCompany;
-import domain.CompanyCode;
-import domain.pilot.Pilot;
+import dto.PilotDTO;
 import persistence.PersistenceContext;
 import repositories.AirTransportCompanyRepository;
 import repositories.PilotRepository;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public class ListPilotRosterController {
 
@@ -27,12 +29,19 @@ public class ListPilotRosterController {
     }
 
     /**
-     * Returns all active pilots belonging to the company identified by the given codes.
-     * Returns an empty list if the company is not found.
+     * Returns all registered air transport companies for selection.
      */
-    public Iterable<Pilot> activePilotsOfMyCompany(final String iata, final String icao) {
-        return companyRepository.ofIdentity(new CompanyCode(iata, icao))
-                .map(pilotRepository::findActiveByCompany)
-                .orElse(Collections.emptyList());
+    public Iterable<AirTransportCompany> availableCompanies() {
+        return companyRepository.findAll();
+    }
+
+    /**
+     * Returns DTOs for all active pilots belonging to the given company.
+     */
+    public List<PilotDTO> activePilotsOfMyCompany(final AirTransportCompany company) {
+        return StreamSupport
+                .stream(pilotRepository.findActiveByCompany(company).spliterator(), false)
+                .map(PilotDTO::from)
+                .collect(Collectors.toList());
     }
 }
