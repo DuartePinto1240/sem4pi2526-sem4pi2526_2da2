@@ -34,6 +34,7 @@ public class PersistenceContext {
     private final CustomerRepository            customerRepository;
     private final FlightRouteRepository         flightRouteRepository;
     private final PilotRepository               pilotRepository;
+    private final SimulationReportRepository simulationReportRepository;
 
 
     private PersistenceContext() {
@@ -61,6 +62,7 @@ public class PersistenceContext {
         this.customerRepository           = new JpaCustomerRepository(persistenceUnit, extendedProps);
         this.flightRouteRepository        = new InMemoryFlightRouteRepository();
         this.pilotRepository              = new JpaPilotRepository(persistenceUnit, extendedProps);
+        this.simulationReportRepository = new InMemorySimulationReportRepository();
 
     }
 
@@ -84,6 +86,9 @@ public class PersistenceContext {
     public CustomerRepository customerRepository()                       { return customerRepository; }
     public FlightRouteRepository flightRouteRepository()                 { return flightRouteRepository; }
     public PilotRepository pilotRepository()                             { return pilotRepository; }
+    public SimulationReportRepository simulationReportRepository() {
+        return simulationReportRepository;
+    }
 
     private static Properties loadProperties() {
         final Properties props = new Properties();
