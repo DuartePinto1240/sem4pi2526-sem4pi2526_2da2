@@ -2,9 +2,17 @@ package rcomp;
 
 public final class Protocol {
 
-    // ── Requests ──────────────────────────────────────────────────────────
+    // Shared responses
+    public static final String OK                = "OK";
+    public static final String ERROR             = "ERROR";
+    public static final String END               = "END";
+    public static final String BYE               = "BYE";
+
+    // Shared Requests
     public static final String LOGIN             = "LOGIN";
     public static final String LOGOUT            = "LOGOUT";
+
+    // ATCC commands (US78)
     public static final String ADD_AIRCRAFT      = "ADD_AIRCRAFT";
     public static final String LIST_FLEET        = "LIST_FLEET";
     public static final String LIST_FLEET_MODEL  = "LIST_FLEET_MODEL";
@@ -16,11 +24,12 @@ public final class Protocol {
     public static final String LIST_AIRPORTS     = "LIST_AIRPORTS";
     public static final String LIST_MODELS       = "LIST_MODELS";
 
-    // ── Responses ─────────────────────────────────────────────────────────
-    public static final String OK                = "OK";
-    public static final String ERROR             = "ERROR";
-    public static final String END               = "END";
-    public static final String BYE               = "BYE";
+    // Weather Person commands (US44)
+    public static final String LIST_AREAS = "LIST_AREAS";
+    public static final String REGISTER_WEATHER = "REGISTER_WEATHER";
+    public static final String IMPORT_WEATHER = "IMPORT_WEATHER";
+    public static final String END_FILE = "END_FILE";
+    public static final String CONSULT_WEATHER = "CONSULT_WEATHER";
 
     private Protocol() {}
 }
