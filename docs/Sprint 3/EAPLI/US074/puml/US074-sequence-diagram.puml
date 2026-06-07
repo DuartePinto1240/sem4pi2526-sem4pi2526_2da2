@@ -15,21 +15,22 @@ skinparam sequence {
 actor "ATCC" as ATCC
 participant "DeleteFlightRouteUI" as UI
 participant "DeleteFlightRouteController" as CTRL
-participant "AirTransportCompanyRepository" as CREPO
+participant "AirTransportCompanyRepository" as ATCREPO
 participant "FlightPlanRepository" as FPREPO
-participant "AirTransportCompany" as COMPANY
+participant "FlightRoute" as FR
+participant "FlightRouteRepository" as FRREPO
 
 ATCC -> UI : requests to deactivate a route
 activate UI
 
 UI -> CTRL : getCompanyRoutes()
 activate CTRL
-CTRL -> CREPO : findByCollaborator(email)
-CREPO --> CTRL : AirTransportCompany
-CTRL -> COMPANY : listActiveRoutes()
-activate COMPANY
-COMPANY --> CTRL : List<FlightRoute>
-deactivate COMPANY
+CTRL -> ATCREPO : findByCollaborator(email)
+ATCREPO --> CTRL : AirTransportCompany
+CTRL -> FRREPO : listActiveRoutes(airTransportCompany)
+activate FRREPO
+FRREPO --> CTRL : List<FlightRoute>
+deactivate FRREPO
 CTRL --> UI : List<FlightRouteDTO>
 deactivate CTRL
 
@@ -47,13 +48,13 @@ alt planned flights exist after date
     CTRL --> UI : throws BusinessRuleViolationException
     UI --> ATCC : displays error message
 else no planned flights after date
-    CTRL -> COMPANY : deactivateRoute(routeName, deactivationDate)
-    activate COMPANY
-    COMPANY -> COMPANY : route.deactivate(date)
-    COMPANY --> CTRL : void
-    deactivate COMPANY
+    CTRL -> FR : deactivateRoute(routeName, deactivationDate)
+    activate FR
+    FR -> FR : route.deactivate(date)
+    FR --> CTRL : void
+    deactivate FR
 
-    CTRL -> CREPO : save(company)
+    CTRL -> ATCREPO : save(company)
 
     CTRL --> UI : success
     deactivate CTRL

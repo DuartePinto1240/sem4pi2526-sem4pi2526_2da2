@@ -31,6 +31,14 @@ public class InMemoryAirTransportCompanyRepository
     }
 
     @Override
+    public Optional<AirTransportCompany> findByCollaborator(String collaboratorEmail) {
+            return companies.stream()
+                    .filter(c -> c.findCollaboratorByEmail(collaboratorEmail).isPresent())
+                    .findFirst();
+
+        }
+
+    @Override
     public AirTransportCompany save(final AirTransportCompany company) {
         companies.add(company);
         return company;

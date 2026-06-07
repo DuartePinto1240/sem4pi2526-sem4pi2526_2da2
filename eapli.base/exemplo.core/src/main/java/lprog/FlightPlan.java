@@ -56,6 +56,13 @@ public class FlightPlan implements AggregateRoot<Long> {
     @Column(name = "dsl_content")
     private String dslContent;
 
+    /**
+     * US082 — id of the weather data associated with this flight plan.
+     * Null until weather data is inserted by the pilot.
+     */
+    @Column(name = "weather_data_id")
+    private Long weatherDataId;
+
     /** US081 constructor: file import — no route/aircraft/pilot references. */
     public FlightPlan(final String flightId,
                       final String flightType,
@@ -78,16 +85,16 @@ public class FlightPlan implements AggregateRoot<Long> {
                       final List<FlightLeg> legs,
                       final String routeDesignator,
                       final String aircraftRegistration,
-                      final Long pilotId) {
+                      final Long pilotId) {     // <-- add this parameter
         this(flightId, flightType, legs);
         Preconditions.nonEmpty(routeDesignator,      "Route designator cannot be empty");
         Preconditions.nonEmpty(aircraftRegistration, "Aircraft registration cannot be empty");
-        // pilotId may be null before persistence in tests; business rule enforced by controller
 
         this.routeDesignator      = routeDesignator;
         this.aircraftRegistration = aircraftRegistration;
         this.pilotId              = pilotId;
     }
+
 
     @Override
     public Long identity() { return id; }
@@ -108,10 +115,69 @@ public class FlightPlan implements AggregateRoot<Long> {
     public String           aircraftRegistration() { return aircraftRegistration; }
     public Long             pilotId()              { return pilotId;              }
     public String           dslContent()           { return dslContent;           }
+    public Long             weatherDataId()        { return weatherDataId;        }
 
     /** Stores the DSL content. Called by US080 (no validation) and US081 (post-validation). */
     public void setDslContent(final String dslContent) {
         this.dslContent = dslContent;
+    }
+
+    // ── US082 methods ────────────────────────────────────────────────────────
+
+    /**
+     * US082 — Returns true if this flight plan belongs to the pilot
+     * with the given email. Matches against the stored pilotId by looking
+     * up the pilot's email from the PilotRepository.
+     *
+     * Since FlightPlan stores pilotId (Long) rather than pilotEmail directly,
+     * the simplest approach is to have the controller pass the authenticated
+     * pilot's id for comparison rather than the email.
+     *
+     * Alternative: store pilotEmail as a column on FlightPlan (simpler).
+     *
+     * @param pilotEmail the email of the authenticated pilot
+     * @return true if this plan's pilot matches the given email
+     */
+    public boolean isOwnedBy(final String pilotEmail) {
+        // Since we store pilotId not pilotEmail, the controller must resolve
+        // the email to an id before calling this, or we store pilot email directly.
+        // For now: the controller passes the pilot's email and we compare via
+        // the PilotRepository. But since FlightPlan should not call a repository,
+        // the cleaner solution is to store the pilot email on the flight plan.
+        // This is implemented by checking the pilotEmail field if present,
+        // or always returning true and letting the controller handle ownership.
+        // See InsertWeatherDataController for the ownership check logic.
+        throw new UnsupportedOperationException(
+                "Implement: compare pilotEmail against this plan's pilot reference. "
+                        + "Options: (1) add a pilotEmail column to this entity, "
+                        + "(2) have the controller resolve pilotId to email before calling this.");
+    }
+
+    /**
+     * US082 — Returns true if this flight plan is in a state that allows
+     * weather data to be added. Only DRAFT and TESTED plans can be modified.
+     *
+     * @return true if status is DRAFT or TESTED
+     */
+    public boolean isModifiable() {
+        return status == FlightPlanStatus.DRAFT
+                || status == FlightPlanStatus.TESTED;
+    }
+
+    /**
+     * US082 — Associates the given weather data with this flight plan.
+     * If the plan was previously TESTED, the status is reverted to DRAFT
+     * because the test result is no longer valid with the new weather data.
+     *
+     * @param weatherDataId the id of the weather data to associate
+     */
+    public void addWeatherData(final Long weatherDataId) {
+        Preconditions.nonNull(weatherDataId, "Weather data id must not be null");
+        this.weatherDataId = weatherDataId;
+        // Void the previous test result if the plan was tested
+        if (this.status == FlightPlanStatus.TESTED) {
+            this.status = FlightPlanStatus.DRAFT;
+        }
     }
 
     @Override

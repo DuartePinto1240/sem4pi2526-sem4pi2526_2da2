@@ -78,10 +78,11 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  [ Route Management ]                    ║");
             System.out.println("  ║  4.  Create Flight Route                 ║");
+            System.out.println("  ║  5.  Delete Flight Route                 ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             System.out.println("  ║  [ Pilot Management ]                    ║");
-            System.out.println("  ║  5.  Add Pilot                           ║");
-            System.out.println("  ║  6.  List Pilot Roster                   ║");
+            System.out.println("  ║  6.  Add Pilot                           ║");
+            System.out.println("  ║  7.  List Pilot Roster                   ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
@@ -172,8 +173,9 @@ public class MainMenu extends AbstractUI {
                 case 2:  new ListCompanyFleetUI().show();      break;
                 case 3:  new DecommissionAircraftUI().show();  break;
                 case 4:  new CreateFlightRouteUI().show();     break;
-                case 5:  new AddPilotUI().show();              break;
-                case 6:  new ListPilotRosterUI().show();       break;
+                case 5:  new DeleteFlightRouteUI().show();     break;
+                case 6:  new AddPilotUI().show();              break;
+                case 7:  new ListPilotRosterUI().show();       break;
                 case 99: doLogout();                           break;
                 case 0:  doExit();                             break;
                 default: System.out.println("  >> Invalid option. Please try again.");

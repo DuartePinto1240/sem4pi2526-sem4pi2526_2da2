@@ -9,17 +9,26 @@ package "Presentation" {
 
 package "Application" {
   class DeleteFlightRouteController {
-    -authz: AuthorizationService
     -companyRepo: AirTransportCompanyRepository
     -flightPlanRepo: FlightPlanRepository
+    -routeRepo: FlightRouteRepository
     +getCompanyRoutes(): List<FlightRouteDTO>
     +deleteRoute(routeName: String, date: LocalDate): void
+    -findByCollaborator(email: String): AirTransportCompany
+    -listActiveRoutes(company: AirTransportCompany): List<FlightRouteDTO>
+    -existsPlannedFlightsAfter(route: RouteDesignator, date: LocalDate): boolean
+    -findRouteByDesignator(designator: String): FlightRoute
+    -deactivateRoute(route: FlightRoute, date: LocalDate): void
   }
   class FlightRouteDTO {
-    +name: String
-    +originAirport: String
-    +destinationAirport: String
+    +designator: String
+    +companyIata: String
+    +originIata: String
+    +destinationIata: String
+    +flightType: String
     +active: boolean
+    +deactivationDate: LocalDate
+    +from(r: FlightRoute): FlightRouteDTO
   }
 }
 
@@ -27,18 +36,20 @@ package "Domain" {
   class AirTransportCompany <<AggregateRoot>> {
     -companyCode: CompanyCode
     -name: String
-    -routes: List<FlightRoute>
-    +listActiveRoutes(): List<FlightRoute>
-    +deactivateRoute(name: String, date: LocalDate): void
   }
   class FlightRoute <<Entity>> {
-    -name: String
-    -origin: Airport
-    -destination: Airport
+    -designator: RouteDesignator
+    -companyIata: String
+    -originIata: String
+    -destinationIata: String
     -active: boolean
     -deactivationDate: LocalDate
     +deactivate(date: LocalDate): void
     +isActive(): boolean
+  }
+  class RouteDesignator <<ValueObject>> {
+    -designator: String
+    +value(): String
   }
   class CompanyCode <<ValueObject>> {
     -iata: String
@@ -51,17 +62,25 @@ package "Repository" {
     +findByCollaborator(email: String): Optional<AirTransportCompany>
     +save(company: AirTransportCompany): AirTransportCompany
   }
+  interface FlightRouteRepository {
+    +findByCompanyIata(iata: String): Iterable<FlightRoute>
+    +ofIdentity(id: RouteDesignator): Optional<FlightRoute>
+    +save(route: FlightRoute): FlightRoute
+  }
   interface FlightPlanRepository {
-    +existsPlannedFlightsAfter(route: FlightRoute, date: LocalDate): boolean
+    +existsPlannedFlightsAfter(route: RouteDesignator, date: LocalDate): boolean
   }
 }
 
 DeleteFlightRouteUI ..> DeleteFlightRouteController
 DeleteFlightRouteController ..> AirTransportCompanyRepository
+DeleteFlightRouteController ..> FlightRouteRepository
 DeleteFlightRouteController ..> FlightPlanRepository
 DeleteFlightRouteController ..> FlightRouteDTO
-AirTransportCompany "1" *-- "0..*" FlightRoute
 AirTransportCompany *-- CompanyCode
+FlightRoute *-- RouteDesignator
 AirTransportCompanyRepository ..> AirTransportCompany
+FlightRouteRepository ..> FlightRoute
+FlightPlanRepository ..> FlightRoute
 
 @enduml

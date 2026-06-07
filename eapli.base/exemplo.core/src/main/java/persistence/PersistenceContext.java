@@ -49,20 +49,20 @@ public class PersistenceContext {
         }
 
 
-        this.userRepository               = new JpaUserRepository(persistenceUnit, extendedProps);
-        this.airTransportCompanyRepository = new JpaAirTransportCompanyRepository(persistenceUnit, extendedProps);
-        this.engineModelRepository        = new JpaEngineModelRepository(persistenceUnit, extendedProps);
-        this.airControlAreaRepository     = new JpaAirControlAreaRepository(persistenceUnit, extendedProps);
-        this.weatherDataRepository        = new JpaWeatherDataRepository(persistenceUnit, extendedProps);
-        this.airportRepository            = new JpaAirportRepository(persistenceUnit, extendedProps);
-        this.countryRepository            = new InMemoryCountryRepository();
-        this.aircraftModelRepository      = new JpaAircraftModelRepository(persistenceUnit, extendedProps);
-        this.aircraftRepository           = new JpaAircraftRepository(persistenceUnit, extendedProps);
-        this.flightPlanRepository         = new InMemoryFlightPlanRepository();
-        this.customerRepository           = new JpaCustomerRepository(persistenceUnit, extendedProps);
-        this.flightRouteRepository        = new InMemoryFlightRouteRepository();
-        this.pilotRepository              = new JpaPilotRepository(persistenceUnit, extendedProps);
-        this.simulationReportRepository = new JpaSimulationReportRepository(persistenceUnit, extendedProps);
+        this.userRepository                 = new JpaUserRepository(persistenceUnit, extendedProps);
+        this.airTransportCompanyRepository  = new JpaAirTransportCompanyRepository(persistenceUnit, extendedProps);
+        this.engineModelRepository          = new JpaEngineModelRepository(persistenceUnit, extendedProps);
+        this.airControlAreaRepository       = new JpaAirControlAreaRepository(persistenceUnit, extendedProps);
+        this.weatherDataRepository          = new JpaWeatherDataRepository(persistenceUnit, extendedProps);
+        this.airportRepository              = new JpaAirportRepository(persistenceUnit, extendedProps);
+        this.countryRepository              = new InMemoryCountryRepository();
+        this.aircraftModelRepository        = new JpaAircraftModelRepository(persistenceUnit, extendedProps);
+        this.aircraftRepository             = new JpaAircraftRepository(persistenceUnit, extendedProps);
+        this.flightPlanRepository           = new JpaFlightPlanRepository(persistenceUnit, extendedProps);
+        this.customerRepository             = new JpaCustomerRepository(persistenceUnit, extendedProps);
+        this.flightRouteRepository          = new JpaFlightRouteRepository(persistenceUnit, extendedProps);;
+        this.pilotRepository                = new JpaPilotRepository(persistenceUnit, extendedProps);
+        this.simulationReportRepository     = new JpaSimulationReportRepository(persistenceUnit, extendedProps);
 
     }
 

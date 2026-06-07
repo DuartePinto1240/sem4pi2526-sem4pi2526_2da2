@@ -6,7 +6,7 @@ import eapli.framework.infrastructure.repositories.impl.jpa.JpaAutoTxRepository;
 import repositories.AirTransportCompanyRepository;
 
 import java.util.Map;
-
+import java.util.Optional;
 
 
 public class JpaAirTransportCompanyRepository
@@ -46,5 +46,20 @@ public class JpaAirTransportCompanyRepository
                 "SELECT a FROM AirTransportCompany a ORDER BY a.name",
                 AirTransportCompany.class)
                 .getResultList();
+    }
+
+    @Override
+    public Optional<AirTransportCompany> findByCollaborator(String collaboratorEmail) {
+        final var results = createQuery(
+                "SELECT a FROM AirTransportCompany a " +
+                        "WHERE EXISTS (" +
+                        "    SELECT c FROM Collaborator c " +
+                        "    WHERE c MEMBER OF a.collaborators " +
+                        "    AND LOWER(c.email) = :email" +
+                        ")",
+                AirTransportCompany.class)
+                .setParameter("email", collaboratorEmail.toLowerCase().trim())
+                .getResultList();
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
 }
