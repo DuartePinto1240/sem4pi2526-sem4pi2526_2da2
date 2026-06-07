@@ -19,9 +19,12 @@
  * Mutexes and condition variables (US106)
  * ----------------------------------------- */
 
+/*O smh_mutex vai proteger o acesso concorrente á memoria partilhada*/
 static pthread_mutex_t g_shm_mutex    = PTHREAD_MUTEX_INITIALIZER;
+/*O report_mutex e o report_cond vai servir de canal de comunicacao entre o detetor de violacoes e o gerador de reports*/
 static pthread_mutex_t g_report_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  g_report_cond  = PTHREAD_COND_INITIALIZER;
+/*O done_mutex e sim_done vai indicar a todos os threads que a simulacao terminou*/
 static pthread_mutex_t g_done_mutex   = PTHREAD_MUTEX_INITIALIZER;
 static volatile int    g_sim_done     = 0;
 
@@ -195,6 +198,13 @@ typedef struct {
  * report thread via pthread_cond_signal (US107).
  * ----------------------------------------- */
 
+
+/*Corre num loop enquanto a simulacao nao termina
+  A cada 10 ms limpa os pares de voos ativos da memoria partilhada
+  Calcula a distancia entre cada par e se a distancia for menor que o treshold conta como violacao
+  Se isso acontecer, imcrementa contadores de violacoes no shm e no report e envia sigurs1 aos respetivos processos
+  Por fim sinaliza o thread  do relatório via pthread_cond_signal(&g_report_cond) e se atingir o maximo de violacoes aborta e manda SIGTERM
+*/
 static void *violation_detector_thread(void *arg) {
     ThreadArgs *args = (ThreadArgs *)arg;
     printf("[THREAD] ViolationDetector started (tid=%lu)\n",
@@ -291,6 +301,13 @@ vd_done:
  * report file (US109).
  * ----------------------------------------- */
 
+
+/*
+    Fica bloqueado e cada vez que acordar o violador, imprime quantas violacoes aconteceram
+    Quando g_sim_done = 1 e recebe pthread_cond_broadcast, sai do loop
+    Chama write_report() para escrever o ficheiro final (US109)
+
+*/
 static void *report_generator_thread(void *arg) {
     ThreadArgs *args = (ThreadArgs *)arg;
     printf("[THREAD] ReportGenerator started (tid=%lu)\n",
@@ -330,6 +347,14 @@ static void *report_generator_thread(void *arg) {
  * Sets g_sim_done and broadcasts when done.
  * ----------------------------------------- */
 
+
+/*
+    Vai por cada step da simulacao e para cada um deles faz sem_post nos semáforos dos voos ativos — desbloqueia os processos filhos para avançarem um step
+    Espera que todos os filhos completem o step via polling da shm->steps_completed[]
+    Quando um voo deixa de estar ativo, marca-o como inativo
+    Quando todos os steps terminam (ou abort_flag está levantado), define g_sim_done = 1
+    Faz pthread_cond_broadcast para acordar o violation detector e o report generator
+*/
 static void *simulation_controller_thread(void *arg) {
     ThreadArgs *args = (ThreadArgs *)arg;
     printf("[THREAD] SimulationController started (tid=%lu)\n",
