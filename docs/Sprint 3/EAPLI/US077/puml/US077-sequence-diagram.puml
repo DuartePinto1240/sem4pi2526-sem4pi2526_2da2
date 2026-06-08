@@ -15,21 +15,21 @@ skinparam sequence {
 actor "ATCC" as ATCC
 participant "RemovePilotUI" as UI
 participant "RemovePilotController" as CTRL
-participant "AirTransportCompanyRepository" as CREPO
+participant "AirTransportCompanyRepository" as ATCREPO
+participant "PilotRepository" as PLREPO
 participant "FlightPlanRepository" as FPREPO
-participant "AirTransportCompany" as COMPANY
 
 ATCC -> UI : requests to remove a pilot
 activate UI
 
 UI -> CTRL : getActivePilots()
 activate CTRL
-CTRL -> CREPO : findByCollaborator(email)
-CREPO --> CTRL : AirTransportCompany
-CTRL -> COMPANY : listActivePilots()
-activate COMPANY
-COMPANY --> CTRL : List<Pilot>
-deactivate COMPANY
+CTRL -> ATCREPO : findByCollaborator(email)
+ATCREPO --> CTRL : AirTransportCompany
+CTRL -> PLREPO : listActivePilots()
+activate PLREPO
+PLREPO --> CTRL : List<Pilot>
+deactivate PLREPO
 CTRL --> UI : List<PilotDTO>
 deactivate CTRL
 
@@ -47,13 +47,13 @@ alt pilot has assigned flight plans
     CTRL --> UI : throws BusinessRuleViolationException
     UI --> ATCC : displays error message
 else no assigned flight plans
-    CTRL -> COMPANY : deactivatePilot(pilotEmail)
-    activate COMPANY
-    COMPANY -> COMPANY : pilot.deactivate()
-    COMPANY --> CTRL : void
-    deactivate COMPANY
+    CTRL -> PLREPO : deactivatePilot(pilotEmail)
+    activate PLREPO
+    PLREPO -> PLREPO : pilot.deactivate()
+    PLREPO --> CTRL : void
+    deactivate PLREPO
 
-    CTRL -> CREPO : save(company)
+    CTRL -> ATCREPO : save(company)
 
     CTRL --> UI : success
     deactivate CTRL

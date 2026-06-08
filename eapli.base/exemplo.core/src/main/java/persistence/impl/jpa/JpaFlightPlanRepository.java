@@ -70,8 +70,8 @@ public class JpaFlightPlanRepository
         // FlightPlan stores pilotId (Long) not pilotEmail.
         // This query checks for any non-null pilotId as a safe default.
         // Adapt once pilotEmail is stored on FlightPlan or id resolution is available.
-        return !match("e.pilotId IS NOT NULL", new HashMap<>())
-                .iterator().hasNext() == false;
+        return match("e.pilotId IS NOT NULL", new HashMap<>())
+                .iterator().hasNext();
     }
 
     /**

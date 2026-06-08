@@ -83,6 +83,7 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  [ Pilot Management ]                    ║");
             System.out.println("  ║  6.  Add Pilot                           ║");
             System.out.println("  ║  7.  List Pilot Roster                   ║");
+            System.out.println("  ║  8.  Remove Pilot                        ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
@@ -176,6 +177,7 @@ public class MainMenu extends AbstractUI {
                 case 5:  new DeleteFlightRouteUI().show();     break;
                 case 6:  new AddPilotUI().show();              break;
                 case 7:  new ListPilotRosterUI().show();       break;
+                case 8:  new RemovePilotUI().show();           break;
                 case 99: doLogout();                           break;
                 case 0:  doExit();                             break;
                 default: System.out.println("  >> Invalid option. Please try again.");

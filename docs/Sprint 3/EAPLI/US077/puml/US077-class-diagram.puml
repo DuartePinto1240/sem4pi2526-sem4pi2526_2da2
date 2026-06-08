@@ -4,22 +4,32 @@ package "Presentation" {
   class RemovePilotUI {
     +doShow(): boolean
     +headline(): String
+    -getActivePilots(): List<PilotDTO>
+    -removePilot(pilot: PilotDTO): void
   }
 }
 
 package "Application" {
   class RemovePilotController {
-    -authz: AuthorizationService
-    -companyRepo: AirTransportCompanyRepository
+    -atcRepo: AirTransportCompanyRepository
+    -pilotRepo: PilotRepository
     -flightPlanRepo: FlightPlanRepository
-    +getActivePilots(): List<PilotDTO>
+    +getActivePilots(collaboratorEmail: String): List<PilotDTO>
     +removePilot(pilotEmail: String): void
+    -findByCollaborator(email: String): AirTransportCompany
+    -listActivePilots(company: AirTransportCompany): List<Pilot>
+    -findPilotByEmail(email: String): Pilot
+    -existsAssignedFlightPlanForPilot(email: String): boolean
+    -deactivatePilot(pilot: Pilot): void
   }
   class PilotDTO {
-    +email: String
+    +id: Long
     +name: String
-    +licenseNumber: String
+    +email: String
+    +phoneNumber: String
     +active: boolean
+    +companyIata: String
+    +from(p: Pilot): PilotDTO
   }
 }
 
@@ -27,15 +37,11 @@ package "Domain" {
   class AirTransportCompany <<AggregateRoot>> {
     -companyCode: CompanyCode
     -name: String
-    -pilots: List<Pilot>
-    +listActivePilots(): List<Pilot>
-    +deactivatePilot(email: String): void
-    +findPilotByEmail(email: String): Optional<Pilot>
   }
-  class Pilot <<Entity>> {
-    -email: String
+  class Pilot <<AggregateRoot>> {
     -name: String
-    -licenseNumber: String
+    -email: String
+    -phoneNumber: String
     -active: boolean
     -certifiedModels: List<AircraftModel>
     +deactivate(): void
@@ -50,7 +56,11 @@ package "Domain" {
 package "Repository" {
   interface AirTransportCompanyRepository {
     +findByCollaborator(email: String): Optional<AirTransportCompany>
-    +save(company: AirTransportCompany): AirTransportCompany
+  }
+  interface PilotRepository {
+    +findActiveByCompany(company: AirTransportCompany): Iterable<Pilot>
+    +findByEmail(email: String): Optional<Pilot>
+    +save(pilot: Pilot): Pilot
   }
   interface FlightPlanRepository {
     +existsAssignedFlightPlansForPilot(pilotEmail: String): boolean
@@ -59,10 +69,11 @@ package "Repository" {
 
 RemovePilotUI ..> RemovePilotController
 RemovePilotController ..> AirTransportCompanyRepository
+RemovePilotController ..> PilotRepository
 RemovePilotController ..> FlightPlanRepository
 RemovePilotController ..> PilotDTO
-AirTransportCompany "1" *-- "0..*" Pilot
 AirTransportCompany *-- CompanyCode
 AirTransportCompanyRepository ..> AirTransportCompany
+PilotRepository ..> Pilot
 
 @enduml
