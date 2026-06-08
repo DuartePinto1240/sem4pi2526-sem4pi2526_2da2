@@ -2,6 +2,7 @@ package repositories;
 
 import domain.flightroute.RouteDesignator;
 import lprog.FlightPlan;
+import lprog.FlightPlanStatus;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -38,4 +39,9 @@ public interface FlightPlanRepository {
      * US082 — Returns all flight plans belonging to the pilot with the given email.
      */
     Iterable<FlightPlan> findByPilot(String pilotEmail);
+
+    /**
+     * US085 — Returns all flight plans for a pilot with the given status.
+     */
+    Iterable<FlightPlan> findByPilotAndStatus(String pilotEmail, FlightPlanStatus status);
 }

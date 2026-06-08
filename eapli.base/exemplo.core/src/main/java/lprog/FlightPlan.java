@@ -63,6 +63,14 @@ public class FlightPlan implements AggregateRoot<Long> {
     @Column(name = "weather_data_id")
     private Long weatherDataId;
 
+    /**
+     * US085 — summary of the last test result (PASS / FAIL + details).
+     * Null until the plan has been tested at least once.
+     */
+    @Lob
+    @Column(name = "test_result")
+    private String testResult;
+
     /** US081 constructor: file import — no route/aircraft/pilot references. */
     public FlightPlan(final String flightId,
                       final String flightType,
@@ -120,6 +128,24 @@ public class FlightPlan implements AggregateRoot<Long> {
     /** Stores the DSL content. Called by US080 (no validation) and US081 (post-validation). */
     public void setDslContent(final String dslContent) {
         this.dslContent = dslContent;
+    }
+
+    // ── US085 methods ────────────────────────────────────────────────────────
+
+    public String testResult() { return testResult; }
+
+    /**
+     * US085 — Marks this flight plan as tested and stores the result summary.
+     * Status transitions: DRAFT → TESTED.
+     *
+     * @param resultSummary human-readable summary of the test outcome
+     */
+    public void markAsTested(final String resultSummary) {
+        Preconditions.ensure(
+                this.status == FlightPlanStatus.DRAFT,
+                "Only DRAFT flight plans can be tested (current status: " + this.status + ")");
+        this.status     = FlightPlanStatus.TESTED;
+        this.testResult = resultSummary;
     }
 
     // ── US082 methods ────────────────────────────────────────────────────────

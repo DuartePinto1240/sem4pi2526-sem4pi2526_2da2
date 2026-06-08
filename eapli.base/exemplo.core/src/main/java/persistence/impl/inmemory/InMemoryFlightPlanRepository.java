@@ -3,6 +3,7 @@ package persistence.impl.inmemory;
 import domain.flightroute.RouteDesignator;
 import lprog.FlightLeg;
 import lprog.FlightPlan;
+import lprog.FlightPlanStatus;
 import repositories.FlightPlanRepository;
 
 import java.time.LocalDate;
@@ -103,6 +104,17 @@ public class InMemoryFlightPlanRepository implements FlightPlanRepository {
     public Iterable<FlightPlan> findByPilot(final String pilotEmail) {
         return store.stream()
                 .filter(f -> f.pilotId() != null)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * US085 — Returns all flight plans for a pilot with the given status.
+     */
+    @Override
+    public Iterable<FlightPlan> findByPilotAndStatus(final String pilotEmail,
+                                                      final FlightPlanStatus status) {
+        return store.stream()
+                .filter(f -> f.status() == status)
                 .collect(Collectors.toList());
     }
 }

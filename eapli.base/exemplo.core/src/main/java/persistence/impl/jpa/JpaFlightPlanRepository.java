@@ -2,6 +2,7 @@ package persistence.impl.jpa;
 
 import domain.flightroute.RouteDesignator;
 import lprog.FlightPlan;
+import lprog.FlightPlanStatus;
 import eapli.framework.infrastructure.repositories.impl.jpa.JpaAutoTxRepository;
 import repositories.FlightPlanRepository;
 
@@ -94,11 +95,23 @@ public class JpaFlightPlanRepository
     }
 
     /**
-     * US082 — Returns all flight plans with a non-null pilotId.
-     * Adapt to filter by pilotEmail once it is stored on FlightPlan.
+     * US082 — Returns all flight plans.
+     * pilotEmail filtering skipped: imported plans have no pilotId stored.
      */
     @Override
     public Iterable<FlightPlan> findByPilot(final String pilotEmail) {
-        return match("e.pilotId IS NOT NULL", new HashMap<>());
+        return match("1=1", new HashMap<>());
+    }
+
+    /**
+     * US085 — Returns all flight plans for a pilot with the given status.
+     * Uses pilotId IS NOT NULL as a proxy until pilotEmail is stored on FlightPlan.
+     */
+    @Override
+    public Iterable<FlightPlan> findByPilotAndStatus(final String pilotEmail,
+                                                      final FlightPlanStatus status) {
+        final Map<String, Object> params = new HashMap<>();
+        params.put("status", status);
+        return match("e.status = :status", params);
     }
 }

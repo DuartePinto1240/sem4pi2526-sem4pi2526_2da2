@@ -103,6 +103,7 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  1.  Create Flight Plan                  ║");
             System.out.println("  ║  2.  Import Flight Plan from File        ║");
             System.out.println("  ║  3.  Insert Weather Data                 ║");
+            System.out.println("  ║  4.  Test/Validate Flight Plan           ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
@@ -197,11 +198,12 @@ public class MainMenu extends AbstractUI {
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.PILOT)) {
             switch (option) {
-                case 1:  new CreateFlightPlanUI().show();   break;
-                case 2:  new ImportFlightPlanUI().show();   break;
-                case 3:  new InsertWeatherDataUI().show();  break;
-                case 99: doLogout();                        break;
-                case 0:  doExit();                          break;
+                case 1:  new CreateFlightPlanUI().show();    break;
+                case 2:  new ImportFlightPlanUI().show();    break;
+                case 3:  new InsertWeatherDataUI().show();   break;
+                case 4:  new TestFlightPlanUI().show();      break;
+                case 99: doLogout();                         break;
+                case 0:  doExit();                           break;
                 default: System.out.println("  >> Invalid option or insufficient permissions.");
             }
 
