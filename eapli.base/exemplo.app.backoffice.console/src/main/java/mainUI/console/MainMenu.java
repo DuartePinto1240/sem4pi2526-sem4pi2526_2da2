@@ -1,5 +1,6 @@
 package mainUI.console;
 
+import controller.InsertWeatherDataController;
 import controller.LoginController;
 import domain.BaseRoles;
 import eapli.framework.infrastructure.authz.application.AuthorizationService;
@@ -101,6 +102,7 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  [ Flight Management ]                   ║");
             System.out.println("  ║  1.  Create Flight Plan                  ║");
             System.out.println("  ║  2.  Import Flight Plan from File        ║");
+            System.out.println("  ║  3.  Insert Weather Data                 ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
@@ -197,6 +199,7 @@ public class MainMenu extends AbstractUI {
             switch (option) {
                 case 1:  new CreateFlightPlanUI().show();   break;
                 case 2:  new ImportFlightPlanUI().show();   break;
+                case 3:  new InsertWeatherDataUI().show();  break;
                 case 99: doLogout();                        break;
                 case 0:  doExit();                          break;
                 default: System.out.println("  >> Invalid option or insufficient permissions.");

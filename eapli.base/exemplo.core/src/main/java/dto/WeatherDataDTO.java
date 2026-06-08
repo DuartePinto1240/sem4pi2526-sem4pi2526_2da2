@@ -1,5 +1,7 @@
 package dto;
 
+import domain.WeatherData;
+
 import java.time.LocalDateTime;
 
 /**
@@ -41,11 +43,33 @@ public final class WeatherDataDTO {
         this.windSpeed     = windSpeed;
     }
 
+    public static WeatherDataDTO from(final WeatherData w) {
+        return new WeatherDataDTO(
+                w.identity(),
+                w.areaCode().code(),
+                w.subArea().subBoundary().minLat(),
+                w.subArea().subBoundary().maxLat(),
+                w.subArea().subBoundary().minLon(),
+                w.subArea().subBoundary().maxLon(),
+                w.subArea().altitudeRange().minAltitude(),
+                w.subArea().altitudeRange().maxAltitude(),
+                w.period().startDateTime(),
+                w.period().endDateTime(),
+                w.wind().windDirection(),
+                w.wind().windSpeed());
+    }
+
     @Override
     public String toString() {
-        return String.format("[%d] Area=%-6s | SubArea Lat[%.2f,%.2f] Lon[%.2f,%.2f] "
-                        + "Alt[%.0f,%.0f]m | Period: %s → %s | Wind: %.1f° / %.2f m/s",
-                id, areaCode, subMinLat, subMaxLat, subMinLon, subMaxLon, minAltitude, maxAltitude,
-                startDateTime, endDateTime, windDirection, windSpeed);
+        return String.format(
+                "  ID          : %d%n" +
+                        "  Area        : %s%n" +
+                        "  Sub-area    : Lat [%.2f, %.2f] | Lon [%.2f, %.2f] | Alt [%.0f, %.0f] m%n" +
+                        "  Period      : %s  →  %s%n" +
+                        "  Wind        : %.1f° / %.2f m/s",
+                id, areaCode,
+                subMinLat, subMaxLat, subMinLon, subMaxLon, minAltitude, maxAltitude,
+                startDateTime, endDateTime,
+                windDirection, windSpeed);
     }
 }

@@ -36,22 +36,15 @@ public class DeleteFlightRouteController {
     }
 
     /**
-     * Returns the authenticated user's email from the session.
-     * Called by the UI before passing to getCompanyRoutes().
-     */
-    public String authenticatedUserEmail() {
-        return AuthzRegistry.authorizationService()
-                .session()
-                .map(s -> s.authenticatedUser().username().toString())
-                .orElseThrow(() -> new IllegalStateException("No authenticated user"));
-    }
-
-    /**
      * Returns all active routes for the company of the given collaborator email.
      */
     public List<FlightRouteDTO> getCompanyRoutes(final String collaboratorEmail) {
         final AirTransportCompany company = findByCollaborator(collaboratorEmail);
-        return listActiveRoutes(company);
+        List<FlightRouteDTO> activeRoutes = new ArrayList<>();
+        for (FlightRoute fr : listActiveRoutes(company)) {
+            activeRoutes.add(FlightRouteDTO.from(fr));
+        }
+        return activeRoutes;
     }
 
     private AirTransportCompany findByCollaborator(final String collaboratorEmail) {
@@ -60,12 +53,12 @@ public class DeleteFlightRouteController {
                         "No company found for collaborator " + collaboratorEmail));
     }
 
-    private List<FlightRouteDTO> listActiveRoutes(final AirTransportCompany company) {
-        final List<FlightRouteDTO> activeRoutes = new ArrayList<>();
+    private List<FlightRoute> listActiveRoutes(final AirTransportCompany company) {
+        final List<FlightRoute> activeRoutes = new ArrayList<>();
         for (final FlightRoute r : routeRepo.findByCompanyIata(
                 company.companyCode().iata())) {
             if (r.isActive()) {
-                activeRoutes.add(FlightRouteDTO.from(r));
+                activeRoutes.add(r);
             }
         }
         return activeRoutes;

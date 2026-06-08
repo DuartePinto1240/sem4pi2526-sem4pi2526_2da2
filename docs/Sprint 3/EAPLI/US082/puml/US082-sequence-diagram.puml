@@ -16,22 +16,39 @@ actor "Pilot" as PILOT
 participant "InsertWeatherDataUI" as UI
 participant "InsertWeatherDataController" as CTRL
 participant "FlightPlanRepository" as FPREPO
+participant "AirControlAreaRepository" as AREAREPO
 participant "WeatherDataRepository" as WREPO
 participant "FlightPlan" as FP
 
 PILOT -> UI : requests to insert weather data
 activate UI
 
-UI -> CTRL : getPilotFlightPlans()
+UI -> CTRL : getPilotFlightPlans(email)
 activate CTRL
 CTRL -> FPREPO : findByPilot(email)
 FPREPO --> CTRL : List<FlightPlan>
+note right of CTRL
+  Only modifiable plans
+  (DRAFT or TESTED) are
+  converted to DTOs
+end note
 CTRL --> UI : List<FlightPlanDTO>
 deactivate CTRL
 
-UI --> PILOT : displays own flight plans
+UI --> PILOT : displays modifiable flight plans
 
 PILOT -> UI : selects flight plan
+
+UI -> CTRL : getAvailableAreas()
+activate CTRL
+CTRL -> AREAREPO : findAll()
+AREAREPO --> CTRL : List<AirControlArea>
+CTRL --> UI : List<AirControlAreaDTO>
+deactivate CTRL
+
+UI --> PILOT : displays air control areas
+
+PILOT -> UI : selects area
 
 UI -> CTRL : getAvailableWeatherData(areaCode)
 activate CTRL
@@ -42,7 +59,7 @@ deactivate CTRL
 
 UI --> PILOT : displays available weather data
 
-PILOT -> UI : selects weather data
+PILOT -> UI : selects weather data and confirms
 
 UI -> CTRL : insertWeatherData(flightPlanId, weatherDataId)
 activate CTRL
@@ -50,14 +67,9 @@ activate CTRL
 CTRL -> FPREPO : ofIdentity(flightPlanId)
 FPREPO --> CTRL : FlightPlan
 
-CTRL -> FP : isOwnedBy(pilotEmail)
-activate FP
-FP --> CTRL : true
-
-CTRL -> FP : isModifiable()
-FP --> CTRL : true
-
 CTRL -> FP : addWeatherData(weatherDataId)
+
+activate FP
 
 alt status was TESTED
     FP -> FP : status = DRAFT
@@ -68,6 +80,7 @@ FP --> CTRL : void
 deactivate FP
 
 CTRL -> FPREPO : save(flightPlan)
+FPREPO --> CTRL : FlightPlan
 
 CTRL --> UI : success
 deactivate CTRL
