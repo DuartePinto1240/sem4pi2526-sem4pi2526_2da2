@@ -244,4 +244,208 @@ class GenerateSimulationReportControllerTest {
                 report.identity().value(),
                 "Report ID must match filename without extension");
     }
+    /**
+     * Test 10 — availableReportFiles returns empty when directory does not exist.
+     * Covers: files == null branch in availableReportFiles().
+     */
+    @Test
+    void ensureNonExistentDirectoryReturnsEmptyList() {
+        final GenerateSimulationReportController ctrlBadDir =
+                new GenerateSimulationReportController(repo, "/nonexistent/path/xyz");
+        assertTrue(ctrlBadDir.availableReportFiles().isEmpty());
+    }
+
+    /**
+     * Test 11 — Report with 0 total flights falls back to Math.max(0, 1) = 1.
+     * Covers: Math.max(totalFlights, 1) branch.
+     */
+    @Test
+    void ensureReportWithZeroFlightsDefaultsToOne() throws IOException {
+        final String content =
+                "========================================\n"
+                        + "  AISafe Simulation Report\n"
+                        + "  Generated: Sat Jun  6 21:00:17 2026\n"
+                        + "========================================\n\n"
+                        + "--- Summary ---\n"
+                        + "Total flights    : 0\n"
+                        + "Total violations : 0\n"
+                        + "Result           : PASS\n\n"
+                        + "--- Flight Statuses ---\n"
+                        + "Flight 0 : OK\n\n"
+                        + "--- Safety Violation Events ---\n"
+                        + "No violations recorded.\n\n"
+                        + "========================================\n"
+                        + "  End of Report\n"
+                        + "========================================\n";
+        writeReport("simulation_report_20260606_220000.txt", content);
+
+        final SimulationReport r =
+                ctrl.generateReport("simulation_report_20260606_220000.txt");
+
+        assertEquals(1, r.totalFlights(),
+                "totalFlights=0 in file must default to 1 via Math.max");
+    }
+
+    /**
+     * Test 12 — Report with no Flight Statuses section triggers fallback.
+     * Covers: if (statuses.isEmpty()) branch.
+     */
+    @Test
+    void ensureReportWithNoStatusSectionCreatesDefaultStatuses() throws IOException {
+        final String content =
+                "========================================\n"
+                        + "  AISafe Simulation Report\n"
+                        + "  Generated: Sat Jun  6 21:00:17 2026\n"
+                        + "========================================\n\n"
+                        + "--- Summary ---\n"
+                        + "Total flights    : 2\n"
+                        + "Total violations : 0\n"
+                        + "Result           : PASS\n\n"
+                        + "--- Safety Violation Events ---\n"
+                        + "No violations recorded.\n\n"
+                        + "========================================\n"
+                        + "  End of Report\n"
+                        + "========================================\n";
+        writeReport("simulation_report_20260606_220001.txt", content);
+
+        final SimulationReport r =
+                ctrl.generateReport("simulation_report_20260606_220001.txt");
+
+        assertEquals(2, r.flightStatuses().size(),
+                "Fallback must create one OK status per flight");
+        r.flightStatuses().forEach(s ->
+                assertEquals(FlightExecutionStatus.Status.OK, s.status()));
+    }
+
+    /**
+     * Test 13 — Report with ABORTED flight status is correctly parsed.
+     * Covers: case "ABORTED" branch in status switch.
+     */
+    @Test
+    void ensureAbortedFlightStatusIsParsed() throws IOException {
+        final String content =
+                "========================================\n"
+                        + "  AISafe Simulation Report\n"
+                        + "  Generated: Sat Jun  6 21:00:17 2026\n"
+                        + "========================================\n\n"
+                        + "--- Summary ---\n"
+                        + "Total flights    : 1\n"
+                        + "Total violations : 0\n"
+                        + "Result           : FAIL\n\n"
+                        + "--- Flight Statuses ---\n"
+                        + "Flight 0 : ABORTED\n\n"
+                        + "--- Safety Violation Events ---\n"
+                        + "No violations recorded.\n\n"
+                        + "========================================\n"
+                        + "  End of Report\n"
+                        + "========================================\n";
+        writeReport("simulation_report_20260606_220002.txt", content);
+
+        final SimulationReport r =
+                ctrl.generateReport("simulation_report_20260606_220002.txt");
+
+        assertEquals(FlightExecutionStatus.Status.ABORTED,
+                r.flightStatuses().get(0).status());
+    }
+
+    /**
+     * Test 14 — Report with unparseable date falls back to now().
+     * Covers: catch block in Generated: parsing.
+     */
+    @Test
+    void ensureUnparseableDateFallsBackToNow() throws IOException {
+        final String content =
+                "========================================\n"
+                        + "  AISafe Simulation Report\n"
+                        + "  Generated: INVALID DATE FORMAT\n"
+                        + "========================================\n\n"
+                        + "--- Summary ---\n"
+                        + "Total flights    : 1\n"
+                        + "Total violations : 0\n"
+                        + "Result           : PASS\n\n"
+                        + "--- Flight Statuses ---\n"
+                        + "Flight 0 : OK\n\n"
+                        + "--- Safety Violation Events ---\n"
+                        + "No violations recorded.\n\n"
+                        + "========================================\n"
+                        + "  End of Report\n"
+                        + "========================================\n";
+        writeReport("simulation_report_20260606_220003.txt", content);
+
+        final SimulationReport r =
+                ctrl.generateReport("simulation_report_20260606_220003.txt");
+
+        assertNotNull(r.generatedAt(),
+                "generatedAt must not be null even with invalid date");
+    }
+
+    /**
+     * Test 15 — Violation with malformed Lat/Lon/Alt line is silently ignored.
+     * Covers: catch block in parseLatLonAlt.
+     */
+    @Test
+    void ensureMalformedLatLonAltIsSilentlyIgnored() throws IOException {
+        final String content =
+                "========================================\n"
+                        + "  AISafe Simulation Report\n"
+                        + "  Generated: Sat Jun  6 21:00:17 2026\n"
+                        + "========================================\n\n"
+                        + "--- Summary ---\n"
+                        + "Total flights    : 2\n"
+                        + "Total violations : 1\n"
+                        + "Result           : FAIL\n\n"
+                        + "--- Flight Statuses ---\n"
+                        + "Flight 0 : VIOLATED\n"
+                        + "Flight 1 : VIOLATED\n\n"
+                        + "--- Safety Violation Events ---\n\n"
+                        + "Violation #1\n"
+                        + "  Timestamp : 1.00 s\n"
+                        + "  Flight 1  : 0\n"
+                        + "    Lat=MALFORMED\n"
+                        + "    Velocity : vx=0.0000 vy=0.0000 vz=0.0000\n"
+                        + "  Flight 2  : 1\n"
+                        + "    Lat=41.2598 Lon=-8.6887 Alt=81.0\n"
+                        + "    Velocity : vx=MALFORMED\n\n"
+                        + "========================================\n"
+                        + "  End of Report\n"
+                        + "========================================\n";
+        writeReport("simulation_report_20260606_220004.txt", content);
+
+        assertDoesNotThrow(() ->
+                        ctrl.generateReport("simulation_report_20260606_220004.txt"),
+                "Malformed position/velocity lines must not throw");
+    }
+
+    /**
+     * Test 16 — Package-private constructor with repo only uses default dir.
+     * Covers: GenerateSimulationReportController(repo) constructor.
+     */
+    @Test
+    void ensureRepoOnlyConstructorCreatesController() {
+        final GenerateSimulationReportController c =
+                new GenerateSimulationReportController(repo);
+        assertNotNull(c);
+        // availableReportFiles uses default dir — may return empty or not,
+        // but must not throw
+        assertDoesNotThrow(c::availableReportFiles);
+    }
+
+    /**
+     * Test 17 — availableReportFiles returns files in sorted order.
+     * Covers: .sorted() in stream pipeline.
+     */
+    @Test
+    void ensureAvailableFilesAreSorted() throws IOException {
+        writeReport("simulation_report_20260606_210055.txt", passReport1Flight());
+        writeReport("simulation_report_20260606_210017.txt", passReport1Flight());
+        writeReport("simulation_report_20260606_210033.txt", passReport1Flight());
+
+        final List<String> files = ctrl.availableReportFiles();
+
+        assertEquals(3, files.size());
+        for (int i = 0; i < files.size() - 1; i++) {
+            assertTrue(files.get(i).compareTo(files.get(i + 1)) < 0,
+                    "Files must be in sorted order");
+        }
+    }
 }
