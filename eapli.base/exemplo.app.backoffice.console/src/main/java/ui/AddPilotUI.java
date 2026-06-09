@@ -25,12 +25,15 @@ public class AddPilotUI extends AbstractUI {
         final String name        = Console.readLine("Full name:");
         final String email       = Console.readLine("Email:");
         final String phoneNumber = Console.readLine("Phone number:");
+        final String staffNumber = Console.readLine("Staff number:");
+        final String password    = Console.readLine("Password:");
 
         final List<AircraftModel> certifiedModels = selectCertifiedModels(ctrl);
         if (certifiedModels == null) return false;
 
         final Either<String, Pilot> result =
-                ctrl.addPilot(name, email, phoneNumber, company, certifiedModels);
+                ctrl.addPilot(name, email, phoneNumber, staffNumber, password,
+                        company, certifiedModels);
 
         if (result.isLeft()) {
             System.out.println("\n>> ERROR: " + result.getLeft());

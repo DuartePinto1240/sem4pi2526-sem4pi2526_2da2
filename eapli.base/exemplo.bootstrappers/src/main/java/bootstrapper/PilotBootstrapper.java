@@ -40,14 +40,12 @@ public class PilotBootstrapper implements Action {
         companyRepo.findAll().forEach(companies::add);
 
         findCompany(companies, "TP").ifPresent(tap -> {
-            register(ctrl, "Joao Silva",   "joao.silva@tap.pt",   "+351910000001", tap, models.subList(0, 1));
-            register(ctrl, "Maria Santos", "maria.santos@tap.pt", "+351910000002", tap, models.subList(0, 1));
-            // Demo pilot account — same email as the PILOT system user for US080 auto-association
-            register(ctrl, "AlSafe Pilot", "pilot@alsafe.com",    "+351910000099", tap, models.subList(0, 1));
+            register(ctrl, "João Silva",   "joao.silva@tap.pt",   "910000001", "STAFF-P-001", "Pilot1234", tap, models.subList(0, 1));
+            register(ctrl, "Maria Santos", "maria.santos@tap.pt", "910000002", "STAFF-P-002", "Pilot1234", tap, models.subList(0, 1));
         });
 
         findCompany(companies, "FR").ifPresent(ryr ->
-                register(ctrl, "James Murphy", "james.murphy@ryanair.com", "+353870000001", ryr, models.subList(0, 1))
+                register(ctrl, "James Murphy", "james.murphy@ryanair.com", "910000003", "STAFF-P-003", "Pilot1234", ryr, models.subList(0, 1))
         );
 
         return true;
@@ -64,9 +62,11 @@ public class PilotBootstrapper implements Action {
                           final String name,
                           final String email,
                           final String phone,
+                          final String staffNumber,
+                          final String password,
                           final AirTransportCompany company,
                           final List<AircraftModel> models) {
-        ctrl.addPilot(name, email, phone, company, models)
+        ctrl.addPilot(name, email, phone, staffNumber, password, company, models)
                 .ifLeft(error -> { /* already exists or validation failed — skip silently */ });
     }
 }
