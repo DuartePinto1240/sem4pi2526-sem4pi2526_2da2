@@ -9,6 +9,7 @@ Record of clarifications obtained from the client (Prof. Angelo Martins) during 
 **Question (Remelgado):**
 The DSL defines parameters for the pilot to create a flight plan, including aircraft. But the simulator does not have access to the details of the aircraft (wingspan, etc.) to calculate the physics, unless it reads the parameters of that aircraft object. The question is: does the simulator have to read those objects (making it part of the entire project), or is it supposed to run with dummy flight plans that include wingspan, empty weight, etc., in order to keep the simulator independent from the rest of the project?
 
+
 **Answer (Angelo Martins):**
 > "The simulation must receive the data it needs to simulate. That's quite obvious."
 
