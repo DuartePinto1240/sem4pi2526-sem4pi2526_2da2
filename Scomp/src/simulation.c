@@ -427,24 +427,21 @@ static void *environment_thread(void *arg) {
 
         pthread_mutex_lock(&g_shm_mutex);
 
-        /* Encontra o vento para o primeiro voo ativo */
-        int found = 0;
-        for (int i = 0; i < args->config->num_flights && !found; i++) {
+        for (int i = 0; i < args->config->num_flights; i++) {
             if (!args->shm->active[i]) continue;
-
             const double lat    = args->shm->positions[i].latitude;
             const double lon    = args->shm->positions[i].longitude;
-            const double alt_ft = args->shm->positions[i].altitude
-                                  * 3.28084; /* metres -> feet */
-
+            const double alt_ft = args->shm->positions[i].altitude * 3.28084;
             WindData wind = {0};
             if (weather_lookup(lat, lon, alt_ft, &wind)) {
-                args->shm->wind = wind;
-                found = 1;
-                printf("[ENV] Step %d -- wind %.1f m/s @ %.0f deg"
-                       " (vx=%.4f vy=%.4f)\n",
-                       step, wind.speed_ms, wind.direction_deg,
-                       wind.vx, wind.vy);
+                args->shm->wind[i] = wind;
+                printf("[ENV] Step %d Flight %d -- wind %.1f m/s @ %.0f deg\n",
+                       step, i, wind.speed_ms, wind.direction_deg);
+            } else {
+                WindData calm = {0};
+                args->shm->wind[i] = calm;
+                printf("[ENV] Step %d Flight %d -- outside all weather zones, calm\n",
+                       step, i);
             }
         }
 

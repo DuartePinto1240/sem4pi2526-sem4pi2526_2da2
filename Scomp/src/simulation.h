@@ -65,7 +65,7 @@ typedef struct {
     int      abort_flag;                   /* 1=simulation must stop          */
     int      nproc_at_barrier;             /* flights that finished this step */
     int      num_active_flights;           /* active flights (barrier target) */
-    WindData wind;                         /* current wind (US110)            */
+    WindData wind[MAX_FLIGHTS];                         /* current wind (US110)            */
 } SharedSimulationData;
 
 /* State of one flight in the simulation */

@@ -343,8 +343,8 @@ Position advance_physics(FlightPhysics *ph, int flight_id,
 
     /* ── 11b. US110 — apply wind from shared memory ──────────── */
     if (shm != NULL) {
-        ph->lat += shm->wind.vy * dt * DEG_PER_METRE;
-        ph->lon += shm->wind.vx * dt * DEG_PER_METRE;
+        ph->lat += shm->wind[flight_id].vy * dt * DEG_PER_METRE;
+        ph->lon += shm->wind[flight_id].vx * dt * DEG_PER_METRE;
     }
 
     /* ── 12. Update altitude ─────────────────────────────────── */
