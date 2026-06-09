@@ -1,0 +1,99 @@
+@startuml
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+
+actor Pilot as P
+participant TestFlightPlanUI as UI <<boundary>>
+participant TestFlightPlanController as CTRL <<control>>
+participant FlightPlanRepository as REPO <<repository>>
+participant FlightPlanImporter as IMPORTER <<service>>
+participant "flight_plan_test\n(C program)" as C <<external>>
+participant FlightPlan as FP <<entity>>
+
+P -> UI : doShow()
+UI -> CTRL : listDraftFlightPlans(email)
+activate CTRL
+CTRL -> REPO : findByPilotAndStatus(email, DRAFT)
+activate REPO
+REPO --> CTRL : Iterable<FlightPlan>
+deactivate REPO
+CTRL --> UI : List<FlightPlan>
+deactivate CTRL
+
+UI --> P : displays DRAFT flight plans
+P -> UI : selects flight plan
+
+UI -> CTRL : testFlightPlan(flightPlanId)
+activate CTRL
+
+CTRL -> REPO : findByFlightId(flightPlanId)
+activate REPO
+REPO --> CTRL : Optional<FlightPlan>
+deactivate REPO
+
+note right of CTRL
+  Validates: plan exists,
+  status == DRAFT,
+  dslContent not blank
+end note
+
+== Phase 1 — DSL Re-Validation (ANTLR) ==
+
+CTRL -> IMPORTER : importFromString(dslContent)
+activate IMPORTER
+note right of IMPORTER
+  Lexical + Syntactic
+  + Semantic validation
+  (existing ANTLR pipeline)
+end note
+IMPORTER --> CTRL : FlightPlanImportResult
+deactivate IMPORTER
+
+alt DSL validation failed (lexical / syntactic / semantic)
+  CTRL --> UI : FlightPlanTestResult.fail(errors)
+  UI --> P : shows FAIL + DSL errors
+else DSL valid — extract per-segment data
+
+  == Phase 2 — Feasibility Check (C program) ==
+
+  note right of CTRL
+    Extracts from parsed FlightData per leg:
+    - fuelQuantity (kg)
+    - per segment: fromLat, fromLon, toLat, toLon
+      minAlt, maxAlt (ft), windSpeed (m/s)
+  end note
+
+  CTRL -> C : ProcessBuilder args:\nnum_legs\n  leg_fuel leg_num_segs\n    fromLat fromLon toLat toLon\n    minAlt maxAlt windSpeed\n    ... (per segment)\n  ... (per leg)
+  activate C
+  note right of C
+    For each leg:
+      Haversine dist per segment
+      check fuel >= dist*2.5 + 200 kg reserve
+    For each segment:
+      check alt in [500, 45000] ft
+      check wind <= 50 m/s
+  end note
+  C --> CTRL : stdout: PASS or FAIL\n+ one error line per violation\nexit code: 0 or 1
+  deactivate C
+
+  alt C checker PASS
+    CTRL -> FP : markAsTested("PASS — ...")
+    activate FP
+    note right of FP
+      Precondition: status == DRAFT
+      status ← TESTED
+      testResult ← summary
+    end note
+    FP --> CTRL : ok
+    deactivate FP
+    CTRL -> REPO : save(flightPlan)
+    CTRL --> UI : FlightPlanTestResult.pass()
+    UI --> P : shows PASS box\nplan marked as TESTED
+  else C checker FAIL
+    CTRL --> UI : FlightPlanTestResult.fail(errors)
+    UI --> P : shows FAIL box + feasibility errors\nplan stays DRAFT
+  end
+end
+
+deactivate CTRL
+@enduml
