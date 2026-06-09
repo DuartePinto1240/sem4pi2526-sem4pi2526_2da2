@@ -8,6 +8,7 @@ import domain.aircraftmodel.AircraftModel;
 import domain.pilot.Pilot;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.application.UserManagementService;
+import eapli.framework.infrastructure.authz.domain.model.Username;
 import persistence.PersistenceContext;
 import repositories.AircraftModelRepository;
 import repositories.AirTransportCompanyRepository;
@@ -18,7 +19,6 @@ import util.Either;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 public class AddPilotController {
@@ -66,22 +66,6 @@ public class AddPilotController {
 
     /**
      * Adds a new pilot to the given company and registers them as a system user.
-     *
-     * Order of operations (mirrors AddCollaboratorController pattern):
-     *   1. Business rule checks — fail fast before any persistence.
-     *   2. Build and validate domain User — throws if data is invalid.
-     *   3. Register SystemUser in the EAPLI framework (credentials + PILOT role).
-     *   4. Persist domain User.
-     *   5. Create and persist Pilot aggregate.
-     *
-     * @param name            pilot's full name
-     * @param email           pilot's email — must be unique in the system
-     * @param phoneNumber     pilot's phone number
-     * @param staffNumber     unique staff number
-     * @param password        initial login password
-     * @param company         the company to add the pilot to
-     * @param certifiedModels list of aircraft models the pilot is certified for
-     * @return the saved Pilot on success, or an error message on failure
      */
     public Either<String, Pilot> addPilot(final String name,
                                           final String email,
@@ -91,12 +75,20 @@ public class AddPilotController {
                                           final AirTransportCompany company,
                                           final List<AircraftModel> certifiedModels) {
 
+        // Check domain pilot repository
         if (pilotRepository.findByEmail(email).isPresent()) {
             return Either.left("A pilot with email '" + email + "' already exists.");
         }
 
+        // Check domain user repository
         if (userRepository.findByEmail(EmailAddress.valueOf(email)).isPresent()) {
             return Either.left("Email '" + email + "' is already registered in the system.");
+        }
+
+        // Check EAPLI framework SystemUser table (T_SYSTEMUSER) —
+        // prevents duplicate key constraint violation on PostgreSQL
+        if (userSvc.userOfIdentity(Username.valueOf(email)).isPresent()) {
+            return Either.left("Email '" + email + "' is already registered as a system user.");
         }
 
         if (certifiedModels == null || certifiedModels.isEmpty()) {
@@ -113,19 +105,31 @@ public class AddPilotController {
         domainUser.setRole(BaseRoles.PILOT.toString());
 
         // Step 3 — register SystemUser in framework
-        final String[] parts    = name.trim().split("\\s+", 2);
-        final String firstName  = parts[0];
-        final String lastName   = parts.length > 1 ? parts[1] : parts[0];
+        final String[] parts   = name.trim().split("\\s+", 2);
+        final String firstName = parts[0];
+        final String lastName  = parts.length > 1 ? parts[1] : parts[0];
         final Set<eapli.framework.infrastructure.authz.domain.model.Role> roles = new HashSet<>();
         roles.add(BaseRoles.PILOT);
-        userSvc.registerNewUser(email, password, firstName, lastName, email, roles);
+        try {
+            userSvc.registerNewUser(email, password, firstName, lastName, email, roles);
+        } catch (final Exception e) {
+            return Either.left("System user already exists: " + email);
+        }
 
         // Step 4 — persist domain User
-        userRepository.save(domainUser);
+        try {
+            userRepository.save(domainUser);
+        } catch (final Exception e) {
+            return Either.left("Domain user already exists: " + email);
+        }
 
         // Step 5 — create and persist Pilot aggregate
-        final Pilot pilot = new Pilot(name, email, phoneNumber, company, certifiedModels);
-        pilotRepository.save(pilot);
-        return Either.right(pilot);
+        try {
+            final Pilot pilot = new Pilot(name, email, phoneNumber, company, certifiedModels);
+            pilotRepository.save(pilot);
+            return Either.right(pilot);
+        } catch (final Exception e) {
+            return Either.left("Pilot already exists: " + email);
+        }
     }
 }
