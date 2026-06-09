@@ -25,11 +25,20 @@ public final class Protocol {
     public static final String LIST_MODELS       = "LIST_MODELS";
 
     // Weather Person commands (US44)
-    public static final String LIST_AREAS = "LIST_AREAS";
+    public static final String LIST_AREAS       = "LIST_AREAS";
     public static final String REGISTER_WEATHER = "REGISTER_WEATHER";
-    public static final String IMPORT_WEATHER = "IMPORT_WEATHER";
-    public static final String END_FILE = "END_FILE";
-    public static final String CONSULT_WEATHER = "CONSULT_WEATHER";
+    public static final String IMPORT_WEATHER   = "IMPORT_WEATHER";
+    public static final String END_FILE         = "END_FILE";
+    public static final String CONSULT_WEATHER  = "CONSULT_WEATHER";
+
+    // Pilot commands (US86)
+    public static final String LIST_DRAFT_PLANS   = "LIST_DRAFT_PLANS";
+    public static final String LIST_ALL_PLANS     = "LIST_ALL_PLANS";
+    public static final String IMPORT_FLIGHT_PLAN = "IMPORT_FLIGHT_PLAN";
+    public static final String LIST_WEATHER_AREAS = "LIST_WEATHER_AREAS";
+    public static final String LIST_WEATHER_DATA  = "LIST_WEATHER_DATA";
+    public static final String INSERT_WEATHER     = "INSERT_WEATHER";
+    public static final String TEST_FLIGHT_PLAN   = "TEST_FLIGHT_PLAN";
 
     private Protocol() {}
 }

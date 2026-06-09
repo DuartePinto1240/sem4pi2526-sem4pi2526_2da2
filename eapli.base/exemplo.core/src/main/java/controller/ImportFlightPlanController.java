@@ -59,6 +59,18 @@ public class ImportFlightPlanController {
     }
 
     /**
+     * Imports a flight plan from a raw DSL string (used by the TCP server US86).
+     * If valid, persists the flight plan with status DRAFT.
+     */
+    public FlightPlanImportResult importFromDsl(final String dsl) {
+        final FlightPlanImportResult result = importer.importFromString(dsl);
+        if (result.isSuccess()) {
+            persistFlightPlans(result.getFlights(), result.getRawSource());
+        }
+        return result;
+    }
+
+    /**
      * Validates the file format and imports the flight plan.
      * Only .fp files (Core Flight DSL) are supported.
      * If valid, persists the flight plan with status DRAFT.
