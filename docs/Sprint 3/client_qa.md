@@ -94,4 +94,44 @@ And is the "only direct flights" simplification about what the system stores, or
 
 ---
 
+## Altitude Range for Air Control Areas
+
+**Question (Guerra 1241934):**
+The weather dataset for Air Control Area "121" only contains longitudinal and latitudinal boundaries. The understanding was that air control areas are also bound by altitude ranges (from 0 up to ~14,000m as mentioned on May 5th: "São sempre retangulares, de zero até uma dada altitude"). Should we assume area 121 encompasses the entire altitude range, or should altitude range be removed as an attribute of air control areas?
+
+**Answer (Angelo Martins):**
+
+> "The weather information is not used to create Air Control Areas. The first sheet is provided just to help you understand the Air Control Area's boundaries. In your system, you don't read the first sheet. You have an Air Control Area (ACA) created in the system and you load the weather information, making sure that it matches the ACA's boundaries."
+
+---
+
+## US082 — Insert Weather Data for a Flight
+
+**Question (Silva 1241176):**
+
+1. Is the data entry manual (the Pilot sees a list of all reports and chooses), or should the system automatically cross-reference the flight data/area and apply the correct data?
+2. What should the system do if the Pilot tries to add weather to a flight but no weather data exists for that area and date — block with an error or assume zero wind?
+3. If the pilot re-enters the exact same meteorological report already present, does the test still become VOID, or should the domain ignore the operation since there is no real change?
+
+**Answer (Angelo Martins):**
+
+> "No pilot would accept having to insert a ton of weather data manually into the system. He only has to choose one (or more according to the flight schedule and air control areas involved) of the available weather forecasts."
+>
+> "If there is no available weather forecast then the pilot can't choose one, isn't it?"
+
+---
+
+## US074 — Delete a Flight Route
+
+**Question (Alves 1240666):**
+Should a deactivated route be kept in the database with a deactivation date, or deleted completely? If a route is to be deleted but there are planned flights for it after the current date, when should the deletion occur?
+
+**Answer (Angelo Martins):**
+
+> "The simple fact that it came to your mind that you could actually delete (erase) a route from the DB makes me sad. I was responsible for BDDAD and how do you think I feel when a former student suggests that?"
+
+**Conclusion:** Routes are never deleted from the database. They are deactivated with a deactivation date and kept for historical reference.
+
+---
+
 *Last updated: Sprint 3 — June 2026*
