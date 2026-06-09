@@ -445,13 +445,6 @@ static void *environment_thread(void *arg) {
             }
         }
 
-        if (!found) {
-            WindData calm = {0};
-            args->shm->wind = calm;
-            printf("[ENV] Step %d -- outside all weather zones, calm\n",
-                   step);
-        }
-
         pthread_mutex_unlock(&g_shm_mutex);
         step++;
 
