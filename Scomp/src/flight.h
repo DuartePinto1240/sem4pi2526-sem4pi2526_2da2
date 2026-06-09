@@ -96,8 +96,10 @@ void move_along_bearing(double lat_deg, double lon_deg,
 
 void init_flight_physics(FlightPhysics *ph, int flight_id, int total_steps);
 
+/* US110: shm passed so advance_physics can read wind data */
 Position advance_physics(FlightPhysics *ph, int flight_id,
-                          int step, int total_steps, double dt);
+                          int step, int total_steps, double dt,
+                          const SharedSimulationData *shm);
 
 Position compute_next_position(int flight_id, int step, int total_steps);
 
