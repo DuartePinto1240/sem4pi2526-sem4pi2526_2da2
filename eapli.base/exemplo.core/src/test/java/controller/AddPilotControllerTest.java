@@ -1,6 +1,8 @@
 package controller;
 
 import domain.AirTransportCompany;
+import domain.EmailAddress;
+import domain.User;
 import domain.aircraftmodel.AircraftModel;
 import domain.aircraftmodel.AircraftType;
 import domain.aircraftmodel.FlightCharacteristics;
@@ -9,11 +11,13 @@ import domain.enginemodel.MotorizationType;
 import domain.enginemodel.Thrust;
 import domain.enginemodel.TSFC;
 import domain.pilot.Pilot;
+import eapli.framework.infrastructure.authz.application.UserManagementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import repositories.AircraftModelRepository;
 import repositories.AirTransportCompanyRepository;
 import repositories.PilotRepository;
+import repositories.UserRepository;
 import util.Either;
 
 import java.util.Collections;
@@ -29,6 +33,8 @@ class AddPilotControllerTest {
     private PilotRepository               pilotRepo;
     private AirTransportCompanyRepository companyRepo;
     private AircraftModelRepository       modelRepo;
+    private UserRepository                userRepo;
+    private UserManagementService         userSvc;
     private AddPilotController            controller;
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -56,7 +62,10 @@ class AddPilotControllerTest {
         pilotRepo   = mock(PilotRepository.class);
         companyRepo = mock(AirTransportCompanyRepository.class);
         modelRepo   = mock(AircraftModelRepository.class);
-        controller  = new AddPilotController(pilotRepo, companyRepo, modelRepo);
+        userRepo    = mock(UserRepository.class);
+        userSvc     = mock(UserManagementService.class);
+        controller  = new AddPilotController(pilotRepo, companyRepo, modelRepo,
+                userRepo, userSvc);
     }
 
     // ── availableCompanies ────────────────────────────────────────────────────
@@ -91,33 +100,55 @@ class AddPilotControllerTest {
     void ensureAddPilotSucceedsWithValidData() {
         // Arrange
         when(pilotRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(any(EmailAddress.class))).thenReturn(Optional.empty());
         when(pilotRepo.save(any(Pilot.class))).thenAnswer(i -> i.getArgument(0));
+        when(userRepo.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
         // Act
         final Either<String, Pilot> result = controller.addPilot(
-                "João Silva", "joao@tap.pt", "+351910000001",
+                "João Silva", "joao@tap.pt", "910000001", "STAFF-001", "Pass1234",
                 validCompany(), List.of(validAircraftModel()));
         // Assert
         assertTrue(result.isRight());
         assertEquals("joao@tap.pt", result.getRight().email());
         verify(pilotRepo).save(any(Pilot.class));
+        verify(userRepo).save(any(User.class));
     }
 
-    // ── addPilot — duplicate email ────────────────────────────────────────────
+    // ── addPilot — duplicate email in pilot repo ──────────────────────────────
 
     @Test
-    void ensureAddPilotFailsWhenEmailAlreadyExists() {
+    void ensureAddPilotFailsWhenEmailAlreadyExistsInPilotRepo() {
         // Arrange
-        final Pilot existing = new Pilot("João Silva", "joao@tap.pt", "+351910000001",
+        final Pilot existing = new Pilot("João Silva", "joao@tap.pt", "910000001",
                 validCompany(), List.of(validAircraftModel()));
         when(pilotRepo.findByEmail("joao@tap.pt")).thenReturn(Optional.of(existing));
         // Act
         final Either<String, Pilot> result = controller.addPilot(
-                "João Silva", "joao@tap.pt", "+351910000001",
+                "João Silva", "joao@tap.pt", "910000001", "STAFF-001", "Pass1234",
                 validCompany(), List.of(validAircraftModel()));
         // Assert
         assertTrue(result.isLeft());
         assertTrue(result.getLeft().contains("joao@tap.pt"));
         verify(pilotRepo, never()).save(any());
+        verify(userRepo, never()).save(any());
+    }
+
+    // ── addPilot — duplicate email in user repo ───────────────────────────────
+
+    @Test
+    void ensureAddPilotFailsWhenEmailAlreadyExistsInUserRepo() {
+        // Arrange
+        when(pilotRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(any(EmailAddress.class)))
+                .thenReturn(Optional.of(mock(User.class)));
+        // Act
+        final Either<String, Pilot> result = controller.addPilot(
+                "João Silva", "joao@tap.pt", "+351910000001", "STAFF-001", "Pass1234",
+                validCompany(), List.of(validAircraftModel()));
+        // Assert
+        assertTrue(result.isLeft());
+        verify(pilotRepo, never()).save(any());
+        verify(userRepo, never()).save(any());
     }
 
     // ── addPilot — empty certified models ─────────────────────────────────────
@@ -126,9 +157,10 @@ class AddPilotControllerTest {
     void ensureAddPilotFailsWhenNoCertifiedModelsProvided() {
         // Arrange
         when(pilotRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(any(EmailAddress.class))).thenReturn(Optional.empty());
         // Act
         final Either<String, Pilot> result = controller.addPilot(
-                "João Silva", "joao@tap.pt", "+351910000001",
+                "João Silva", "joao@tap.pt", "+351910000001", "STAFF-001", "Pass1234",
                 validCompany(), Collections.emptyList());
         // Assert
         assertTrue(result.isLeft());
@@ -139,13 +171,34 @@ class AddPilotControllerTest {
     void ensureAddPilotFailsWhenCertifiedModelsIsNull() {
         // Arrange
         when(pilotRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(any(EmailAddress.class))).thenReturn(Optional.empty());
         // Act
         final Either<String, Pilot> result = controller.addPilot(
-                "João Silva", "joao@tap.pt", "+351910000001",
+                "João Silva", "joao@tap.pt", "+351910000001", "STAFF-001", "Pass1234",
                 validCompany(), null);
         // Assert
         assertTrue(result.isLeft());
         verify(pilotRepo, never()).save(any());
+    }
+
+    // ── addPilot — SystemUser registered ─────────────────────────────────────
+
+    @Test
+    void ensureSystemUserIsRegisteredOnSuccess() {
+        // Arrange
+        when(pilotRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(any(EmailAddress.class))).thenReturn(Optional.empty());
+        when(pilotRepo.save(any(Pilot.class))).thenAnswer(i -> i.getArgument(0));
+        when(userRepo.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+        // Act
+        controller.addPilot(
+                "João Silva", "joao@tap.pt", "910000001", "STAFF-001", "Pass1234",
+                validCompany(), List.of(validAircraftModel()));
+        // Assert
+        verify(userSvc).registerNewUser(
+                eq("joao@tap.pt"), eq("Pass1234"),
+                any(String.class), any(String.class),
+                any(String.class), any());
     }
 
     // ── addPilot — saved pilot has correct data ───────────────────────────────
@@ -155,10 +208,12 @@ class AddPilotControllerTest {
         // Arrange
         final AirTransportCompany company = validCompany();
         when(pilotRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(any(EmailAddress.class))).thenReturn(Optional.empty());
         when(pilotRepo.save(any(Pilot.class))).thenAnswer(i -> i.getArgument(0));
+        when(userRepo.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
         // Act
         final Either<String, Pilot> result = controller.addPilot(
-                "João Silva", "joao@tap.pt", "+351910000001",
+                "João Silva", "joao@tap.pt", "910000001", "STAFF-001", "Pass1234",
                 company, List.of(validAircraftModel()));
         // Assert
         assertTrue(result.isRight());
@@ -169,10 +224,12 @@ class AddPilotControllerTest {
     void ensureSavedPilotIsActiveByDefault() {
         // Arrange
         when(pilotRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(any(EmailAddress.class))).thenReturn(Optional.empty());
         when(pilotRepo.save(any(Pilot.class))).thenAnswer(i -> i.getArgument(0));
+        when(userRepo.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
         // Act
         final Either<String, Pilot> result = controller.addPilot(
-                "João Silva", "joao@tap.pt", "+351910000001",
+                "João Silva", "joao@tap.pt", "910000001", "STAFF-001", "Pass1234",
                 validCompany(), List.of(validAircraftModel()));
         // Assert
         assertTrue(result.isRight());
@@ -184,10 +241,12 @@ class AddPilotControllerTest {
         // Arrange
         final AircraftModel model = validAircraftModel();
         when(pilotRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(any(EmailAddress.class))).thenReturn(Optional.empty());
         when(pilotRepo.save(any(Pilot.class))).thenAnswer(i -> i.getArgument(0));
+        when(userRepo.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
         // Act
         final Either<String, Pilot> result = controller.addPilot(
-                "João Silva", "joao@tap.pt", "+351910000001",
+                "João Silva", "joao@tap.pt", "910000001", "STAFF-001", "Pass1234",
                 validCompany(), List.of(model));
         // Assert
         assertTrue(result.isRight());

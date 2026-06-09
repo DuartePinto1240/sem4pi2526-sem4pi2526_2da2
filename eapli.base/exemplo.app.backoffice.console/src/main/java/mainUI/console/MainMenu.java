@@ -1,6 +1,5 @@
 package mainUI.console;
 
-import controller.InsertWeatherDataController;
 import controller.LoginController;
 import domain.BaseRoles;
 import eapli.framework.infrastructure.authz.application.AuthorizationService;
@@ -94,6 +93,7 @@ public class MainMenu extends AbstractUI {
             System.out.println("  ║  1.  Register Weather Data               ║");
             System.out.println("  ║  2.  Import Bulk Weather Data            ║");
             System.out.println("  ║  3.  Consult Weather Data                ║");
+            System.out.println("  ║  4.  Export Weather Data for Simulation  ║");
             System.out.println("  ╠══════════════════════════════════════════╣");
             printLogoutExit();
 
@@ -188,11 +188,12 @@ public class MainMenu extends AbstractUI {
 
         } else if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.WEATHER_PERSON)) {
             switch (option) {
-                case 1:  new RegisterWeatherDataUI().show();   break;
-                case 2:  new ImportBulkWeatherDataUI().show(); break;
-                case 3:  new ConsultWeatherDataUI().show();    break;
-                case 99: doLogout();                           break;
-                case 0:  doExit();                             break;
+                case 1:  new RegisterWeatherDataUI().show();          break;
+                case 2:  new ImportBulkWeatherDataUI().show();        break;
+                case 3:  new ConsultWeatherDataUI().show();           break;
+                case 4:  new ExportWeatherDataUI().show();            break;
+                case 99: doLogout();                                  break;
+                case 0:  doExit();                                    break;
                 default: System.out.println("  >> Invalid option. Please try again.");
             }
 

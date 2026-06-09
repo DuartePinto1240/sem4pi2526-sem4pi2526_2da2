@@ -35,6 +35,16 @@ typedef struct {
 } VelocityVector;
 
 /* -----------------------------------------
+ * Wind data written by the environment thread (US110)
+ * ----------------------------------------- */
+typedef struct {
+    double speed_ms;       /* wind speed in m/s              */
+    double direction_deg;  /* wind direction in degrees       */
+    double vx;             /* east component  (m/s)          */
+    double vy;             /* north component (m/s)          */
+} WindData;
+
+/* -----------------------------------------
  * Shared Memory Layout  (US105)
  *
  * One shm_open() segment holds the state shared by the parent
@@ -43,6 +53,8 @@ typedef struct {
  * active[i]) so no mutex is needed for those writes.
  * total_violations and abort_flag are written only by the
  * parent and are protected by a mutex in simulation.c.
+ * wind is written only by the environment thread (US110)
+ * and protected by the same mutex.
  * ----------------------------------------- */
 typedef struct {
     Position positions[MAX_FLIGHTS];       /* current position per flight    */
@@ -53,6 +65,7 @@ typedef struct {
     int      abort_flag;                   /* 1=simulation must stop          */
     int      nproc_at_barrier;             /* flights that finished this step */
     int      num_active_flights;           /* active flights (barrier target) */
+    WindData wind;                         /* current wind (US110)            */
 } SharedSimulationData;
 
 /* State of one flight in the simulation */
@@ -118,9 +131,9 @@ SharedSimulationData *init_shared_memory(int num_flights);
  * Returns 0 on success, -1 on error. */
 int init_semaphores(FlightState *states, int num_flights);
 
-/* Spawn the three parent-process threads:
- *   SimulationController, ViolationDetector, ReportGenerator.
- * Thread IDs are stored in out_tids[0..2].
+/* Spawn the four parent-process threads:
+ *   SimulationController, ViolationDetector, ReportGenerator, Environment.
+ * Thread IDs are stored in out_tids[0..3].
  * Returns 0 on success, -1 on error. */
 int spawn_parent_threads(pthread_t *out_tids,
                          const SimulationConfig *config,
@@ -130,7 +143,7 @@ int spawn_parent_threads(pthread_t *out_tids,
 
 /* Unmap and unlink the shared memory segment (munmap + shm_unlink).
  * Unlinks all named semaphores stored in states[].sem_name.
- * Joins all parent threads listed in tids[0..2]. */
+ * Joins all parent threads listed in tids[0..3]. */
 void cleanup_simulation(SharedSimulationData *shm,
                         FlightState *states,
                         int num_flights,
@@ -176,5 +189,15 @@ double compute_distance(const Position *p1, const Position *p2);
 /* Write the simulation report to a file. */
 void write_report(const SimulationReport *report,
                   const char *filename);
+
+/* -- US110: Weather -- */
+
+/* Load weather entries from a CSV file into weather.c internal dataset.
+ * Returns 0 on success, -1 on error. */
+int weather_load_csv(const char *csv_path);
+
+/* Find the wind for a given position (lat, lon, altitude in feet).
+ * Fills wind and returns 1 if a match was found, 0 if no zone matched. */
+int weather_lookup(double lat, double lon, double alt_ft, WindData *wind);
 
 #endif /* SIMULATION_H */
