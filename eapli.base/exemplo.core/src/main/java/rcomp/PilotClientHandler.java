@@ -11,6 +11,8 @@ import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.application.UserSession;
 import lprog.FlightPlan;
 import lprog.FlightPlanTestResult;
+import rcomp.logging.EventType;
+import rcomp.logging.RemoteAccessLogger;
 
 import java.io.*;
 import java.net.Socket;
@@ -39,6 +41,7 @@ public class PilotClientHandler implements Runnable {
     private final TestFlightPlanController    testCtrl;
     private final ImportFlightPlanController  importCtrl;
     private final InsertWeatherDataController weatherCtrl;
+    private final RemoteAccessLogger logger = new RemoteAccessLogger("localhost");
 
     private boolean authenticated      = false;
     private String  authenticatedEmail = null;
@@ -84,6 +87,10 @@ public class PilotClientHandler implements Runnable {
         } catch (final IOException e) {
             System.err.println("[PILOT-SERVER] Client error: " + e.getMessage());
         } finally {
+            if (authenticated && authenticatedEmail != null) {
+                logger.log(EventType.DISCONNECT, "US86", authenticatedEmail,
+                        socket.getInetAddress().getHostAddress(), socket.getPort());
+            }
             try { socket.close(); } catch (final IOException ignored) {}
             System.out.println("[PILOT-SERVER] Client disconnected.");
         }
@@ -133,8 +140,11 @@ public class PilotClientHandler implements Runnable {
             final Optional<UserSession> session =
                     AuthzRegistry.authenticationService().authenticate(email, password);
 
-            if (session.isEmpty())
+            if (session.isEmpty()) {
+                logger.log(EventType.LOGIN_FAIL, "US86",
+                        email, socket.getInetAddress().getHostAddress(), socket.getPort());
                 return Protocol.ERROR + " Invalid credentials";
+            }
 
             if (!session.get().authenticatedUser().hasAny(BaseRoles.PILOT)) {
                 AuthzRegistry.authorizationService().clearSession();
@@ -144,6 +154,9 @@ public class PilotClientHandler implements Runnable {
             authenticated      = true;
             authenticatedEmail = email;
             System.out.println("[PILOT-SERVER] Login OK: " + email);
+            logger.log(EventType.LOGIN_SUCCESS, "US86", email,
+                    socket.getInetAddress().getHostAddress(), socket.getPort());
+
             return Protocol.OK + " Welcome " + email;
 
         } catch (final Exception e) {
@@ -154,6 +167,10 @@ public class PilotClientHandler implements Runnable {
     // ── LOGOUT ────────────────────────────────────────────────────────────────
 
     private String handleLogout() {
+        if (authenticatedEmail != null) {
+            logger.log(EventType.LOGOUT, "US86", authenticatedEmail,
+                    socket.getInetAddress().getHostAddress(), socket.getPort());
+        }
         authenticated      = false;
         authenticatedEmail = null;
         AuthzRegistry.authorizationService().clearSession();

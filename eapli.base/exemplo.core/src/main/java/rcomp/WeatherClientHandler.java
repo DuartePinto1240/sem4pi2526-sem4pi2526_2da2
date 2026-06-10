@@ -11,6 +11,8 @@ import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.application.UserSession;
 import persistence.PersistenceContext;
 import domain.EmailAddress;
+import rcomp.logging.EventType;
+import rcomp.logging.RemoteAccessLogger;
 
 import java.io.*;
 import java.net.Socket;
@@ -46,6 +48,8 @@ public class WeatherClientHandler implements Runnable {
 
     private final Socket socket;
     private boolean authenticated = false;
+    private String  authenticatedEmail = null;
+    private final RemoteAccessLogger logger = new RemoteAccessLogger("localhost");
 
     public WeatherClientHandler(final Socket socket) {
         this.socket = socket;
@@ -73,6 +77,10 @@ public class WeatherClientHandler implements Runnable {
         } catch (final IOException e) {
             System.err.println("[WEATHER-SERVER] Client error: " + e.getMessage());
         } finally {
+            if (authenticated && authenticatedEmail != null) {
+                logger.log(EventType.DISCONNECT, "US44", authenticatedEmail,
+                        socket.getInetAddress().getHostAddress(), socket.getPort());
+            }
             try { socket.close(); } catch (final IOException ignored) {}
             System.out.println("[WEATHER-SERVER] Client disconnected.");
         }
@@ -117,8 +125,11 @@ public class WeatherClientHandler implements Runnable {
         try {
             final Optional<UserSession> session = AuthzRegistry.authenticationService().authenticate(email, password);
 
-            if (session.isEmpty())
+            if (session.isEmpty()) {
+                logger.log(EventType.LOGIN_FAIL, "US44", email,
+                        socket.getInetAddress().getHostAddress(), socket.getPort());
                 return Protocol.ERROR + " Invalid credentials";
+            }
 
             // Check security clearance
             final Optional<domain.User> domainUser = PersistenceContext.getInstance().userRepository().ofIdentity(EmailAddress.valueOf(email));
@@ -127,6 +138,8 @@ public class WeatherClientHandler implements Runnable {
                 final LocalDate expiry = domainUser.get().getSecurityClearanceExpiry();
                 if (expiry != null && !expiry.isAfter(LocalDate.now())) {
                     AuthzRegistry.authorizationService().clearSession();
+                    logger.log(EventType.LOGIN_FAIL, "US44", email,
+                            socket.getInetAddress().getHostAddress(), socket.getPort());
                     return Protocol.ERROR + " Security clearance expired";
                 }
             }
@@ -135,10 +148,15 @@ public class WeatherClientHandler implements Runnable {
             final boolean hasRole = session.get().authenticatedUser().hasAny(BaseRoles.WEATHER_PERSON);
             if (!hasRole) {
                 AuthzRegistry.authorizationService().clearSession();
+                logger.log(EventType.LOGIN_FAIL, "US44", email,
+                        socket.getInetAddress().getHostAddress(), socket.getPort());
                 return Protocol.ERROR + " Access denied: not a Weather Person";
             }
 
             authenticated = true;
+            authenticatedEmail = email;
+            logger.log(EventType.LOGIN_SUCCESS, "US44", email,
+                    socket.getInetAddress().getHostAddress(), socket.getPort());
             System.out.println("[WEATHER-SERVER] Login OK: " + email);
             return Protocol.OK + " Welcome " + email;
 
@@ -150,7 +168,12 @@ public class WeatherClientHandler implements Runnable {
 
     // LOGOUT
     private String handleLogout() {
-        authenticated = false;
+        if (authenticatedEmail != null) {
+            logger.log(EventType.LOGOUT, "US44", authenticatedEmail,
+                    socket.getInetAddress().getHostAddress(), socket.getPort());
+        }
+        authenticated      = false;
+        authenticatedEmail = null;
         AuthzRegistry.authorizationService().clearSession();
         return Protocol.BYE;
     }

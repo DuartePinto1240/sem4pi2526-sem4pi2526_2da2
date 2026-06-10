@@ -9,6 +9,8 @@ import domain.aircraft.Aircraft;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.application.UserSession;
 import persistence.PersistenceContext;
+import rcomp.logging.EventType;
+import rcomp.logging.RemoteAccessLogger;
 
 import java.io.*;
 import java.net.Socket;
@@ -26,6 +28,8 @@ public class ATCCClientHandler implements Runnable {
     private final Socket socket;
     private boolean authenticated = false;
     private String  companyIata   = null;
+    private String  authenticatedEmail = null;
+    private final RemoteAccessLogger logger = new RemoteAccessLogger("localhost");
 
     private static final DateTimeFormatter DT_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -55,6 +59,10 @@ public class ATCCClientHandler implements Runnable {
         } catch (final IOException e) {
             System.err.println("[SERVER] Client error: " + e.getMessage());
         } finally {
+            if (authenticated && authenticatedEmail != null) {
+                logger.log(EventType.DISCONNECT, "US78", authenticatedEmail,
+                        socket.getInetAddress().getHostAddress(), socket.getPort());
+            }
             try { socket.close(); } catch (final IOException ignored) {}
             System.out.println("[SERVER] Client disconnected.");
         }
@@ -109,8 +117,11 @@ public class ATCCClientHandler implements Runnable {
 
             System.out.println("[SERVER] Session present: " + session.isPresent());
 
-            if (session.isEmpty())
+            if (session.isEmpty()) {
+                logger.log(EventType.LOGIN_FAIL, "US78", email,
+                        socket.getInetAddress().getHostAddress(), socket.getPort());
                 return Protocol.ERROR + " Invalid credentials";
+            }
 
             final Optional<domain.User> domainUser = PersistenceContext.getInstance()
                     .userRepository()
@@ -124,11 +135,16 @@ public class ATCCClientHandler implements Runnable {
                 System.out.println("[SERVER] Clearance expiry: " + expiry);
                 if (expiry != null && !expiry.isAfter(LocalDate.now())) {
                     AuthzRegistry.authorizationService().clearSession();
+                    logger.log(EventType.LOGIN_FAIL, "US78", email,
+                            socket.getInetAddress().getHostAddress(), socket.getPort());
                     return Protocol.ERROR + " Security clearance expired";
                 }
             }
 
             authenticated = true;
+            authenticatedEmail = email;
+            logger.log(EventType.LOGIN_SUCCESS, "US78", email,
+                    socket.getInetAddress().getHostAddress(), socket.getPort());
             return Protocol.OK + " Welcome " + email;
 
         } catch (final Exception e) {
@@ -142,8 +158,13 @@ public class ATCCClientHandler implements Runnable {
     // ── LOGOUT ────────────────────────────────────────────────────────────
 
     private String handleLogout() {
+        if (authenticatedEmail != null) {
+            logger.log(EventType.LOGOUT, "US78", authenticatedEmail,
+                    socket.getInetAddress().getHostAddress(), socket.getPort());
+        }
         authenticated = false;
         companyIata   = null;
+        authenticatedEmail = null;
         AuthzRegistry.authorizationService().clearSession();
         return Protocol.BYE;
     }
