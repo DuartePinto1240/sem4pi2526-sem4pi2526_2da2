@@ -1,0 +1,72 @@
+@startuml
+title Sequence Diagram — US078 (ATCC Remote Access)
+
+actor ATCC as Pilot
+participant ATCCClient as CLIENT <<boundary>>
+participant ATCCServer as SERVER <<control>>
+participant ATCCClientHandler as HANDLER <<control>>
+participant LoginController as LOGIN <<control>>
+participant AddAircraftToFleetController as ADD <<control>>
+participant DecommissionAircraftController as DEC <<control>>
+participant ListCompanyFleetController as LIST <<control>>
+participant CreateFlightRouteController as ROUTE <<control>>
+
+Pilot -> CLIENT : start client
+CLIENT -> SERVER : TCP connect (port 2225)
+SERVER -> HANDLER : new ATCCClientHandler(socket)
+SERVER -> HANDLER : thread.start()
+
+Pilot -> CLIENT : LOGIN atcc@alsafe.com Atcc1234
+CLIENT -> HANDLER : LOGIN atcc@alsafe.com Atcc1234
+HANDLER -> LOGIN : login(email, password)
+LOGIN --> HANDLER : Optional<UserSession>
+alt credentials valid
+    HANDLER --> CLIENT : OK Welcome atcc@alsafe.com
+    CLIENT --> Pilot : OK Welcome atcc@alsafe.com
+else credentials invalid
+    HANDLER --> CLIENT : ERROR Invalid credentials
+    CLIENT --> Pilot : ERROR Invalid credentials
+end
+
+Pilot -> CLIENT : LIST_AIRPORTS
+CLIENT -> HANDLER : LIST_AIRPORTS
+HANDLER -> HANDLER : check authenticated
+HANDLER -> HANDLER : PersistenceContext.airportRepository().findAll()
+HANDLER --> CLIENT : OPO|LPPR|...\nLIS|LPPT|...\nEND
+CLIENT --> Pilot : airport list
+
+Pilot -> CLIENT : ADD_AIRCRAFT CS-TCP Portugal TP 1 200 20 0 8
+CLIENT -> HANDLER : ADD_AIRCRAFT CS-TCP Portugal TP 1 200 20 0 8
+HANDLER -> ADD : addAircraft(reg, country, iata, modelId, eco, bus, first, crew)
+ADD --> HANDLER : Aircraft
+HANDLER --> CLIENT : OK CS-TCP
+CLIENT --> Pilot : OK CS-TCP
+
+Pilot -> CLIENT : LIST_FLEET TP
+CLIENT -> HANDLER : LIST_FLEET TP
+HANDLER -> LIST : listFleet("TP")
+LIST --> HANDLER : Iterable<Aircraft>
+HANDLER --> CLIENT : CS-TCP|Portugal|TP|ACTIVE|220|2026-06-03\nEND
+CLIENT --> Pilot : fleet list
+
+Pilot -> CLIENT : CREATE_ROUTE TP001 TP OPO LIS REGULAR MONDAY 14:00 15:00
+CLIENT -> HANDLER : CREATE_ROUTE TP001 TP OPO LIS REGULAR MONDAY 14:00 15:00
+HANDLER -> ROUTE : createRegularRoute(designator, company, origin, dest, entries)
+ROUTE --> HANDLER : FlightRoute
+HANDLER --> CLIENT : OK TP001
+CLIENT --> Pilot : OK TP001
+
+Pilot -> CLIENT : DECOMMISSION CS-TCP TP
+CLIENT -> HANDLER : DECOMMISSION CS-TCP TP
+HANDLER -> DEC : decommissionAircraft("CS-TCP", "TP")
+DEC --> HANDLER : Aircraft
+HANDLER --> CLIENT : OK CS-TCP decommissioned
+CLIENT --> Pilot : OK CS-TCP decommissioned
+
+Pilot -> CLIENT : LOGOUT
+CLIENT -> HANDLER : LOGOUT
+HANDLER -> HANDLER : authenticated = false
+HANDLER --> CLIENT : BYE
+CLIENT --> Pilot : BYE
+CLIENT -> CLIENT : disconnect
+@enduml

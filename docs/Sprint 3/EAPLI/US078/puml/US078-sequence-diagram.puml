@@ -1,0 +1,114 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class ATCCClient <<boundary>> {
+    +main(args): void
+    -readResponse(in): String
+  }
+}
+
+package "Application" {
+  class ATCCClientHandler <<control>> {
+    -authenticated: boolean
+    -companyIata: String
+    +run(): void
+    -handle(line): String
+    -handleLogin(args): String
+    -handleLogout(): String
+    -handleListAirports(): String
+    -handleListModels(): String
+    -handleAddAircraft(args): String
+    -handleListFleet(args): String
+    -handleListFleetByModel(args): String
+    -handleListFleetByMaker(args): String
+    -handleListFleetByCap(args): String
+    -handleListFleetByAge(args): String
+    -handleDecommission(args): String
+    -handleCreateRoute(args): String
+    -buildFleetResponse(fleet): String
+  }
+
+  class ATCCServer <<control>> {
+    +main(args): void
+    -bootstrapUsers(): void
+    -registerSystemUser(...): void
+    -registerDomainUser(...): void
+  }
+}
+
+package "Infrastructure.Network" {
+  class Protocol <<utility>> {
+    {static} LOGIN: String
+    {static} LOGOUT: String
+    {static} ADD_AIRCRAFT: String
+    {static} LIST_FLEET: String
+    {static} LIST_FLEET_MODEL: String
+    {static} LIST_FLEET_MAKER: String
+    {static} LIST_FLEET_CAP: String
+    {static} LIST_FLEET_AGE: String
+    {static} DECOMMISSION: String
+    {static} CREATE_ROUTE: String
+    {static} LIST_AIRPORTS: String
+    {static} LIST_MODELS: String
+    {static} OK: String
+    {static} ERROR: String
+    {static} END: String
+    {static} BYE: String
+  }
+}
+
+package "Application.Controllers" {
+  class LoginController <<control>> {
+    +login(email, password): Optional<UserSession>
+  }
+  class AddAircraftToFleetController <<control>> {
+    +addAircraft(...): Aircraft
+  }
+  class DecommissionAircraftController <<control>> {
+    +decommissionAircraft(reg, companyIata): Aircraft
+  }
+  class ListCompanyFleetController <<control>> {
+    +listFleet(iata): Iterable<Aircraft>
+    +listByModel(iata, modelId): Iterable<Aircraft>
+    +listByMaker(iata, maker): Iterable<Aircraft>
+    +listByCapacity(iata, minSeats): Iterable<Aircraft>
+    +listByAge(iata): Iterable<Aircraft>
+  }
+  class CreateFlightRouteController <<control>> {
+    +createCharterRoute(...): FlightRoute
+    +createRegularRoute(...): FlightRoute
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +airportRepository(): AirportRepository
+    +aircraftModelRepository(): AircraftModelRepository
+  }
+}
+
+ATCCClient ..> ATCCServer : connects via TCP
+ATCCServer ..> ATCCClientHandler : spawns thread per connection
+ATCCClientHandler ..> Protocol : uses constants
+ATCCClientHandler ..> LoginController : delegates login
+ATCCClientHandler ..> AddAircraftToFleetController : delegates US070
+ATCCClientHandler ..> DecommissionAircraftController : delegates US071
+ATCCClientHandler ..> ListCompanyFleetController : delegates US072
+ATCCClientHandler ..> CreateFlightRouteController : delegates US073
+ATCCClientHandler ..> PersistenceContext : reads airports/models
+
+note right of ATCCClientHandler
+  authenticated flag gates all commands
+  except LOGIN.
+  All exceptions caught and returned
+  as ERROR <message>.
+end note
+
+note bottom of ATCCServer
+  Configures AuthzRegistry.
+  Registers ValidEmailDomains.
+  Bootstraps default ATCC users (idempotent).
+  Listens on port 2225.
+end note
+@enduml

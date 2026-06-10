@@ -1,0 +1,118 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "UI" {
+  class CreateFlightPlanUI <<boundary>> {
+    +doShow(): boolean
+    -readLegs(route, departure): List<FlightLeg>
+    -readSegments(leg, legNum): void
+  }
+}
+
+package "Application" {
+  class CreateFlightPlanController <<control>> {
+    +activeRoutesForPilot(pilot): Iterable<FlightRoute>
+    +aircraftForRoute(route): Iterable<Aircraft>
+    +currentPilot(): Optional<Pilot>
+    +boundaryForAirport(iataCode): Optional<GeographicBoundary>
+    +createFlightPlan(flightId, route, aircraft, pilot,\n  departureDateTime, legs): FlightPlan
+    -validateSegmentCoordinates(legs): void
+  }
+}
+
+package "Domain" {
+  class FlightPlan <<aggregate root>> {
+    -flightId: String
+    -flightType: String
+    -status: FlightPlanStatus
+    -importedAt: LocalDateTime
+    -legs: List<FlightLeg>
+    -routeDesignator: String
+    -aircraftRegistration: String
+    -pilotId: Long
+    -dslContent: String
+    +status(): FlightPlanStatus
+    +flightId(): String
+    +legs(): List<FlightLeg>
+    +dslContent(): String
+    +setDslContent(String): void
+  }
+  class FlightLeg <<entity>> {
+    -departureAirport: String
+    -departureDate: String
+    -departureTime: String
+    -arrivalAirport: String
+    -arrivalTime: String
+    -fuelQuantity: double
+    -fuelUnit: String
+    -segments: List<FlightSegment>
+    +addSegment(FlightSegment): void
+    +segments(): List<FlightSegment>
+  }
+  class FlightSegment <<entity>> {
+    -fromLat: double
+    -fromLon: double
+    -toLat: double
+    -toLon: double
+    -altitudeSlots: List<Double>
+    -widthMeters: double
+    -windAngleDeg: double
+    -windSpeedMs: double
+  }
+  enum FlightPlanStatus <<enum>> {
+    DRAFT
+    TESTED
+    APPROVED
+  }
+}
+
+package "Service" {
+  class FlightPlanDslGenerator <<service>> {
+    +generate(flightId, flightType, legs): String
+    +generate(plan: FlightPlan): String
+    -appendLeg(sb, leg): void
+  }
+}
+
+package "Infrastructure.Persistence" {
+  class PersistenceContext <<singleton>> {
+    +flightPlanRepository(): FlightPlanRepository
+    +airportRepository(): AirportRepository
+    +airControlAreaRepository(): AirControlAreaRepository
+  }
+  interface FlightPlanRepository <<repository>> {
+    +save(FlightPlan): FlightPlan
+    +findAll(): Iterable<FlightPlan>
+    +existsByFlightId(String): boolean
+  }
+  interface AirportRepository <<repository>> {
+    +findByIataCode(IATACode): Optional<Airport>
+  }
+  interface AirControlAreaRepository <<repository>> {
+    +ofIdentity(AirControlAreaCode): Optional<AirControlArea>
+  }
+}
+
+CreateFlightPlanUI ..> CreateFlightPlanController
+CreateFlightPlanController ..> FlightPlanDslGenerator : generates DSL
+CreateFlightPlanController ..> FlightPlan : creates
+CreateFlightPlanController ..> PersistenceContext
+FlightPlan "1" *-- "1..*" FlightLeg
+FlightLeg "1" *-- "0..*" FlightSegment
+FlightPlan --> FlightPlanStatus
+PersistenceContext ..> FlightPlanRepository
+PersistenceContext ..> AirportRepository
+PersistenceContext ..> AirControlAreaRepository
+
+note right of FlightPlan
+  status = DRAFT on creation.
+  dslContent auto-generated from legs/segments.
+  Used by US085 for simulation.
+end note
+
+note bottom of CreateFlightPlanController
+  Pilot resolved from logged-in session.
+  Routes filtered by pilot's company.
+  DSL generated before FlightPlan entity creation.
+end note
+@enduml
