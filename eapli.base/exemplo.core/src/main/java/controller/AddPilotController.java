@@ -75,53 +75,62 @@ public class AddPilotController {
                                           final AirTransportCompany company,
                                           final List<AircraftModel> certifiedModels) {
 
-        // Check domain pilot repository
+        // Pilot aggregate already exists — nothing to do
         if (pilotRepository.findByEmail(email).isPresent()) {
             return Either.left("A pilot with email '" + email + "' already exists.");
-        }
-
-        // Check domain user repository
-        if (userRepository.findByEmail(EmailAddress.valueOf(email)).isPresent()) {
-            return Either.left("Email '" + email + "' is already registered in the system.");
-        }
-
-        // Check EAPLI framework SystemUser table (T_SYSTEMUSER) —
-        // prevents duplicate key constraint violation on PostgreSQL
-        if (userSvc.userOfIdentity(Username.valueOf(email)).isPresent()) {
-            return Either.left("Email '" + email + "' is already registered as a system user.");
         }
 
         if (certifiedModels == null || certifiedModels.isEmpty()) {
             return Either.left("At least one aircraft model must be selected.");
         }
 
-        // Step 2 — build and validate domain User first
-        final User domainUser = new User(
-                EmailAddress.valueOf(email),
-                name,
-                phoneNumber,
-                staffNumber,
-                LocalDate.now().plusYears(1));
-        domainUser.setRole(BaseRoles.PILOT.toString());
+        // Check for partial state: system user exists but Pilot entity doesn't (bootstrap recovery).
+        // Any other combination where users already exist is treated as a conflict.
+        final boolean systemUserExists =
+                userSvc.userOfIdentity(Username.valueOf(email)).isPresent();
+        final boolean domainUserExists =
+                userRepository.findByEmail(EmailAddress.valueOf(email)).isPresent();
 
-        // Step 3 — register SystemUser in framework
-        final String[] parts   = name.trim().split("\\s+", 2);
-        final String firstName = parts[0];
-        final String lastName  = parts.length > 1 ? parts[1] : parts[0];
-        final Set<eapli.framework.infrastructure.authz.domain.model.Role> roles = new HashSet<>();
-        roles.add(BaseRoles.PILOT);
-        try {
-            userSvc.registerNewUser(email, password, firstName, lastName, email, roles);
-        } catch (final Exception e) {
-            return Either.left("System user already exists: " + email);
+        if (domainUserExists && !systemUserExists) {
+            // Inconsistent state: domain User registered but no SystemUser — block creation.
+            return Either.left("Email '" + email + "' is already registered in the system.");
         }
 
-        // Step 4 — persist domain User
-        try {
-            userRepository.save(domainUser);
-        } catch (final Exception e) {
-            return Either.left("Domain user already exists: " + email);
+        if (!systemUserExists) {
+            // Normal path: neither system user nor domain user exist yet.
+
+            // Step 2 — build and validate domain User
+            final User domainUser = new User(
+                    EmailAddress.valueOf(email),
+                    name,
+                    phoneNumber,
+                    staffNumber,
+                    LocalDate.now().plusYears(1));
+            domainUser.setRole(BaseRoles.PILOT.toString());
+
+            // Step 3 — register SystemUser in framework
+            final String[] parts   = name.trim().split("\\s+", 2);
+            final String firstName = parts[0];
+            final String lastName  = parts.length > 1 ? parts[1] : parts[0];
+            final Set<eapli.framework.infrastructure.authz.domain.model.Role> roles = new HashSet<>();
+            roles.add(BaseRoles.PILOT);
+            try {
+                userSvc.registerNewUser(email, password, firstName, lastName, email, roles);
+            } catch (final Exception e) {
+                return Either.left("Failed to register system user: " + e.getMessage());
+            }
+
+            // Step 4 — persist domain User (guard against duplicate just in case)
+            if (!domainUserExists) {
+                try {
+                    userRepository.save(domainUser);
+                } catch (final Exception e) {
+                    return Either.left("Failed to persist domain user: " + e.getMessage());
+                }
+            }
         }
+        // If systemUserExists == true: system user already exists (bootstrap recovery) —
+        // skip user/system-user creation and proceed directly to Pilot entity creation.
 
         // Step 5 — create and persist Pilot aggregate
         try {
@@ -129,7 +138,7 @@ public class AddPilotController {
             pilotRepository.save(pilot);
             return Either.right(pilot);
         } catch (final Exception e) {
-            return Either.left("Pilot already exists: " + email);
+            return Either.left("Failed to persist pilot: " + e.getMessage());
         }
     }
 }

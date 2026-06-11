@@ -47,7 +47,7 @@ public class ImportFlightPlanUI extends AbstractUI {
         final FlightPlanImportResult result = ctrl.importFromFile(selected);
 
         if (result.isSuccess()) {
-            printSuccess(result);
+            printSuccess(result, ctrl);
         } else {
             printErrors(result);
         }
@@ -55,22 +55,39 @@ public class ImportFlightPlanUI extends AbstractUI {
         return false;
     }
 
-    private void printSuccess(final FlightPlanImportResult result) {
-        System.out.println("\n>> Flight plan imported successfully.");
-        for (final FlightData flight : result.getFlights()) {
-            System.out.printf("   Flight ID : %s%n", flight.id);
-            System.out.printf("   Type      : %s%n", flight.type);
-            System.out.printf("   Legs      : %d%n", flight.legs.size());
-            for (int i = 0; i < flight.legs.size(); i++) {
-                final LegData leg = flight.legs.get(i);
-                System.out.printf("     Leg %d   : %s → %s  (fuel: %.0f %s)%n",
-                        i + 1,
-                        leg.departureAirport,
-                        leg.arrivalAirport,
-                        leg.fuelQuantity,
-                        leg.fuelUnit);
+    private void printSuccess(final FlightPlanImportResult result,
+                              final ImportFlightPlanController ctrl) {
+        final java.util.List<String> skipped = ctrl.lastSkippedIds();
+        final java.util.List<FlightData> newFlights = result.getFlights().stream()
+                .filter(f -> !skipped.contains(f.id))
+                .collect(java.util.stream.Collectors.toList());
+
+        if (!newFlights.isEmpty()) {
+            System.out.println("\n>> Flight plan imported successfully.");
+            for (final FlightData flight : newFlights) {
+                System.out.printf("   Flight ID : %s%n", flight.id);
+                System.out.printf("   Type      : %s%n", flight.type);
+                System.out.printf("   Legs      : %d%n", flight.legs.size());
+                for (int i = 0; i < flight.legs.size(); i++) {
+                    final LegData leg = flight.legs.get(i);
+                    System.out.printf("     Leg %d   : %s → %s  (fuel: %.0f %s)%n",
+                            i + 1,
+                            leg.departureAirport,
+                            leg.arrivalAirport,
+                            leg.fuelQuantity,
+                            leg.fuelUnit);
+                }
+                System.out.println("   Status    : DRAFT");
             }
-            System.out.println("   Status    : DRAFT");
+        }
+
+        if (!skipped.isEmpty()) {
+            System.out.println("\n>> The following flight plan(s) were NOT imported because");
+            System.out.println("   they already exist in the system (use a different flight ID");
+            System.out.println("   or test/delete the existing plan first):");
+            for (final String id : skipped) {
+                System.out.printf("     - %s%n", id);
+            }
         }
     }
 

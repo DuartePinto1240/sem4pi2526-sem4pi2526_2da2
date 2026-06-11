@@ -141,9 +141,19 @@ public class ImportFlightPlanController {
         return FlightPlanImportResult.failure(collector.getErrors());
     }
 
+    /** Flight IDs skipped on the last import because they already exist in the database. */
+    private final List<String> lastSkippedIds = new ArrayList<>();
+
+    /** Returns the flight IDs skipped on the last {@link #importFromFile} or {@link #importFromDsl} call. */
+    public List<String> lastSkippedIds() {
+        return Collections.unmodifiableList(lastSkippedIds);
+    }
+
     private void persistFlightPlans(final List<FlightData> flights, final String rawSource) {
+        lastSkippedIds.clear();
         for (final FlightData fd : flights) {
             if (flightPlanRepo.existsByFlightId(fd.id)) {
+                lastSkippedIds.add(fd.id);
                 continue;
             }
             final List<FlightLeg> legs = new ArrayList<>();

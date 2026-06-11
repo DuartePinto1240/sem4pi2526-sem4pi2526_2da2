@@ -7,6 +7,7 @@ import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.application.UserSession;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
+import persistence.PersistenceContext;
 import ui.*;
 
 import java.util.Optional;
@@ -126,7 +127,38 @@ public class MainMenu extends AbstractUI {
     private void printLoggedInHeader(final String roleLabel) {
         System.out.printf("  ║  Logged in : %-28s║%n", currentUserName());
         System.out.printf("  ║  Role      : %-28s║%n", roleLabel);
+        final String company = currentUserCompany();
+        if (!company.isEmpty()) {
+            System.out.printf("  ║  Company   : %-28s║%n", company);
+        }
         System.out.println("  ╠══════════════════════════════════════════╣");
+    }
+
+    private String currentUserCompany() {
+        final String email = authz.session()
+                .map(UserSession::authenticatedUser)
+                .map(u -> u.username().toString())
+                .orElse(null);
+        if (email == null) return "";
+
+        try {
+            if (authz.isAuthenticatedUserAuthorizedTo(BaseRoles.PILOT)) {
+                return PersistenceContext.getInstance().pilotRepository()
+                        .findByEmail(email)
+                        .map(p -> p.company().name())
+                        .orElse("");
+            }
+            if (authz.isAuthenticatedUserAuthorizedTo(
+                    BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR)) {
+                return PersistenceContext.getInstance().airTransportCompanyRepository()
+                        .findByCollaborator(email)
+                        .map(c -> c.name())
+                        .orElse("");
+            }
+        } catch (final Exception ignored) {
+            // not critical — just don't show the company line
+        }
+        return "";
     }
 
     private void printLogoutExit() {
