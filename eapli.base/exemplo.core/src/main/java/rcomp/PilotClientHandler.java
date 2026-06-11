@@ -173,7 +173,11 @@ public class PilotClientHandler implements Runnable {
         }
         authenticated      = false;
         authenticatedEmail = null;
-        AuthzRegistry.authorizationService().clearSession();
+        try {
+            AuthzRegistry.authorizationService().clearSession();
+        } catch (final Exception ignored) {
+            // AuthzRegistry may not be configured in test environment
+        }
         return Protocol.BYE;
     }
 
