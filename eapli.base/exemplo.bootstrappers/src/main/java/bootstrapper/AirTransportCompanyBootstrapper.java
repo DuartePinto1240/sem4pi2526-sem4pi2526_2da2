@@ -23,7 +23,7 @@ public class AirTransportCompanyBootstrapper implements Action {
 
         register(ctrl, "TAP Air Portugal", "TP", "TAP");
         register(ctrl, "Ryanair",          "FR", "RYR");
-        register(ctrl, "EasyJet",          "U2", "EZY");
+        register(ctrl, "EasyJet",          "EZ", "EZY");
         register(ctrl, "Lufthansa",        "LH", "DLH");
         register(ctrl, "Air France",       "AF", "AFR");
         return true;

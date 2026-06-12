@@ -1,6 +1,8 @@
 package bootstrapper;
 
+import domain.AirTransportCompany;
 import domain.BaseRoles;
+import domain.CompanyCode;
 import domain.EmailAddress;
 import domain.User;
 import domain.ValidEmailDomains;
@@ -9,6 +11,7 @@ import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.application.UserManagementService;
 import eapli.framework.infrastructure.authz.domain.model.Role;
 import persistence.PersistenceContext;
+import repositories.AirTransportCompanyRepository;
 import repositories.UserRepository;
 
 import java.time.LocalDate;
@@ -98,6 +101,8 @@ public class UserBootstrapper implements Action {
                 WP_PHONE,    WP_STAFF,    BaseRoles.WEATHER_PERSON);
         bootstrapUser(FCO_EMAIL,   FCO_PASSWORD,   FCO_FIRSTNAME,   FCO_LASTNAME,
                 FCO_PHONE,   FCO_STAFF,   BaseRoles.FLIGHT_CONTROL_OPERATOR);
+
+        bootstrapCompanyCollaborators();
 
         return true;
     }
@@ -199,6 +204,83 @@ public class UserBootstrapper implements Action {
         } catch (final Exception e) {
             System.err.println("[Bootstrap] ERROR creating user " + email
                     + ": " + e.getMessage());
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // ATCC logins per company
+    // -------------------------------------------------------------------------
+
+    /**
+     * Creates one ATCC SystemUser per air transport company registered by
+     * AirTransportCompanyBootstrapper, and links each as a Collaborator of
+     * their respective company so logins resolve to the right company.
+     */
+    private void bootstrapCompanyCollaborators() {
+        bootstrapCompanyAtcc("tap@alsafe.com",       "Atcc1234", "TAP",       "Collaborator", "910100001", "STAFF-ATCC-TP",  "TP", "TAP");
+        bootstrapCompanyAtcc("ryanair@alsafe.com",   "Atcc1234", "Ryanair",   "Collaborator", "910100002", "STAFF-ATCC-FR",  "FR", "RYR");
+        bootstrapCompanyAtcc("easyjet@alsafe.com",   "Atcc1234", "EasyJet",   "Collaborator", "910100003", "STAFF-ATCC-U2",  "EZ", "EZY");
+        bootstrapCompanyAtcc("lufthansa@alsafe.com", "Atcc1234", "Lufthansa", "Collaborator", "910100004", "STAFF-ATCC-LH",  "LH", "DLH");
+        bootstrapCompanyAtcc("airfrance@alsafe.com", "Atcc1234", "AirFrance", "Collaborator", "910100005", "STAFF-ATCC-AF",  "AF", "AFR");
+    }
+
+    /**
+     * Creates a SystemUser with AIR_TRANSPORT_COMPANY_COLLABORATOR role and
+     * adds them as a Collaborator of the company identified by iata/icao.
+     * Skips user creation if it already exists; skips the collaborator link
+     * if the company doesn't exist yet or already has this collaborator.
+     */
+    private void bootstrapCompanyAtcc(final String email, final String password,
+                                      final String firstName, final String lastName,
+                                      final String phone, final String staff,
+                                      final String iata, final String icao) {
+        try {
+            final UserRepository repo = PersistenceContext.getInstance().userRepository();
+            final EmailAddress emailVO = EmailAddress.valueOf(email);
+
+            if (repo.ofIdentity(emailVO).isEmpty()) {
+                final User user = new User(
+                        emailVO,
+                        firstName + " " + lastName,
+                        phone,
+                        staff,
+                        FAR_FUTURE);
+                user.setRole(BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR.toString());
+
+                final Set<Role> roles = new HashSet<>();
+                roles.add(BaseRoles.AIR_TRANSPORT_COMPANY_COLLABORATOR);
+                AuthzRegistry.userService().registerNewUser(
+                        email, password, firstName, lastName, email, roles);
+
+                repo.save(user);
+            }
+
+            linkCollaboratorToCompany(email, firstName + " " + lastName, "Operations Manager", iata, icao);
+
+        } catch (final Exception e) {
+            System.err.println("[Bootstrap] ERROR creating company ATCC " + email + ": " + e.getMessage());
+        }
+    }
+
+    private void linkCollaboratorToCompany(final String email, final String name,
+                                           final String position,
+                                           final String iata, final String icao) {
+        try {
+            final AirTransportCompanyRepository companyRepo =
+                    PersistenceContext.getInstance().airTransportCompanyRepository();
+
+            final AirTransportCompany company =
+                    companyRepo.ofIdentity(new CompanyCode(iata, icao)).orElse(null);
+
+            if (company == null) return; // company not bootstrapped yet
+            if (company.findCollaboratorByEmail(email).isPresent()) return;
+
+            company.addCollaborator(email, name, position);
+            companyRepo.save(company);
+
+        } catch (final Exception e) {
+            System.err.println("[Bootstrap] ERROR linking collaborator " + email
+                    + " to " + iata + "/" + icao + ": " + e.getMessage());
         }
     }
 }
