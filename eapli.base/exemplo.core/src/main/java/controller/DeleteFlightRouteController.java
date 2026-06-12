@@ -36,15 +36,23 @@ public class DeleteFlightRouteController {
     }
 
     /**
-     * Returns all active routes for the company of the given collaborator email.
+     * Returns the authenticated user's email from the session.
+     * Called by the UI before passing to getCompanyRoutes().
+     */
+    public String authenticatedUserEmail() {
+        return AuthzRegistry.authorizationService()
+                .session()
+                .map(s -> s.authenticatedUser().username().toString())
+                .orElseThrow(() -> new IllegalStateException("No authenticated user"));
+    }
+
+    /**
+     * Returns all active CHARTER routes for the company of the given collaborator.
+     * REGULAR routes are excluded — they cannot be deactivated.
      */
     public List<FlightRouteDTO> getCompanyRoutes(final String collaboratorEmail) {
         final AirTransportCompany company = findByCollaborator(collaboratorEmail);
-        List<FlightRouteDTO> activeRoutes = new ArrayList<>();
-        for (FlightRoute fr : listActiveRoutes(company)) {
-            activeRoutes.add(FlightRouteDTO.from(fr));
-        }
-        return activeRoutes;
+        return listActiveCharterRoutes(company);
     }
 
     private AirTransportCompany findByCollaborator(final String collaboratorEmail) {
@@ -53,22 +61,40 @@ public class DeleteFlightRouteController {
                         "No company found for collaborator " + collaboratorEmail));
     }
 
-    private List<FlightRoute> listActiveRoutes(final AirTransportCompany company) {
-        final List<FlightRoute> activeRoutes = new ArrayList<>();
+    /**
+     * Returns only active CHARTER routes — REGULAR routes cannot be deactivated
+     * so they are excluded from the listing entirely.
+     */
+    private List<FlightRouteDTO> listActiveCharterRoutes(
+            final AirTransportCompany company) {
+        final List<FlightRouteDTO> result = new ArrayList<>();
         for (final FlightRoute r : routeRepo.findByCompanyIata(
                 company.companyCode().iata())) {
-            if (r.isActive()) {
-                activeRoutes.add(r);
+            if (r.isActive() && r.flightType().isCharter()) {
+                result.add(FlightRouteDTO.from(r));
             }
         }
-        return activeRoutes;
+        return result;
     }
 
     /**
-     * Deactivates a flight route from the given date onwards.
+     * Deactivates a CHARTER flight route from the given date onwards.
+     *
+     * @param routeName        the route designator
+     * @param deactivationDate date from which the route becomes inactive
+     * @throws IllegalArgumentException if the route is REGULAR, not found,
+     *                                  or has planned flights after the date
      */
-    public void deleteRoute(final String routeName, final LocalDate deactivationDate) {
+    public void deleteRoute(final String routeName,
+                            final LocalDate deactivationDate) {
         final FlightRoute route = findRouteByDesignator(routeName);
+
+        // REGULAR routes cannot be deactivated
+        if (route.flightType().isRegular()) {
+            throw new IllegalArgumentException(
+                    "Cannot deactivate regular route '" + routeName
+                            + "'. Only charter routes can be deactivated.");
+        }
 
         if (existsPlannedFlightsAfter(route.identity(), deactivationDate)) {
             throw new IllegalArgumentException(
@@ -90,7 +116,8 @@ public class DeleteFlightRouteController {
         return flightPlanRepo.existsPlannedFlightsAfter(routeDesignator, date);
     }
 
-    private void deactivateRoute(final FlightRoute route, final LocalDate deactivationDate) {
+    private void deactivateRoute(final FlightRoute route,
+                                 final LocalDate deactivationDate) {
         route.deactivate(deactivationDate);
         routeRepo.save(route);
     }

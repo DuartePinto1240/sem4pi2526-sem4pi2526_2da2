@@ -5,6 +5,7 @@ import domain.flightroute.FlightRoute;
 import domain.flightroute.RecurringSchedule;
 import domain.flightroute.RouteDesignator;
 import domain.flightroute.ScheduleEntry;
+import domain.flightroute.ScheduledDates;
 import dto.FlightRouteDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import repositories.FlightRouteRepository;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -29,16 +31,27 @@ class DeleteFlightRouteControllerTest {
     private FlightPlanRepository          flightPlanRepo;
     private DeleteFlightRouteController   ctrl;
 
-    private static final String           EMAIL    = "atcc@tap.pt";
-    private static final RecurringSchedule SCHEDULE = new RecurringSchedule(List.of(
-            new ScheduleEntry(DayOfWeek.MONDAY, LocalTime.of(10, 0), LocalTime.of(11, 0))));
+    private static final String EMAIL = "atcc@tap.pt";
+
+    // helpers
 
     private AirTransportCompany company() {
         return new AirTransportCompany("TAP Air Portugal", "TP", "TAP");
     }
 
-    private FlightRoute activeRoute(final String designator, final String iata) {
-        return new FlightRoute(designator, iata, "OPO", "LIS", SCHEDULE);
+    private FlightRoute charterRoute(final String designator) {
+        return new FlightRoute(designator, "TP", "OPO", "LIS",
+                new ScheduledDates(
+                        LocalDateTime.of(2026, 12, 12, 10, 0),
+                        LocalDateTime.of(2026, 12, 12, 11, 0)));
+    }
+
+    private FlightRoute regularRoute(final String designator) {
+        return new FlightRoute(designator, "TP", "OPO", "LIS",
+                new RecurringSchedule(List.of(new ScheduleEntry(
+                        DayOfWeek.MONDAY,
+                        LocalTime.of(10, 0),
+                        LocalTime.of(11, 0)))));
     }
 
     @BeforeEach
@@ -46,17 +59,19 @@ class DeleteFlightRouteControllerTest {
         companyRepo    = mock(AirTransportCompanyRepository.class);
         routeRepo      = mock(FlightRouteRepository.class);
         flightPlanRepo = mock(FlightPlanRepository.class);
-        ctrl           = new DeleteFlightRouteController(routeRepo, flightPlanRepo, companyRepo);
+        ctrl           = new DeleteFlightRouteController(
+                routeRepo, flightPlanRepo, companyRepo);
     }
 
-    // getCompanyRoutes
+    // getCompanyRoutes tests
 
     @Test
-    void ensureActiveRoutesAreReturned() {
+    void ensureActiveCharterRoutesAreReturned() {
         // Arrange
-        when(companyRepo.findByCollaborator(EMAIL)).thenReturn(Optional.of(company()));
+        when(companyRepo.findByCollaborator(EMAIL))
+                .thenReturn(Optional.of(company()));
         when(routeRepo.findByCompanyIata("TP"))
-                .thenReturn(List.of(activeRoute("TP001", "TP")));
+                .thenReturn(List.of(charterRoute("TP001")));
         // Act
         final List<FlightRouteDTO> result = ctrl.getCompanyRoutes(EMAIL);
         // Assert
@@ -65,12 +80,27 @@ class DeleteFlightRouteControllerTest {
     }
 
     @Test
-    void ensureInactiveRoutesAreExcluded() {
+    void ensureRegularRoutesAreExcludedFromListing() {
+        // Arrange — only regular routes returned
+        when(companyRepo.findByCollaborator(EMAIL))
+                .thenReturn(Optional.of(company()));
+        when(routeRepo.findByCompanyIata("TP"))
+                .thenReturn(List.of(regularRoute("TP001")));
+        // Act
+        final List<FlightRouteDTO> result = ctrl.getCompanyRoutes(EMAIL);
+        // Assert — regular routes must not appear
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void ensureInactiveCharterRoutesAreExcluded() {
         // Arrange
-        final FlightRoute inactive = activeRoute("TP001", "TP");
+        final FlightRoute inactive = charterRoute("TP001");
         inactive.deactivate(LocalDate.now().minusDays(1));
-        when(companyRepo.findByCollaborator(EMAIL)).thenReturn(Optional.of(company()));
-        when(routeRepo.findByCompanyIata("TP")).thenReturn(List.of(inactive));
+        when(companyRepo.findByCollaborator(EMAIL))
+                .thenReturn(Optional.of(company()));
+        when(routeRepo.findByCompanyIata("TP"))
+                .thenReturn(List.of(inactive));
         // Act
         final List<FlightRouteDTO> result = ctrl.getCompanyRoutes(EMAIL);
         // Assert
@@ -80,7 +110,8 @@ class DeleteFlightRouteControllerTest {
     @Test
     void ensureEmptyListWhenNoRoutesExist() {
         // Arrange
-        when(companyRepo.findByCollaborator(EMAIL)).thenReturn(Optional.of(company()));
+        when(companyRepo.findByCollaborator(EMAIL))
+                .thenReturn(Optional.of(company()));
         when(routeRepo.findByCompanyIata("TP")).thenReturn(List.of());
         // Act
         final List<FlightRouteDTO> result = ctrl.getCompanyRoutes(EMAIL);
@@ -100,13 +131,12 @@ class DeleteFlightRouteControllerTest {
     // deleteRoute — success
 
     @Test
-    void ensureRouteIsDeactivatedSuccessfully() {
+    void ensureCharterRouteIsDeactivatedSuccessfully() {
         // Arrange
-        final FlightRoute route = activeRoute("TP001", "TP");
+        final FlightRoute route = charterRoute("TP001");
         when(routeRepo.ofIdentity(new RouteDesignator("TP001")))
                 .thenReturn(Optional.of(route));
-        when(flightPlanRepo.existsPlannedFlightsAfter(
-                new RouteDesignator("TP001"), LocalDate.now()))
+        when(flightPlanRepo.existsPlannedFlightsAfter(any(), any()))
                 .thenReturn(false);
         when(routeRepo.save(any())).thenAnswer(i -> i.getArgument(0));
         // Act
@@ -119,8 +149,8 @@ class DeleteFlightRouteControllerTest {
     @Test
     void ensureDeactivationDateIsStoredOnRoute() {
         // Arrange
-        final FlightRoute route = activeRoute("TP001", "TP");
-        final LocalDate date = LocalDate.of(2026, 7, 1);
+        final FlightRoute route = charterRoute("TP001");
+        final LocalDate date = LocalDate.of(2026, 11, 11);
         when(routeRepo.ofIdentity(new RouteDesignator("TP001")))
                 .thenReturn(Optional.of(route));
         when(flightPlanRepo.existsPlannedFlightsAfter(any(), any()))
@@ -132,12 +162,26 @@ class DeleteFlightRouteControllerTest {
         assertEquals(date, route.deactivationDate());
     }
 
+    // deleteRoute — REGULAR blocked
+
+    @Test
+    void ensureRegularRouteCannotBeDeactivated() {
+        // Arrange
+        final FlightRoute route = regularRoute("TP001");
+        when(routeRepo.ofIdentity(new RouteDesignator("TP001")))
+                .thenReturn(Optional.of(route));
+        // Act & Assert — US074.1
+        assertThrows(IllegalArgumentException.class,
+                () -> ctrl.deleteRoute("TP001", LocalDate.now()));
+        verify(routeRepo, never()).save(any());
+    }
+
     // deleteRoute — blocking condition
 
     @Test
     void ensureRouteWithPlannedFlightsCannotBeDeactivated() {
         // Arrange
-        final FlightRoute route = activeRoute("TP001", "TP");
+        final FlightRoute route = charterRoute("TP001");
         when(routeRepo.ofIdentity(new RouteDesignator("TP001")))
                 .thenReturn(Optional.of(route));
         when(flightPlanRepo.existsPlannedFlightsAfter(any(), any()))

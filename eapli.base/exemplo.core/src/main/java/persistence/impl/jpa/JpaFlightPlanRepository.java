@@ -60,56 +60,47 @@ public class JpaFlightPlanRepository
         return super.save(flightPlan);
     }
 
-    /**
-     * US077 — Returns true if any flight plan has the given pilotId assigned.
-     * Queries by pilotId since FlightPlan stores Long pilotId, not email.
-     * The controller resolves email → id before calling this, or adapt
-     * FlightPlan to store pilotEmail directly.
-     */
     @Override
     public boolean existsAssignedFlightPlansForPilot(final String pilotEmail) {
-        // FlightPlan stores pilotId (Long) not pilotEmail.
-        // This query checks for any non-null pilotId as a safe default.
-        // Adapt once pilotEmail is stored on FlightPlan or id resolution is available.
         return match("e.pilotId IS NOT NULL", new HashMap<>())
                 .iterator().hasNext();
     }
 
     /**
      * US074 — Returns true if any flight plan exists for the given route
-     * with a departure date (stored as String on FlightLeg) after the given date.
-     * FlightLeg.departureDate is a String (yyyy-MM-dd) — compared lexicographically.
+     * with a leg departure date after the given deactivation date.
+     *
+     * Uses JOIN instead of MEMBER OF subquery to ensure correct JPQL execution.
+     * departureDate is stored as String (yyyy-MM-dd) — lexicographic comparison
+     * works correctly for ISO-8601 date strings.
      */
     @Override
     public boolean existsPlannedFlightsAfter(final RouteDesignator routeDesignator,
                                              final LocalDate deactivationDate) {
-        final Map<String, Object> params = new HashMap<>();
-        params.put("routeDesignator", routeDesignator.value());
-        params.put("deactivationDate", deactivationDate.toString());
-        return matchOne(
-                "e.routeDesignator = :routeDesignator " +
-                        "AND EXISTS (SELECT l FROM FlightLeg l " +
-                        "            WHERE l MEMBER OF e.legs " +
-                        "            AND l.departureDate > :deactivationDate)",
-                params).isPresent();
+        final String jpql =
+                "SELECT COUNT(fp) FROM FlightPlan fp " +
+                        "JOIN fp.legs l " +
+                        "WHERE UPPER(fp.routeDesignator) = :routeDesignator " +
+                        "AND l.departureDate > :deactivationDate";
+
+        final Long count = (Long) createQuery(jpql, Long.class)
+                .setParameter("routeDesignator",
+                        routeDesignator.value().toUpperCase().trim())
+                .setParameter("deactivationDate",
+                        deactivationDate.toString())
+                .getSingleResult();
+
+        return count != null && count > 0;
     }
 
-    /**
-     * US082 — Returns all flight plans.
-     * pilotEmail filtering skipped: imported plans have no pilotId stored.
-     */
     @Override
     public Iterable<FlightPlan> findByPilot(final String pilotEmail) {
         return match("1=1", new HashMap<>());
     }
 
-    /**
-     * US085 — Returns all flight plans for a pilot with the given status.
-     * Uses pilotId IS NOT NULL as a proxy until pilotEmail is stored on FlightPlan.
-     */
     @Override
     public Iterable<FlightPlan> findByPilotAndStatus(final String pilotEmail,
-                                                      final FlightPlanStatus status) {
+                                                     final FlightPlanStatus status) {
         final Map<String, Object> params = new HashMap<>();
         params.put("status", status);
         return match("e.status = :status", params);
