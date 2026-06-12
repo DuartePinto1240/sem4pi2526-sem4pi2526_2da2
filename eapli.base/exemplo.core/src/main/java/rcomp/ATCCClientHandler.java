@@ -313,6 +313,14 @@ public class ATCCClientHandler implements Runnable {
             return Protocol.ERROR + " " + e.getMessage();
         }
     }
+    /** Package-private — for unit tests (pre-authenticated, no AuthzRegistry). */
+    ATCCClientHandler(final Socket socket,
+                      final boolean preAuthenticated,
+                      final String preAuthEmail) {
+        this.socket             = socket;
+        this.authenticated      = preAuthenticated;
+        this.authenticatedEmail = preAuthEmail;
+    }
 
     // ── CREATE_ROUTE ──────────────────────────────────────────────────────
     // REGULAR: CREATE_ROUTE designator companyIata origin dest REGULAR day dep arr
