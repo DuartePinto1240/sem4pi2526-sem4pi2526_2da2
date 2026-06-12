@@ -67,18 +67,28 @@ class AddPilotControllerTest {
         controller  = new AddPilotController(pilotRepo, companyRepo, modelRepo,
                 userRepo, userSvc);
     }
-
-    // ── availableCompanies ────────────────────────────────────────────────────
+    // ── companyOfCollaborator ─────────────────────────────────────────────────
 
     @Test
-    void ensureAvailableCompaniesReturnsRepositoryResult() {
+    void ensureCompanyOfCollaboratorReturnsCompanyWhenFound() {
         // Arrange
-        when(companyRepo.findAll()).thenReturn(List.of(validCompany()));
+        final AirTransportCompany company = validCompany();
+        when(companyRepo.findByCollaborator("ana@tap.pt")).thenReturn(Optional.of(company));
         // Act
-        final Iterable<AirTransportCompany> result = controller.availableCompanies();
+        final Optional<AirTransportCompany> result = controller.companyOfCollaborator("ana@tap.pt");
         // Assert
-        assertNotNull(result);
-        verify(companyRepo).findAll();
+        assertTrue(result.isPresent());
+        assertTrue(result.get().sameAs(company));
+    }
+
+    @Test
+    void ensureCompanyOfCollaboratorReturnsEmptyWhenNotFound() {
+        // Arrange
+        when(companyRepo.findByCollaborator("unknown@tap.pt")).thenReturn(Optional.empty());
+        // Act
+        final Optional<AirTransportCompany> result = controller.companyOfCollaborator("unknown@tap.pt");
+        // Assert
+        assertTrue(result.isEmpty());
     }
 
     // ── availableAircraftModels ───────────────────────────────────────────────

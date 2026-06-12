@@ -19,6 +19,7 @@ import util.Either;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public class AddPilotController {
@@ -50,12 +51,6 @@ public class AddPilotController {
         this.userSvc                 = userSvc;
     }
 
-    /**
-     * Returns all registered air transport companies for selection.
-     */
-    public Iterable<AirTransportCompany> availableCompanies() {
-        return companyRepository.findAll();
-    }
 
     /**
      * Returns all available aircraft models for certification selection.
@@ -140,5 +135,13 @@ public class AddPilotController {
         } catch (final Exception e) {
             return Either.left("Failed to persist pilot: " + e.getMessage());
         }
+    }
+
+    /**
+     * Returns the company the given collaborator (currently authenticated ATCC user)
+     * belongs to, if any.
+     */
+    public Optional<AirTransportCompany> companyOfCollaborator(final String collaboratorEmail) {
+        return companyRepository.findByCollaborator(collaboratorEmail);
     }
 }

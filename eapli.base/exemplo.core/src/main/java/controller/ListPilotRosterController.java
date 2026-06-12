@@ -44,4 +44,15 @@ public class ListPilotRosterController {
                 .map(PilotDTO::from)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Returns DTOs for all active pilots of the company the given collaborator
+     * (the currently authenticated ATCC user) belongs to.
+     * Returns an empty list if the collaborator isn't linked to any company.
+     */
+    public List<PilotDTO> activePilotsOfMyCompany(final String collaboratorEmail) {
+        return companyRepository.findByCollaborator(collaboratorEmail)
+                .map(this::activePilotsOfMyCompany)
+                .orElse(Collections.emptyList());
+    }
 }

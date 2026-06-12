@@ -4,6 +4,8 @@ import controller.AddPilotController;
 import domain.AirTransportCompany;
 import domain.aircraftmodel.AircraftModel;
 import domain.pilot.Pilot;
+import eapli.framework.infrastructure.authz.application.AuthzRegistry;
+import eapli.framework.infrastructure.authz.application.UserSession;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 import util.Either;
@@ -19,8 +21,18 @@ public class AddPilotUI extends AbstractUI {
 
         System.out.println("\n--- Add Pilot ---");
 
-        final AirTransportCompany company = selectCompany(ctrl);
-        if (company == null) return false;
+        final String collaboratorEmail = currentUserEmail();
+        if (collaboratorEmail == null) {
+            System.out.println(">> No authenticated user.");
+            return false;
+        }
+
+        final AirTransportCompany company = ctrl.companyOfCollaborator(collaboratorEmail)
+                .orElse(null);
+        if (company == null) {
+            System.out.println(">> ERROR: Your account isn't linked to any registered company.");
+            return false;
+        }
 
         final String name        = Console.readLine("Full name:");
         final String email       = Console.readLine("Email:");
@@ -45,28 +57,11 @@ public class AddPilotUI extends AbstractUI {
         return false;
     }
 
-    private AirTransportCompany selectCompany(final AddPilotController ctrl) {
-        final List<AirTransportCompany> companies = new ArrayList<>();
-        ctrl.availableCompanies().forEach(companies::add);
-
-        if (companies.isEmpty()) {
-            System.out.println("\n>> ERROR: No air transport companies registered in the system.");
-            return null;
-        }
-
-        System.out.println("\nAvailable companies:");
-        for (int i = 0; i < companies.size(); i++) {
-            final AirTransportCompany c = companies.get(i);
-            System.out.printf("  %d. %s (%s)%n", i + 1, c.name(), c.companyCode());
-        }
-
-        final int choice = Console.readInteger("Select company:");
-        if (choice < 1 || choice > companies.size()) {
-            System.out.println(">> Invalid option. Operation cancelled.");
-            return null;
-        }
-
-        return companies.get(choice - 1);
+    private String currentUserEmail() {
+        return AuthzRegistry.authorizationService().session()
+                .map(UserSession::authenticatedUser)
+                .map(u -> u.username().toString())
+                .orElse(null);
     }
 
     private List<AircraftModel> selectCertifiedModels(final AddPilotController ctrl) {

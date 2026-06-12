@@ -3,11 +3,14 @@ package ui;
 import controller.ListPilotRosterController;
 import domain.AirTransportCompany;
 import dto.PilotDTO;
+import eapli.framework.infrastructure.authz.application.AuthzRegistry;
+import eapli.framework.infrastructure.authz.application.UserSession;
 import eapli.framework.io.util.Console;
 import eapli.framework.presentation.console.AbstractUI;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class ListPilotRosterUI extends AbstractUI {
 
@@ -17,37 +20,22 @@ public class ListPilotRosterUI extends AbstractUI {
 
         System.out.println("\n--- List Pilot Roster ---");
 
-        final AirTransportCompany company = selectCompany(ctrl);
-        if (company == null) return false;
+        final String email = currentUserEmail();
+        if (email == null) {
+            System.out.println(">> No authenticated user.");
+            return false;
+        }
 
-        final List<PilotDTO> pilots = ctrl.activePilotsOfMyCompany(company);
-
+        final List<PilotDTO> pilots = ctrl.activePilotsOfMyCompany(email);
         printRoster(pilots);
         return false;
     }
 
-    private AirTransportCompany selectCompany(final ListPilotRosterController ctrl) {
-        final List<AirTransportCompany> companies = new ArrayList<>();
-        ctrl.availableCompanies().forEach(companies::add);
-
-        if (companies.isEmpty()) {
-            System.out.println("\n>> No air transport companies registered in the system.");
-            return null;
-        }
-
-        System.out.println("\nAvailable companies:");
-        for (int i = 0; i < companies.size(); i++) {
-            final AirTransportCompany c = companies.get(i);
-            System.out.printf("  %d. %s (%s)%n", i + 1, c.name(), c.companyCode());
-        }
-
-        final int choice = Console.readInteger("Select company:");
-        if (choice < 1 || choice > companies.size()) {
-            System.out.println(">> Invalid option. Operation cancelled.");
-            return null;
-        }
-
-        return companies.get(choice - 1);
+    private String currentUserEmail() {
+        final Optional<UserSession> session = AuthzRegistry.authorizationService().session();
+        return session.map(UserSession::authenticatedUser)
+                .map(u -> u.username().toString())
+                .orElse(null);
     }
 
     private void printRoster(final List<PilotDTO> pilots) {
