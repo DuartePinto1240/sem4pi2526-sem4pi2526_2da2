@@ -3,8 +3,8 @@ package controller;
 import application.ImportWeatherResult;
 import dto.WeatherDataImportDTO;
 import application.WeatherDataReaderFactory;
+import domain.WeatherDataFactory;
 import domain.*;
-import eapli.framework.infrastructure.authz.application.AuthorizationService;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import eapli.framework.infrastructure.authz.application.exceptions.UnauthenticatedException;
 import eapli.framework.infrastructure.authz.domain.model.PlainTextEncoder;
@@ -34,8 +34,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link ImportBulkWeatherDataController} (US042).
- *
- * <p>Tests use in-memory repositories and a stub {@link WeatherDataReaderFactory}</p>
  */
 class ImportBulkWeatherDataControllerTest {
 
@@ -53,7 +51,7 @@ class ImportBulkWeatherDataControllerTest {
 
     // valid record values (inside area boundary)
     private static final LocalDateTime START = LocalDateTime.of(2026, 6, 22, 5, 0);
-    private static final LocalDateTime END = LocalDateTime.of(2026, 6, 22, 7, 30);
+    private static final LocalDateTime END   = LocalDateTime.of(2026, 6, 22, 7, 30);
 
     // collaborators
     private AirControlAreaRepository areaRepo;
@@ -68,9 +66,8 @@ class ImportBulkWeatherDataControllerTest {
     void setUp() throws Exception {
         // Bootstrap AuthzRegistry
         try {
-            AuthzRegistry.configure(new JpaAutoTxUserRepository(PERSISTENCE_UNIT, new HashMap<>()),
-                    new AlSafePasswordPolicy(), new PlainTextEncoder());
-        } catch (final Exception ignored) { }
+            AuthzRegistry.configure(new JpaAutoTxUserRepository(PERSISTENCE_UNIT, new HashMap<>()), new AlSafePasswordPolicy(), new PlainTextEncoder());
+        } catch (final Exception ignored) { /* already configured */ }
 
         // Reset PersistenceContext singleton
         final Field instanceField = PersistenceContext.class.getDeclaredField("instance");
@@ -94,11 +91,10 @@ class ImportBulkWeatherDataControllerTest {
         new LoginController().login(WP_EMAIL, WP_PASSWORD);
 
         // Seed area
-        areaRepo.save(new AirControlArea(AREA_CODE, "Lisboa ACC",
-                new GeographicBoundary(AREA_MIN_LAT, AREA_MAX_LAT, AREA_MIN_LON, AREA_MAX_LON)));
-
+        areaRepo.save(new AirControlArea(AREA_CODE, "Lisboa ACC", new GeographicBoundary(AREA_MIN_LAT, AREA_MAX_LAT, AREA_MIN_LON, AREA_MAX_LON)));
         controller = new ImportBulkWeatherDataController();
     }
+
 
     // valid file imports all records
 
@@ -136,9 +132,7 @@ class ImportBulkWeatherDataControllerTest {
 
     @Test
     void ensureNonExistentAreaIsRejectedPerRecord() throws IOException {
-        final Path csv = writeCsv(
-                csvRow("9999", 43.8, -9.8, 40.2, -7.9, 0, 1000, 90, 25, START, END)
-        );
+        final Path csv = writeCsv(csvRow("9999", 43.8, -9.8, 40.2, -7.9, 0, 1000, 90, 25, START, END));
 
         final ImportWeatherResult result = controller.importWeatherData(csv.toString());
 
@@ -150,9 +144,7 @@ class ImportBulkWeatherDataControllerTest {
     @Test
     void ensureSubAreaOutsideBoundaryIsRejected() throws IOException {
         // maxLat=10, minLat=5 — outside AREA [36..44]
-        final Path csv = writeCsv(
-                csvRow(AREA_CODE, 10.0, -9.8, 5.0, -7.9, 0, 1000, 90, 25, START, END)
-        );
+        final Path csv = writeCsv(csvRow(AREA_CODE, 10.0, -9.8, 5.0, -7.9, 0, 1000, 90, 25, START, END));
 
         final ImportWeatherResult result = controller.importWeatherData(csv.toString());
 
@@ -164,13 +156,10 @@ class ImportBulkWeatherDataControllerTest {
     void ensureConflictingRecordIsRejected() throws IOException {
         // Pre-load a conflicting record
         final AirControlAreaCode code = new AirControlAreaCode(AREA_CODE);
-        weatherRepo.save(new WeatherData(
-                code, new WeatherSubArea(
-                        new GeographicBoundary(40.2, 43.8, -9.8, -7.9), new AltitudeRange(0.0, 1000.0)),
-                new ObservationPeriod(START, END), new WindCondition(90.0, 25.0)));
+        weatherRepo.save(new WeatherData(code, new WeatherSubArea(new GeographicBoundary(40.2, 43.8, -9.8, -7.9),
+                        new AltitudeRange(0.0, 1000.0)), new ObservationPeriod(START, END), new WindCondition(90.0, 25.0)));
 
-        final Path csv = writeCsv(csvRow(AREA_CODE, 43.8, -9.8, 40.2, -7.9, 0, 1000, 90, 25, START, END)
-        );
+        final Path csv = writeCsv(csvRow(AREA_CODE, 43.8, -9.8, 40.2, -7.9, 0, 1000, 90, 25, START, END));
 
         final ImportWeatherResult result = controller.importWeatherData(csv.toString());
 
@@ -195,8 +184,8 @@ class ImportBulkWeatherDataControllerTest {
             }
         };
 
-        final ImportBulkWeatherDataController ctrl = new ImportBulkWeatherDataController(
-                AuthzRegistry.authorizationService(), areaRepo, weatherRepo, stubFactory);
+        final ImportBulkWeatherDataController ctrl = new ImportBulkWeatherDataController(AuthzRegistry.authorizationService(),
+                        areaRepo, weatherRepo, stubFactory, new WeatherDataFactory());
 
         final ImportWeatherResult result = ctrl.importWeatherData("irrelevant.csv");
 
@@ -204,8 +193,7 @@ class ImportBulkWeatherDataControllerTest {
         assertEquals(0, result.rejectedCount());
     }
 
-    // AC US042.5 — only WEATHER_PERSON may import
-
+    // only WEATHER_PERSON may import
     @Test
     void ensureUnauthenticatedUserCannotImport() {
         AuthzRegistry.authorizationService().clearSession();
@@ -229,7 +217,7 @@ class ImportBulkWeatherDataControllerTest {
 
     @Test
     void ensureEmptyFileProducesZeroCounts() throws IOException {
-        final Path csv = writeCsv();
+        final Path csv = writeCsv(/* no data rows */);
 
         final ImportWeatherResult result = controller.importWeatherData(csv.toString());
 
@@ -247,7 +235,10 @@ class ImportBulkWeatherDataControllerTest {
 
     // Helpers
 
-    /** Writes a semicolon-separated CSV file with the real client header,followed by the given data rows.*/
+    /**
+     * Writes a semicolon-separated CSV file with the real client header,
+     * followed by the given data rows.
+     */
     private Path writeCsv(final String... dataRows) throws IOException {
         final Path file = tempDir.resolve("weather_test.csv");
         final List<String> lines = new ArrayList<>();
@@ -258,25 +249,22 @@ class ImportBulkWeatherDataControllerTest {
     }
 
     /**
-     * Builds one semicolon-separated data row.
+     * Builds one semicolon-separated data row matching the real client format.
      *
      * <p>Column order: ACA ; maxLat ; minLon ; minLat ; maxLon ;
      * altInf ; altSup ; direction ; speed ; dd/MM/yyyy ; HH:mm ; HH:mm</p>
      */
     private String csvRow(final String area, final double maxLat, final double minLon, final double minLat, final double maxLon,
-                          final double altInf, final double altSup, final double direction, final double speed,
-                          final LocalDateTime start, final LocalDateTime end) {
-        return String.format("%s;%.1f;%.1f;%.1f;%.1f;%.1f;%.1f;%.1f;%.1f;%s;%s;%s",
-                area, maxLat, minLon, minLat, maxLon, altInf, altSup, direction, speed,
-                start.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                start.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")),
-                end.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+                          final double altInf, final double altSup, final double direction, final double speed, final LocalDateTime start, final LocalDateTime end) {
+        return String.format("%s;%.1f;%.1f;%.1f;%.1f;%.1f;%.1f;%.1f;%.1f;%s;%s;%s", area, maxLat, minLon, minLat, maxLon,
+                altInf, altSup, direction, speed, start.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                start.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")), end.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
     }
 
     /** Creates a valid {@link WeatherDataImportDTO} inside the test area boundary. */
     private WeatherDataImportDTO makeDto(final double minLat, final double maxLat, final int lineNo) {
-        return new WeatherDataImportDTO(AREA_CODE, minLat, maxLat, -9.8, -7.9,
-                0.0, 1000.0, START, END, 90.0, 25.0, lineNo);
+        return new WeatherDataImportDTO(AREA_CODE, minLat, maxLat, -9.8, -7.9, 0.0, 1000.0,
+                START, END, 90.0, 25.0, lineNo);
     }
 
     private static void injectField(final Object target, final String fieldName, final Object value) throws Exception {

@@ -18,24 +18,24 @@ package "Application Layer" {
     - areaRepo : AirControlAreaRepository
     - weatherRepo : WeatherDataRepository
     - readerFactory : WeatherDataReaderFactory
+    - weatherDataFactory : WeatherDataFactory
     + ImportBulkWeatherDataController()
-    + ImportBulkWeatherDataController(authz, areaRepo,\n  weatherRepo, readerFactory)
+    + ImportBulkWeatherDataController(authz, areaRepo,\n  weatherRepo, readerFactory, weatherDataFactory)
     + importWeatherData(filePath : String) : ImportResult
-    - processRecord(dto : WeatherDataDTO,\n  area : AirControlArea,\n  result : ImportResult) : void
+    - processRecord(dto : WeatherDataImportDTO,\n  area : AirControlArea,\n  result : ImportResult) : void
   }
 
   class WeatherDataReaderFactory <<factory>> {
     + getReader(filePath : String) : WeatherDataReader
+    - detectSeparator(filePath : String) : String
   }
 
   note right of WeatherDataReaderFactory
-    Simple Factory — inspects the file
-    extension and returns the appropriate
-    concrete Strategy.
+    Simple Factory — inspects the file extension and header to select and configure the appropriate Strategy.
   end note
 
   interface WeatherDataReader <<interface>> {
-    + read(filePath : String) : List<WeatherDataDTO>
+    + read(filePath : String) : List<WeatherDataImportDTO>
   }
 
   note left of WeatherDataReader
@@ -45,12 +45,14 @@ package "Application Layer" {
   end note
 
   class CsvWeatherDataReader <<Strategy>> {
-    - SEPARATOR : String
-    + read(filePath : String) : List<WeatherDataDTO>
-    - parseLine(line : String, lineNo : int) : WeatherDataDTO
+    - separator : String
+    + CsvWeatherDataReader(separator : String)
+    + read(filePath : String) : List<WeatherDataImportDTO>
+    - parseLine(line : String, lineNo : int) : WeatherDataImportDTO
+    - parseEuropeanDouble(raw : String) : double
   }
 
-  class WeatherDataDTO <<DTO>> {
+  class WeatherDataImportDTO <<DTO>> {
     + areaCode : String
     + subMinLat : double
     + subMaxLat : double
@@ -82,6 +84,14 @@ package "Application Layer" {
 
 package "Domain Layer" {
 
+  class WeatherDataFactory <<factory>> {
+    + create(dto : WeatherDataImportDTO) : WeatherData
+  }
+
+  note right of WeatherDataFactory
+    Domain Factory — constructs WeatherData and all intermediate value objects
+  end note
+
   class WeatherData <<entity>> <<AggregateRoot>> {
     - id : Long
     - areaCode : AirControlAreaCode
@@ -89,6 +99,8 @@ package "Domain Layer" {
     - period : ObservationPeriod
     - wind : WindCondition
     + WeatherData(areaCode, subArea, period, wind)
+    + subArea() : WeatherSubArea
+    + period() : ObservationPeriod
     + identity() : Long
     + sameAs(other : Object) : boolean
   }
@@ -138,20 +150,23 @@ ImportBulkWeatherDataController --> AuthorizationService
 ImportBulkWeatherDataController --> AirControlAreaRepository
 ImportBulkWeatherDataController --> WeatherDataRepository
 ImportBulkWeatherDataController --> WeatherDataReaderFactory
-ImportBulkWeatherDataController ..> WeatherDataDTO  : <<reads>>
-ImportBulkWeatherDataController ..> WeatherData     : <<creates via new>>
-ImportBulkWeatherDataController --> ImportResult    : <<builds>>
+ImportBulkWeatherDataController --> WeatherDataFactory
+ImportBulkWeatherDataController ..> WeatherDataImportDTO : <<reads>>
+ImportBulkWeatherDataController --> ImportResult : <<builds>>
 
-WeatherDataReaderFactory ..> WeatherDataReader        : <<returns>>
-WeatherDataReaderFactory ..> CsvWeatherDataReader     : <<creates>>
+WeatherDataReaderFactory ..> WeatherDataReader : <<returns>>
+WeatherDataReaderFactory ..> CsvWeatherDataReader : <<creates>>
 
 CsvWeatherDataReader ..|> WeatherDataReader
-CsvWeatherDataReader ..> WeatherDataDTO : <<creates>>
+CsvWeatherDataReader ..> WeatherDataImportDTO : <<creates>>
+
+WeatherDataFactory ..> WeatherDataImportDTO : <<reads>>
+WeatherDataFactory ..> WeatherData : <<creates>>
 
 WeatherData *-- AirControlAreaCode
 WeatherData *-- WeatherSubArea
 
-JpaWeatherDataRepository      ..|> WeatherDataRepository
+JpaWeatherDataRepository ..|> WeatherDataRepository
 InMemoryWeatherDataRepository ..|> WeatherDataRepository
 
 @enduml

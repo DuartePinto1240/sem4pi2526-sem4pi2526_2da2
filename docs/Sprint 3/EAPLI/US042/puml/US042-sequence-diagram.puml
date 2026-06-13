@@ -3,11 +3,11 @@ actor "Weather Person" as WP
 participant ImportBulkWeatherDataUI as UI <<boundary>>
 participant ImportBulkWeatherDataController as CTRL <<control>>
 participant AuthorizationService as AUTHZ <<service>>
-participant WeatherDataReaderFactory as FACTORY <<factory>>
+participant WeatherDataReaderFactory as READER_FACTORY <<factory>>
 participant WeatherDataReader as READER <<Strategy>>
 participant AirControlAreaRepository as AREA_REPO <<repository>>
+participant WeatherDataFactory as WD_FACTORY <<factory>>
 participant WeatherDataRepository as WD_REPO <<repository>>
-participant "wd:WeatherData" as WD <<entity>>
 participant ImportResult as RESULT
 
 WP -> UI : doShow()
@@ -23,34 +23,25 @@ activate AUTHZ
 AUTHZ --> CTRL : ok
 deactivate AUTHZ
 
-CTRL -> FACTORY : getReader(filePath)
-activate FACTORY
-note right of FACTORY
-  Simple Factory inspects the file
-  extension and instantiates the
-  appropriate concrete Strategy.
-  ".csv" → CsvWeatherDataReader
-  Controller never sees concrete types.
+CTRL -> READER_FACTORY : getReader(filePath)
+activate READER_FACTORY
+note right of READER_FACTORY
+  Simple Factory inspects the file extension and header line.
 end note
-FACTORY --> CTRL : WeatherDataReader
-deactivate FACTORY
+READER_FACTORY --> CTRL : WeatherDataReader
+deactivate READER_FACTORY
 
 CTRL -> READER : read(filePath)
 note right of READER
-  Strategy pattern — the controller
-  calls the same interface method
-  regardless of the file format.
-  CsvWeatherDataReader, or any future
-  strategy, can be swapped here
-  with zero impact on the controller.
+  Strategy pattern — the controller calls the same interface method regardless of the file format.
 end note
 activate READER
-READER --> CTRL : List<WeatherDataDTO>
+READER --> CTRL : List<WeatherDataImportDTO>
 deactivate READER
 
 CTRL -> RESULT ** : new ImportResult()
 
-loop for each WeatherDataDTO dto in list
+loop for each WeatherDataImportDTO dto in list
 
   CTRL -> AREA_REPO : ofIdentity(new AirControlAreaCode(dto.areaCode))
   activate AREA_REPO
@@ -62,33 +53,39 @@ loop for each WeatherDataDTO dto in list
 
   else area found
 
-    CTRL -> CTRL : new GeographicBoundary(subMinLat, subMaxLat, subMinLon, subMaxLon)
-    CTRL -> CTRL : new AltitudeRange(minAltitude, maxAltitude)
-    CTRL -> CTRL : new WeatherSubArea(subBoundary, altRange)
+    CTRL -> WD_FACTORY : create(dto)
+    activate WD_FACTORY
+    note right of WD_FACTORY
+      Domain Factory — constructs all intermediate value objects
+    end note
+    WD_FACTORY --> CTRL : WeatherData
+    deactivate WD_FACTORY
 
-    alt sub-area outside parent boundary OR value-object invariant violated
+    alt value object invariant violated
       CTRL -> RESULT : recordFailure("line N – " + e.getMessage())
 
-    else value objects valid
+    else aggregate constructed
 
-      CTRL -> CTRL : new ObservationPeriod(startDateTime, endDateTime)
-      CTRL -> CTRL : new WindCondition(windDirection, windSpeed)
+      alt sub-area outside parent boundary
+        CTRL -> RESULT : recordFailure("line N – sub-area outside boundary")
 
-      CTRL -> WD_REPO : existsConflicting(areaCode, subArea, period)
-      activate WD_REPO
-      WD_REPO --> CTRL : boolean
-      deactivate WD_REPO
+      else boundary ok
 
-      alt conflict exists
-        CTRL -> RESULT : recordFailure("line N – conflicting record")
-
-      else no conflict
-        CTRL -> WD ** : new WeatherData(areaCode, subArea, period, wind)
-        CTRL -> WD_REPO : save(wd)
+        CTRL -> WD_REPO : existsConflicting(areaCode, subArea, period)
         activate WD_REPO
-        WD_REPO --> CTRL : wd (persisted)
+        WD_REPO --> CTRL : boolean
         deactivate WD_REPO
-        CTRL -> RESULT : recordSuccess()
+
+        alt conflict exists
+          CTRL -> RESULT : recordFailure("line N – conflicting record")
+
+        else no conflict
+          CTRL -> WD_REPO : save(weatherData)
+          activate WD_REPO
+          WD_REPO --> CTRL : weatherData (persisted)
+          deactivate WD_REPO
+          CTRL -> RESULT : recordSuccess()
+        end
       end
     end
   end

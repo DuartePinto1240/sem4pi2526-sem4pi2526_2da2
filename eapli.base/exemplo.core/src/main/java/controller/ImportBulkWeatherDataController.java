@@ -1,10 +1,10 @@
 package controller;
 
 import application.ImportWeatherResult;
-import application.WeatherDataReader;
-import application.WeatherDataReaderFactory;
 import domain.*;
 import dto.WeatherDataImportDTO;
+import application.WeatherDataReader;
+import application.WeatherDataReaderFactory;
 import eapli.framework.infrastructure.authz.application.AuthorizationService;
 import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import persistence.PersistenceContext;
@@ -15,30 +15,36 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Application-layer controller for US042
- *
- * <p>Orchestrates the bulk import of weather data records from a file</p>
+ * Application-layer controller for US042 — Import Bulk Weather Data.
  */
 public class ImportBulkWeatherDataController {
 
-    private final AuthorizationService     authz;
+    private final AuthorizationService authz;
     private final AirControlAreaRepository areaRepo;
-    private final WeatherDataRepository    weatherRepo;
+    private final WeatherDataRepository weatherRepo;
     private final WeatherDataReaderFactory readerFactory;
+    private final WeatherDataFactory weatherDataFactory;
 
+    /** Production constructor — wires collaborators from framework registries. */
     public ImportBulkWeatherDataController() {
-        this.authz         = AuthzRegistry.authorizationService();
-        this.areaRepo      = PersistenceContext.getInstance().airControlAreaRepository();
-        this.weatherRepo   = PersistenceContext.getInstance().weatherDataRepository();
+        this.authz = AuthzRegistry.authorizationService();
+        this.areaRepo = PersistenceContext.getInstance().airControlAreaRepository();
+        this.weatherRepo = PersistenceContext.getInstance().weatherDataRepository();
         this.readerFactory = new WeatherDataReaderFactory();
+        this.weatherDataFactory = new WeatherDataFactory();
     }
 
+    /**
+     * Package-visible constructor for unit tests — allows collaborator injection.
+     */
     ImportBulkWeatherDataController(final AuthorizationService authz, final AirControlAreaRepository areaRepo,
-                                    final WeatherDataRepository weatherRepo, final WeatherDataReaderFactory readerFactory) {
-        this.authz         = authz;
-        this.areaRepo      = areaRepo;
-        this.weatherRepo   = weatherRepo;
+                                    final WeatherDataRepository weatherRepo, final WeatherDataReaderFactory readerFactory,
+                                    final WeatherDataFactory weatherDataFactory) {
+        this.authz = authz;
+        this.areaRepo = areaRepo;
+        this.weatherRepo = weatherRepo;
         this.readerFactory = readerFactory;
+        this.weatherDataFactory = weatherDataFactory;
     }
 
     /**
@@ -49,17 +55,22 @@ public class ImportBulkWeatherDataController {
      * @throws IllegalArgumentException if the file extension is not supported
      */
     public ImportWeatherResult importWeatherData(final String filePath) {
+        // authorisation
         authz.ensureAuthenticatedUserHasAnyOf(BaseRoles.WEATHER_PERSON);
 
+        // select strategy via factory
         final WeatherDataReader reader = readerFactory.getReader(filePath);
 
+        // read file into DTOs
         final List<WeatherDataImportDTO> dtos;
         try {
             dtos = reader.read(filePath);
         } catch (final Exception e) {
-            throw new IllegalArgumentException("Could not read file '" + filePath + "': " + e.getMessage(), e);
+            throw new IllegalArgumentException(
+                    "Could not read file '" + filePath + "': " + e.getMessage(), e);
         }
 
+        // process each record
         final ImportWeatherResult result = new ImportWeatherResult();
         for (final WeatherDataImportDTO dto : dtos) {
             processRecord(dto, result);
@@ -84,42 +95,30 @@ public class ImportBulkWeatherDataController {
         }
         final AirControlArea area = areaOpt.get();
 
-        // build value objects (constructors enforce their own invariants)
-        final WeatherSubArea subArea;
+        // delegate aggregate construction to the Domain Factory
+        final WeatherData weatherData;
         try {
-            final GeographicBoundary subBoundary = new GeographicBoundary(dto.subMinLat, dto.subMaxLat, dto.subMinLon, dto.subMaxLon);
-            final AltitudeRange altRange = new AltitudeRange(dto.minAltitude, dto.maxAltitude);
-            subArea = new WeatherSubArea(subBoundary, altRange);
-        } catch (final IllegalArgumentException e) {
-            result.recordFailure(lineRef + " – invalid sub-area: " + e.getMessage());
-            return;
-        }
-
-        // sub-area must be inside parent boundary
-        if (!subArea.isInsideBoundary(area.boundary())) {
-            result.recordFailure(lineRef + " – sub-area lies outside area '" + dto.areaCode + "' boundary");
-            return;
-        }
-
-        // build period and wind
-        final ObservationPeriod period;
-        final WindCondition wind;
-        try {
-            period = new ObservationPeriod(dto.startDateTime, dto.endDateTime);
-            wind   = new WindCondition(dto.windDirection, dto.windSpeed);
+            weatherData = weatherDataFactory.create(dto);
         } catch (final IllegalArgumentException e) {
             result.recordFailure(lineRef + " – " + e.getMessage());
             return;
         }
 
+        // sub-area must be inside parent boundary
+        if (!weatherData.subArea().isInsideBoundary(area.boundary())) {
+            result.recordFailure(lineRef + " – sub-area lies outside area '"
+                    + dto.areaCode + "' boundary");
+            return;
+        }
+
         // no conflicting record
-        if (weatherRepo.existsConflicting(code, subArea, period)) {
+        if (weatherRepo.existsConflicting(code, weatherData.subArea(), weatherData.period())) {
             result.recordFailure(lineRef + " – conflicts with an existing record for area '" + dto.areaCode + "'");
             return;
         }
 
         // persist
-        weatherRepo.save(new WeatherData(code, subArea, period, wind));
+        weatherRepo.save(weatherData);
         result.recordSuccess();
     }
 }
