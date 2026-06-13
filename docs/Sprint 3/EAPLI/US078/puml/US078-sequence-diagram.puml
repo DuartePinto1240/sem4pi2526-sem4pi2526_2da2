@@ -1,114 +1,72 @@
 @startuml
-skinparam classAttributeIconSize 0
+title Sequence Diagram — US078 (ATCC Remote Access)
 
-package "UI" {
-  class ATCCClient <<boundary>> {
-    +main(args): void
-    -readResponse(in): String
-  }
-}
+actor ATCC as Pilot
+participant ATCCClient as CLIENT <<boundary>>
+participant ATCCServer as SERVER <<control>>
+participant ATCCClientHandler as HANDLER <<control>>
+participant LoginController as LOGIN <<control>>
+participant AddAircraftToFleetController as ADD <<control>>
+participant DecommissionAircraftController as DEC <<control>>
+participant ListCompanyFleetController as LIST <<control>>
+participant CreateFlightRouteController as ROUTE <<control>>
 
-package "Application" {
-  class ATCCClientHandler <<control>> {
-    -authenticated: boolean
-    -companyIata: String
-    +run(): void
-    -handle(line): String
-    -handleLogin(args): String
-    -handleLogout(): String
-    -handleListAirports(): String
-    -handleListModels(): String
-    -handleAddAircraft(args): String
-    -handleListFleet(args): String
-    -handleListFleetByModel(args): String
-    -handleListFleetByMaker(args): String
-    -handleListFleetByCap(args): String
-    -handleListFleetByAge(args): String
-    -handleDecommission(args): String
-    -handleCreateRoute(args): String
-    -buildFleetResponse(fleet): String
-  }
+Pilot -> CLIENT : start client
+CLIENT -> SERVER : TCP connect (port 2225)
+SERVER -> HANDLER : new ATCCClientHandler(socket)
+SERVER -> HANDLER : thread.start()
 
-  class ATCCServer <<control>> {
-    +main(args): void
-    -bootstrapUsers(): void
-    -registerSystemUser(...): void
-    -registerDomainUser(...): void
-  }
-}
+Pilot -> CLIENT : LOGIN atcc@alsafe.com Atcc1234
+CLIENT -> HANDLER : LOGIN atcc@alsafe.com Atcc1234
+HANDLER -> LOGIN : login(email, password)
+LOGIN --> HANDLER : Optional<UserSession>
+alt credentials valid
+    HANDLER --> CLIENT : OK Welcome atcc@alsafe.com
+    CLIENT --> Pilot : OK Welcome atcc@alsafe.com
+else credentials invalid
+    HANDLER --> CLIENT : ERROR Invalid credentials
+    CLIENT --> Pilot : ERROR Invalid credentials
+end
 
-package "Infrastructure.Network" {
-  class Protocol <<utility>> {
-    {static} LOGIN: String
-    {static} LOGOUT: String
-    {static} ADD_AIRCRAFT: String
-    {static} LIST_FLEET: String
-    {static} LIST_FLEET_MODEL: String
-    {static} LIST_FLEET_MAKER: String
-    {static} LIST_FLEET_CAP: String
-    {static} LIST_FLEET_AGE: String
-    {static} DECOMMISSION: String
-    {static} CREATE_ROUTE: String
-    {static} LIST_AIRPORTS: String
-    {static} LIST_MODELS: String
-    {static} OK: String
-    {static} ERROR: String
-    {static} END: String
-    {static} BYE: String
-  }
-}
+Pilot -> CLIENT : LIST_AIRPORTS
+CLIENT -> HANDLER : LIST_AIRPORTS
+HANDLER -> HANDLER : check authenticated
+HANDLER -> HANDLER : PersistenceContext.airportRepository().findAll()
+HANDLER --> CLIENT : OPO|LPPR|...\nLIS|LPPT|...\nEND
+CLIENT --> Pilot : airport list
 
-package "Application.Controllers" {
-  class LoginController <<control>> {
-    +login(email, password): Optional<UserSession>
-  }
-  class AddAircraftToFleetController <<control>> {
-    +addAircraft(...): Aircraft
-  }
-  class DecommissionAircraftController <<control>> {
-    +decommissionAircraft(reg, companyIata): Aircraft
-  }
-  class ListCompanyFleetController <<control>> {
-    +listFleet(iata): Iterable<Aircraft>
-    +listByModel(iata, modelId): Iterable<Aircraft>
-    +listByMaker(iata, maker): Iterable<Aircraft>
-    +listByCapacity(iata, minSeats): Iterable<Aircraft>
-    +listByAge(iata): Iterable<Aircraft>
-  }
-  class CreateFlightRouteController <<control>> {
-    +createCharterRoute(...): FlightRoute
-    +createRegularRoute(...): FlightRoute
-  }
-}
+Pilot -> CLIENT : ADD_AIRCRAFT CS-TCP Portugal TP 1 200 20 0 8
+CLIENT -> HANDLER : ADD_AIRCRAFT CS-TCP Portugal TP 1 200 20 0 8
+HANDLER -> ADD : addAircraft(reg, country, iata, modelId, eco, bus, first, crew)
+ADD --> HANDLER : Aircraft
+HANDLER --> CLIENT : OK CS-TCP
+CLIENT --> Pilot : OK CS-TCP
 
-package "Infrastructure.Persistence" {
-  class PersistenceContext <<singleton>> {
-    +airportRepository(): AirportRepository
-    +aircraftModelRepository(): AircraftModelRepository
-  }
-}
+Pilot -> CLIENT : LIST_FLEET TP
+CLIENT -> HANDLER : LIST_FLEET TP
+HANDLER -> LIST : listFleet("TP")
+LIST --> HANDLER : Iterable<Aircraft>
+HANDLER --> CLIENT : CS-TCP|Portugal|TP|ACTIVE|220|2026-06-03\nEND
+CLIENT --> Pilot : fleet list
 
-ATCCClient ..> ATCCServer : connects via TCP
-ATCCServer ..> ATCCClientHandler : spawns thread per connection
-ATCCClientHandler ..> Protocol : uses constants
-ATCCClientHandler ..> LoginController : delegates login
-ATCCClientHandler ..> AddAircraftToFleetController : delegates US070
-ATCCClientHandler ..> DecommissionAircraftController : delegates US071
-ATCCClientHandler ..> ListCompanyFleetController : delegates US072
-ATCCClientHandler ..> CreateFlightRouteController : delegates US073
-ATCCClientHandler ..> PersistenceContext : reads airports/models
+Pilot -> CLIENT : CREATE_ROUTE TP001 TP OPO LIS REGULAR MONDAY 14:00 15:00
+CLIENT -> HANDLER : CREATE_ROUTE TP001 TP OPO LIS REGULAR MONDAY 14:00 15:00
+HANDLER -> ROUTE : createRegularRoute(designator, company, origin, dest, entries)
+ROUTE --> HANDLER : FlightRoute
+HANDLER --> CLIENT : OK TP001
+CLIENT --> Pilot : OK TP001
 
-note right of ATCCClientHandler
-  authenticated flag gates all commands
-  except LOGIN.
-  All exceptions caught and returned
-  as ERROR <message>.
-end note
+Pilot -> CLIENT : DECOMMISSION CS-TCP TP
+CLIENT -> HANDLER : DECOMMISSION CS-TCP TP
+HANDLER -> DEC : decommissionAircraft("CS-TCP", "TP")
+DEC --> HANDLER : Aircraft
+HANDLER --> CLIENT : OK CS-TCP decommissioned
+CLIENT --> Pilot : OK CS-TCP decommissioned
 
-note bottom of ATCCServer
-  Configures AuthzRegistry.
-  Registers ValidEmailDomains.
-  Bootstraps default ATCC users (idempotent).
-  Listens on port 2225.
-end note
+Pilot -> CLIENT : LOGOUT
+CLIENT -> HANDLER : LOGOUT
+HANDLER -> HANDLER : authenticated = false
+HANDLER --> CLIENT : BYE
+CLIENT --> Pilot : BYE
+CLIENT -> CLIENT : disconnect
 @enduml

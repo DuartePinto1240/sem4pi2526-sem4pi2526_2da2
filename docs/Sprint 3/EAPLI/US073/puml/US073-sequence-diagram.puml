@@ -2,14 +2,26 @@
 actor "ATCC" as ATCC
 participant CreateFlightRouteUI as UI <<boundary>>
 participant CreateFlightRouteController as CTRL <<control>>
-participant PersistenceContext as PC <<registry>>
+participant AirTransportCompanyRepository as COMPANY_REPO <<repository>>
 participant FlightRouteRepository as REPO <<repository>>
 participant AirportRepository as AIRPORT_REPO <<repository>>
 participant "route:FlightRoute" as ROUTE <<aggregate root>>
 participant "designator:RouteDesignator" as RD <<value object>>
 participant "type:FlightType" as FT <<value object>>
+participant "schedule:RecurringSchedule" as RS <<value object>>
+participant "entry:ScheduleEntry" as SE <<value object>>
+participant "dates:ScheduledDates" as SD <<value object>>
 
 ATCC -> UI : doShow()
+
+UI -> CTRL : currentUserCompanyIata()
+activate CTRL
+CTRL -> COMPANY_REPO : findByCollaborator(email)
+COMPANY_REPO --> CTRL : AirTransportCompany
+CTRL --> UI : companyIata
+deactivate CTRL
+
+UI --> ATCC : shows "Company: TP"\n(from session, not asked)
 
 UI -> CTRL : availableAirports()
 activate CTRL
@@ -18,63 +30,123 @@ AIRPORT_REPO --> CTRL : airports
 CTRL --> UI : airports
 deactivate CTRL
 
-UI --> ATCC : numbered airport list +\nasks for designator, type, schedule
+UI --> ATCC : numbered airport list
 
-ATCC -> UI : provides all data
-
-UI -> CTRL : createRoute(designator, type,\n  originIata, destinationIata, schedule)
-activate CTRL
-
-CTRL -> PC : getInstance()
-PC --> CTRL : persistenceContext
-
-CTRL -> REPO : existsByDesignator(designator)
-activate REPO
-REPO --> CTRL : false
-deactivate REPO
-
-CTRL -> RD : new RouteDesignator(designator)
-activate RD
-RD -> RD : validate format\n(2 letters + 1-4 digits)
-RD --> CTRL : routeDesignator
-deactivate RD
-
-CTRL -> FT : new FlightType(type)
-activate FT
-FT --> CTRL : flightType
-deactivate FT
-
-alt [type == CHARTER]
-    CTRL -> ROUTE : new FlightRoute(designator, CHARTER,\n  originIata, destinationIata,\n  scheduledDates)
-else [type == REGULAR]
-    CTRL -> ROUTE : new FlightRoute(designator, REGULAR,\n  originIata, destinationIata,\n  recurringSchedule)
+loop until valid designator
+    ATCC -> UI : enters designator (e.g. TP123)
+    UI -> CTRL : validateDesignatorPrefix(designator, companyIata)
+    alt prefix does not match companyIata
+        CTRL --> UI : throw IllegalArgumentException
+        UI --> ATCC : show error "Prefix must match\ncompany IATA" + retry
+    end
 end
 
-activate ROUTE
-ROUTE -> ROUTE : validate origin ≠ destination
-ROUTE -> ROUTE : validate schedule matches type
-ROUTE -> ROUTE : active = true
-ROUTE --> CTRL : route
-deactivate ROUTE
-
-alt [designator already exists]
-    CTRL --> UI : throw IllegalArgumentException
-    UI --> ATCC : show error "Route designator already exists"
-else [invalid designator format]
-    RD --> CTRL : throw IllegalArgumentException
-    UI --> ATCC : show error "Invalid designator format"
-else [origin == destination]
-    ROUTE --> CTRL : throw IllegalArgumentException
-    UI --> ATCC : show error "Origin and destination must be different"
-else [all validations pass]
-    CTRL -> REPO : save(route)
-    activate REPO
-    REPO --> CTRL : savedRoute
-    deactivate REPO
-
-    CTRL --> UI : savedRoute
-    deactivate CTRL
-
-    UI --> ATCC : show success\n(designator, type, origin → destination, schedule)
+loop until valid origin
+    ATCC -> UI : selects origin airport (number)
+    alt invalid number
+        UI --> ATCC : show error "Enter a number\nbetween 1 and N" + retry
+    end
 end
+
+loop until valid destination
+    ATCC -> UI : selects destination airport (number)
+    alt invalid number
+        UI --> ATCC : show error "Enter a number\nbetween 1 and N" + retry
+    else destination == origin
+        UI --> ATCC : show error "Destination must\ndiffer from origin" + retry
+    end
+end
+
+loop until valid type
+    ATCC -> UI : selects type\n(1=REGULAR / 2=CHARTER)
+    alt invalid option
+        UI --> ATCC : show error "Please enter 1 or 2" + retry
+    end
+end
+
+alt type == CHARTER
+    loop until valid departure
+        ATCC -> UI : enters departure (yyyy-MM-dd HH:mm)
+        alt invalid format
+            UI --> ATCC : show error "Invalid format" + retry
+        end
+    end
+    loop until valid arrival
+        ATCC -> UI : enters arrival (yyyy-MM-dd HH:mm)
+        alt arrival not after departure
+            UI --> ATCC : show error "Arrival must be\nafter departure" + retry
+        end
+    end
+
+    UI -> CTRL : createCharterRoute(designator, companyIata,\n  originIata, destIata, dep, arr)
+    activate CTRL
+    CTRL -> REPO : existsByDesignator(designator)
+    REPO --> CTRL : false
+    CTRL -> RD : new RouteDesignator(designator)
+    activate RD
+    RD -> RD : validate format\n(2 letters + 1-4 digits)
+    RD --> CTRL : routeDesignator
+    deactivate RD
+    CTRL -> FT : charter()
+    FT --> CTRL : flightType
+    CTRL -> SD : new ScheduledDates(dep, arr)
+    activate SD
+    SD -> SD : validate arr after dep
+    SD --> CTRL : scheduledDates
+    deactivate SD
+    CTRL -> ROUTE : new FlightRoute(designator, companyIata,\n  originIata, destIata, scheduledDates)
+    activate ROUTE
+    ROUTE -> ROUTE : validate origin ≠ destination
+    ROUTE -> ROUTE : active = true
+    ROUTE --> CTRL : route
+    deactivate ROUTE
+
+else type == REGULAR
+    loop at least one entry
+        ATCC -> UI : selects day\n(1=MONDAY ... 7=SUNDAY)
+        ATCC -> UI : enters departure time (HH:mm)
+        ATCC -> UI : enters arrival time (HH:mm)
+        alt arrival not after departure
+            UI --> ATCC : show error "Arrival must be\nafter departure" + retry
+        end
+        UI -> SE : new ScheduleEntry(day, dep, arr)
+        activate SE
+        SE -> SE : validate arr after dep
+        SE --> UI : entry
+        deactivate SE
+        UI --> ATCC : "Entry added: MONDAY 14:00 → 15:00"
+        ATCC -> UI : add another entry? (y/n)
+    end
+
+    UI -> CTRL : createRegularRoute(designator, companyIata,\n  originIata, destIata, entries)
+    activate CTRL
+    CTRL -> REPO : existsByDesignator(designator)
+    REPO --> CTRL : false
+    CTRL -> RD : new RouteDesignator(designator)
+    activate RD
+    RD -> RD : validate format\n(2 letters + 1-4 digits)
+    RD --> CTRL : routeDesignator
+    deactivate RD
+    CTRL -> FT : regular()
+    FT --> CTRL : flightType
+    CTRL -> RS : new RecurringSchedule(entries)
+    activate RS
+    RS -> RS : validate entries not empty
+    RS --> CTRL : recurringSchedule
+    deactivate RS
+    CTRL -> ROUTE : new FlightRoute(designator, companyIata,\n  originIata, destIata, recurringSchedule)
+    activate ROUTE
+    ROUTE -> ROUTE : validate origin ≠ destination
+    ROUTE -> ROUTE : active = true
+    ROUTE --> CTRL : route
+    deactivate ROUTE
+end
+
+CTRL -> REPO : save(route)
+REPO --> CTRL : savedRoute
+CTRL --> UI : savedRoute
+deactivate CTRL
+
+UI --> ATCC : show success\n(designator, type, company,\norigin → destination,\nschedule with full day names,\nstatus: ACTIVE)
+
 @enduml

@@ -254,7 +254,7 @@ class WeatherClientHandlerTest {
         assertTrue(response.startsWith(Protocol.ERROR));
     }
 
-    
+
 
     // ── IMPORT_WEATHER ────────────────────────────────────────────────────────
 

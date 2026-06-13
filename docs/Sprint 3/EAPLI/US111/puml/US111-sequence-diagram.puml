@@ -2,17 +2,15 @@
 actor "Flight Control\nOperator" as OP
 participant GenerateSimulationReportUI as UI <<boundary>>
 participant GenerateSimulationReportController as CTRL <<control>>
-participant ReportFileParser as PARSER <<service>>
-participant PersistenceContext as PC <<registry>>
-participant SimulationReportRepository as REPO <<repository>>
 participant "report:SimulationReport" as SR <<aggregate root>>
+participant SimulationReportRepository as REPO <<repository>>
 
 OP -> UI : doShow()
 
 UI -> CTRL : availableReportFiles()
 activate CTRL
 CTRL -> CTRL : scan directory for\nsimulation_report_*.txt files
-CTRL --> UI : file list
+CTRL --> UI : List<String> filenames
 deactivate CTRL
 
 UI --> OP : numbered file list
@@ -22,17 +20,17 @@ OP -> UI : selects file number
 UI -> CTRL : generateReport(filename)
 activate CTRL
 
-CTRL -> PARSER : parse(filePath)
-activate PARSER
-PARSER -> PARSER : read total flights
-PARSER -> PARSER : read flight statuses\n(OK / VIOLATED / ABORTED)
-PARSER -> PARSER : read violation events\n(timestamp, positions, vectors)
-PARSER -> PARSER : read overall result\n(PASS / FAIL)
-PARSER --> CTRL : ReportData
-deactivate PARSER
+CTRL -> CTRL : open file\n(reportsDir + filename)
 
-CTRL -> PC : getInstance()
-PC --> CTRL : persistenceContext
+alt file not found
+    CTRL --> UI : throw IllegalArgumentException\n"Report file not found"
+    UI --> OP : show error message
+end
+
+CTRL -> CTRL : parse total flights
+CTRL -> CTRL : parse flight statuses\n(OK / VIOLATED / ABORTED)
+CTRL -> CTRL : parse violation events\n(timestamp, positions, velocities)
+CTRL -> CTRL : parse overall result\n(PASS / FAIL)
 
 CTRL -> SR : new SimulationReport(\n  id, generatedAt,\n  totalFlights, statuses,\n  violations, result)
 activate SR
@@ -60,11 +58,9 @@ note right of UI
   - Overall result: PASS / FAIL
 end note
 
-alt [file not found or unreadable]
-    CTRL --> UI : throw IllegalArgumentException
-    UI --> OP : show error "Report file not found"
-else [parse error — invalid format]
-    PARSER --> CTRL : throw IllegalArgumentException
-    UI --> OP : show error "Invalid report file format"
+alt parse error — invalid format
+    CTRL --> UI : throw IllegalArgumentException\n"Could not read report file"
+    UI --> OP : show error message
 end
+
 @enduml
