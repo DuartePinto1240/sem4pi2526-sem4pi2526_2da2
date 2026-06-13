@@ -28,13 +28,25 @@ public class GenerateSimulationReportController {
 
     public GenerateSimulationReportController() {
         this.repo       = PersistenceContext.getInstance().simulationReportRepository();
-        this.reportsDir = System.getProperty("reports.dir", "../Scomp");
+        this.reportsDir = System.getProperty("reports.dir", resolveReportsDir());
     }
 
     /** Package-private — for unit tests (inject repo only, keeps default dir). */
     GenerateSimulationReportController(final SimulationReportRepository repo) {
         this.repo       = repo;
-        this.reportsDir = System.getProperty("reports.dir", "../Scomp");
+        this.reportsDir = System.getProperty("reports.dir", resolveReportsDir());
+    }
+
+    /**
+     * Tries several candidate paths for the Scomp reports directory,
+     * returning the first one that exists. Falls back to "../Scomp".
+     */
+    private static String resolveReportsDir() {
+        final String[] candidates = { "../Scomp", "../../Scomp", "Scomp" };
+        for (final String candidate : candidates) {
+            if (new File(candidate).isDirectory()) return candidate;
+        }
+        return "../Scomp";
     }
 
     /** Package-private — for unit tests (inject repo + custom reports directory). */
