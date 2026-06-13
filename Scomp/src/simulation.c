@@ -22,12 +22,56 @@
 
 /* g_shm_mutex protege o acesso concorrente à memória partilhada */
 static pthread_mutex_t g_shm_mutex    = PTHREAD_MUTEX_INITIALIZER;
-/* g_report_mutex e g_report_cond — canal entre violation detector e report generator */
+
+/* g_report_mutex e g_report_cond — canal entre violation detector e
+ * report generator (US106.1 → US106.2, via pthread_cond_signal) */
 static pthread_mutex_t g_report_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  g_report_cond  = PTHREAD_COND_INITIALIZER;
-/* g_done_mutex e g_sim_done — indica a todos os threads que a simulação terminou */
+
+/* g_done_mutex e g_sim_done — indica a todos os threads que a simulação
+ * terminou; protegido por mutex em vez de volatile (TP12) */
 static pthread_mutex_t g_done_mutex   = PTHREAD_MUTEX_INITIALIZER;
-static volatile int    g_sim_done     = 0;
+static int             g_sim_done     = 0;
+
+/* g_vd_mutex e g_vd_cond — substitui usleep(10ms) no violation detector;
+ * usa pthread_cond_timedwait (TP12, p.377) em vez de polling activo */
+static pthread_mutex_t g_vd_mutex     = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  g_vd_cond      = PTHREAD_COND_INITIALIZER;
+
+/* -----------------------------------------
+ * Helper — lê g_sim_done com mutex (TP12)
+ *
+ * Substitui o acesso directo a 'volatile int g_sim_done'
+ * por uma leitura protegida, conforme ensinado em TP12.
+ * ----------------------------------------- */
+
+static int is_sim_done(void) {
+    int done;
+    pthread_mutex_lock(&g_done_mutex);
+    done = g_sim_done;
+    pthread_mutex_unlock(&g_done_mutex);
+    return done;
+}
+
+/* -----------------------------------------
+ * Helper — espera até 10 ms usando pthread_cond_timedwait (TP12)
+ *
+ * Substitui usleep(10000) por um wait com timeout,
+ * permitindo que o thread acorde mais cedo se necessário.
+ * ----------------------------------------- */
+
+static void wait_10ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_nsec += 10000000L; /* 10 ms */
+    if (ts.tv_nsec >= 1000000000L) {
+        ts.tv_sec  += 1;
+        ts.tv_nsec -= 1000000000L;
+    }
+    pthread_mutex_lock(&g_vd_mutex);
+    pthread_cond_timedwait(&g_vd_cond, &g_vd_mutex, &ts);
+    pthread_mutex_unlock(&g_vd_mutex);
+}
 
 /* -----------------------------------------
  * Parameter Validation
@@ -189,11 +233,11 @@ typedef struct {
  * US106.1 -- Violation Detector Thread
  *
  * Corre num loop enquanto a simulação não termina.
- * A cada 10 ms varre os pares de voos ativos na shm.
- * Calcula a distância entre cada par — se menor que
- * o threshold: incrementa contadores, envia SIGUSR1,
- * sinaliza o report generator via pthread_cond_signal.
- * Se atingir max_violations: aborta e envia SIGTERM.
+ * Usa pthread_cond_timedwait (10 ms) em vez de usleep
+ * para aguardar entre varrimentos — TP12, p.377.
+ * Usa is_sim_done() com mutex em vez de volatile int.
+ * Usa pthread_cond_signal para notificar o report
+ * generator — sem goto, saída limpa via break.
  * ----------------------------------------- */
 
 static void *violation_detector_thread(void *arg) {
@@ -204,15 +248,20 @@ static void *violation_detector_thread(void *arg) {
     int last_violation_step[MAX_FLIGHTS][MAX_FLIGHTS];
     memset(last_violation_step, -1, sizeof(last_violation_step));
 
-    while (!g_sim_done) {
+    int abort_detected = 0;
+
+    while (!is_sim_done() && !abort_detected) {
+
         if (args->shm->abort_flag) break;
 
         pthread_mutex_lock(&g_shm_mutex);
 
-        for (int i = 0; i < args->config->num_flights; i++) {
+        for (int i = 0; i < args->config->num_flights && !abort_detected; i++) {
             if (!args->shm->active[i]) continue;
             if (args->shm->steps_completed[i] == 0) continue;
-            for (int j = i + 1; j < args->config->num_flights; j++) {
+
+            for (int j = i + 1;
+                 j < args->config->num_flights && !abort_detected; j++) {
                 if (!args->shm->active[j]) continue;
 
                 int sc_i     = args->shm->steps_completed[i];
@@ -250,6 +299,7 @@ static void *violation_detector_thread(void *arg) {
                     kill(args->states[i].pid, SIGUSR1);
                     kill(args->states[j].pid, SIGUSR1);
 
+                    /* US107 -- notifica o report generator (TP12) */
                     pthread_mutex_lock(&g_report_mutex);
                     pthread_cond_signal(&g_report_cond);
                     pthread_mutex_unlock(&g_report_mutex);
@@ -263,17 +313,21 @@ static void *violation_detector_thread(void *arg) {
                             if (args->shm->active[k])
                                 kill(args->states[k].pid, SIGTERM);
                         }
-                        pthread_mutex_unlock(&g_shm_mutex);
-                        goto vd_done;
+                        /* saída limpa via flag — sem goto (TP12) */
+                        abort_detected = 1;
                     }
                 }
             }
         }
 
         pthread_mutex_unlock(&g_shm_mutex);
-        usleep(10000);
+
+        /* Aguarda 10 ms com pthread_cond_timedwait
+         * em vez de usleep (TP12, p.377) */
+        if (!abort_detected)
+            wait_10ms();
     }
-vd_done:
+
     printf("[THREAD] ViolationDetector exiting\n");
     return NULL;
 }
@@ -281,11 +335,12 @@ vd_done:
 /* -----------------------------------------
  * US106.2 -- Report Generator Thread
  *
- * Fica bloqueado em pthread_cond_wait.
- * Cada vez que o violation detector o acorda,
- * imprime quantas violações ocorreram.
- * Quando g_sim_done = 1, sai do loop e escreve
- * o ficheiro final (US109).
+ * Fica bloqueado em pthread_cond_wait (TP12).
+ * Cada vez que o violation detector o acorda via
+ * pthread_cond_signal, regista a violação.
+ * Quando g_sim_done = 1 (lido via is_sim_done),
+ * o simulation controller faz pthread_cond_broadcast
+ * e este thread sai do loop e escreve o relatório.
  * ----------------------------------------- */
 
 static void *report_generator_thread(void *arg) {
@@ -295,7 +350,8 @@ static void *report_generator_thread(void *arg) {
 
     pthread_mutex_lock(&g_report_mutex);
 
-    while (!g_sim_done) {
+    while (!is_sim_done()) {
+        /* Bloqueia até ser acordado por cond_signal ou cond_broadcast */
         pthread_cond_wait(&g_report_cond, &g_report_mutex);
 
         if (args->report->total_violations > 0) {
@@ -322,7 +378,9 @@ static void *report_generator_thread(void *arg) {
  * Por cada step: faz sem_post nos semáforos dos
  * voos ativos e faz polling em steps_completed[].
  * Quando todos os steps terminam (ou abort_flag),
- * define g_sim_done = 1 e faz pthread_cond_broadcast.
+ * define g_sim_done = 1 (com mutex) e faz
+ * pthread_cond_broadcast para acordar todos os
+ * threads (TP12).
  * ----------------------------------------- */
 
 static void *simulation_controller_thread(void *arg) {
@@ -387,13 +445,20 @@ static void *simulation_controller_thread(void *arg) {
             sleep(args->config->time_step_seconds);
     }
 
+    /* Sinaliza fim da simulação com mutex (TP12) */
     pthread_mutex_lock(&g_done_mutex);
     g_sim_done = 1;
     pthread_mutex_unlock(&g_done_mutex);
 
+    /* Acorda todos os threads bloqueados em cond_wait (TP12) */
     pthread_mutex_lock(&g_report_mutex);
     pthread_cond_broadcast(&g_report_cond);
     pthread_mutex_unlock(&g_report_mutex);
+
+    /* Acorda o violation detector se estiver em timedwait */
+    pthread_mutex_lock(&g_vd_mutex);
+    pthread_cond_signal(&g_vd_cond);
+    pthread_mutex_unlock(&g_vd_mutex);
 
     printf("[THREAD] SimulationController exiting\n");
     return NULL;
@@ -402,10 +467,9 @@ static void *simulation_controller_thread(void *arg) {
 /* -----------------------------------------
  * US110 -- Environment Thread
  *
- * Carrega dados meteorológicos de um CSV (fornecido
- * pelo cliente) e escreve o vento na shared memory
- * a cada time step, para que os processos filhos
- * apliquem a influência ambiental nas trajectórias.
+ * Carrega dados meteorológicos de um CSV e escreve
+ * o vento na shared memory a cada time step.
+ * Usa is_sim_done() com mutex em vez de volatile int.
  * ----------------------------------------- */
 
 static void *environment_thread(void *arg) {
@@ -413,7 +477,6 @@ static void *environment_thread(void *arg) {
     printf("[THREAD] Environment started (tid=%lu)\n",
            (unsigned long)pthread_self());
 
-    /* Tenta carregar dados meteorológicos — CW tem prioridade sobre HP */
     if (weather_load_csv("CW_wind.csv") != 0) {
         if (weather_load_csv("HP_wind.csv") != 0) {
             printf("[ENV] No weather CSV found -- calm conditions throughout\n");
@@ -422,7 +485,7 @@ static void *environment_thread(void *arg) {
 
     int step = 0;
 
-    while (!g_sim_done) {
+    while (!is_sim_done()) {
         if (args->shm->abort_flag) break;
 
         pthread_mutex_lock(&g_shm_mutex);
@@ -440,8 +503,7 @@ static void *environment_thread(void *arg) {
             } else {
                 WindData calm = {0};
                 args->shm->wind[i] = calm;
-                printf("[ENV] Step %d Flight %d -- outside all weather zones, calm\n",
-                       step, i);
+                printf("[ENV] Step %d Flight %d -- calm\n", step, i);
             }
         }
 
@@ -479,7 +541,7 @@ int spawn_parent_threads(pthread_t *out_tids,
         simulation_controller_thread,
         violation_detector_thread,
         report_generator_thread,
-        environment_thread              /* US110 */
+        environment_thread
     };
     const char *names[4] = {
         "SimulationController",
@@ -738,7 +800,6 @@ int start_simulation(const SimulationConfig *config,
             execute_flight(i, shm,
                            config->total_steps,
                            config->time_step_seconds);
-            /* never returns */
         }
 
         states[i].flight_id     = i;
@@ -751,7 +812,6 @@ int start_simulation(const SimulationConfig *config,
                i, pid, states[i].sem_name);
     }
 
-    /* US110: 4 threads (SC, VD, RG, ENV) */
     pthread_t parent_threads[4];
     if (spawn_parent_threads(parent_threads, config, states, report, shm) != 0) {
         munmap(shm, sizeof(SharedSimulationData));
