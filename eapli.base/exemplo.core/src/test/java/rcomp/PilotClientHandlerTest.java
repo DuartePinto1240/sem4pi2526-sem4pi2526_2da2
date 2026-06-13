@@ -181,10 +181,12 @@ class PilotClientHandlerTest {
     void ensureImportFlightPlanSuccessReturnsOk() throws Exception {
         final lprog.FlightPlanBuilderListener.FlightData fd =
                 new lprog.FlightPlanBuilderListener.FlightData();
-        fd.id = "TP010";
+        fd.id   = "TP010";
+        fd.legs = new java.util.ArrayList<>();
 
         final FlightPlanImportResult result = FlightPlanImportResult.success(List.of(fd), "dsl");
         when(importCtrl.importFromDsl(anyString(), any())).thenReturn(result);
+        when(importCtrl.lastSkippedIds()).thenReturn(List.of());
 
         startAuthenticated();
 
@@ -288,7 +290,8 @@ class PilotClientHandlerTest {
     void ensureInsertWeatherWithInvalidIdsReturnsError() throws Exception {
         startAuthenticated();
 
-        sendLine("INSERT_WEATHER notANumber 1");
+        // weather data ID (second arg) must be numeric; flight plan ID (first) is a string
+        sendLine("INSERT_WEATHER TP010 notANumber");
         final String response = readLine();
 
         assertTrue(response.startsWith(Protocol.ERROR));

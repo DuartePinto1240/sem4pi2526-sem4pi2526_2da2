@@ -272,9 +272,11 @@ public class PilotClientHandler implements Runnable {
                     for (final lprog.FlightPlanBuilderListener.FlightData fd : imported) {
                         sb.append("  Flight ID : ").append(fd.id).append("\n");
                         sb.append("  Type      : ").append(fd.type).append("\n");
-                        sb.append("  Legs      : ").append(fd.legs.size()).append("\n");
-                        for (int i = 0; i < fd.legs.size(); i++) {
-                            final lprog.FlightPlanBuilderListener.LegData leg = fd.legs.get(i);
+                        final java.util.List<lprog.FlightPlanBuilderListener.LegData> legs =
+                            fd.legs != null ? fd.legs : java.util.Collections.emptyList();
+                        sb.append("  Legs      : ").append(legs.size()).append("\n");
+                        for (int i = 0; i < legs.size(); i++) {
+                            final lprog.FlightPlanBuilderListener.LegData leg = legs.get(i);
                             sb.append(String.format("    Leg %d   : %s -> %s  (fuel: %.0f %s)%n",
                                     i + 1, leg.departureAirport, leg.arrivalAirport,
                                     leg.fuelQuantity, leg.fuelUnit));
