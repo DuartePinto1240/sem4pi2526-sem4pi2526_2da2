@@ -80,7 +80,13 @@ public class PilotClientHandler implements Runnable {
             String line;
             while ((line = in.readLine()) != null) {
                 final String response = handle(line.trim(), in, out);
-                if (response != null) out.println(response);
+                if (response != null) {
+                    out.println(response);
+                    // Auto-append END for single-line responses that don't have it yet
+                    if (!response.endsWith(Protocol.END) && !Protocol.BYE.equals(response)) {
+                        out.println(Protocol.END);
+                    }
+                }
                 if (Protocol.BYE.equals(response)) break;
             }
 
@@ -248,23 +254,47 @@ public class PilotClientHandler implements Runnable {
             final lprog.FlightPlanImporter.FlightPlanImportResult result =
                     importCtrl.importFromDsl(dsl.toString(), authenticatedEmail);
 
+            final StringBuilder sb = new StringBuilder();
+
             if (result.isSuccess()) {
-                final String ids = result.getFlights().stream()
-                        .map(f -> f.id)
-                        .reduce((a, b) -> a + ", " + b)
-                        .orElse("unknown");
-                out.println(Protocol.OK + " Flight plan(s) imported: " + ids);
+                final java.util.List<String> skipped = importCtrl.lastSkippedIds();
+                final java.util.List<lprog.FlightPlanBuilderListener.FlightData> imported =
+                        result.getFlights().stream()
+                                .filter(f -> !skipped.contains(f.id))
+                                .collect(java.util.stream.Collectors.toList());
+
+                if (imported.isEmpty()) {
+                    sb.append(Protocol.ERROR).append(" Flight plan(s) already exist in the system:\n");
+                    skipped.forEach(id -> sb.append("  - ").append(id).append("\n"));
+                    sb.append("  Use a different flight ID or delete the existing plan first.\n");
+                } else {
+                    sb.append(Protocol.OK).append(" Flight plan(s) imported successfully:\n");
+                    for (final lprog.FlightPlanBuilderListener.FlightData fd : imported) {
+                        sb.append("  Flight ID : ").append(fd.id).append("\n");
+                        sb.append("  Type      : ").append(fd.type).append("\n");
+                        sb.append("  Legs      : ").append(fd.legs.size()).append("\n");
+                        for (int i = 0; i < fd.legs.size(); i++) {
+                            final lprog.FlightPlanBuilderListener.LegData leg = fd.legs.get(i);
+                            sb.append(String.format("    Leg %d   : %s -> %s  (fuel: %.0f %s)%n",
+                                    i + 1, leg.departureAirport, leg.arrivalAirport,
+                                    leg.fuelQuantity, leg.fuelUnit));
+                        }
+                        sb.append("  Status    : DRAFT\n");
+                    }
+                    if (!skipped.isEmpty())
+                        sb.append("  (skipped duplicates: ").append(String.join(", ", skipped)).append(")\n");
+                }
             } else {
-                final String errs = result.getErrors().stream()
-                        .map(Object::toString)
-                        .reduce((a, b) -> a + " | " + b)
-                        .orElse("unknown error");
-                out.println(Protocol.ERROR + " DSL errors: " + errs);
+                sb.append(Protocol.ERROR).append(" Invalid flight plan. Errors found:\n");
+                result.getErrors().forEach(e -> sb.append("  ").append(e).append("\n"));
             }
+
+            sb.append(Protocol.END);
+            out.println(sb.toString());
+
         } catch (final Exception e) {
-            out.println(Protocol.ERROR + " " + e.getMessage());
+            out.println(Protocol.ERROR + " " + e.getMessage() + "\n" + Protocol.END);
         }
-        // No END here — single-line response, consistent with other handlers
         return null; // already wrote directly
     }
 
@@ -318,12 +348,12 @@ public class PilotClientHandler implements Runnable {
         if (p.length < 2)
             return Protocol.ERROR + " Usage: INSERT_WEATHER <flightPlanId> <weatherDataId>";
         try {
-            final Long flightPlanId  = Long.parseLong(p[0]);
-            final Long weatherDataId = Long.parseLong(p[1]);
-            weatherCtrl.insertWeatherData(flightPlanId, weatherDataId);
-            return Protocol.OK + " Weather data inserted successfully";
+            final String flightPlanId  = p[0];
+            final Long   weatherDataId = Long.parseLong(p[1]);
+            weatherCtrl.insertWeatherDataByFlightId(flightPlanId, weatherDataId);
+            return Protocol.OK + " Weather data inserted into flight plan '" + flightPlanId + "'";
         } catch (final NumberFormatException e) {
-            return Protocol.ERROR + " IDs must be numeric";
+            return Protocol.ERROR + " Weather data ID must be numeric";
         } catch (final IllegalArgumentException e) {
             return Protocol.ERROR + " " + e.getMessage();
         } catch (final Exception e) {
@@ -342,7 +372,15 @@ public class PilotClientHandler implements Runnable {
                     testCtrl.testFlightPlan(args.trim());
 
             if (result.isPassed()) {
-                return Protocol.OK + " PASS - Flight plan '" + args.trim() + "' is valid and feasible";
+                final StringBuilder sb = new StringBuilder();
+                sb.append(Protocol.OK).append(" PASS - Flight plan '").append(args.trim()).append("' is valid and feasible\n");
+                sb.append(String.format("  Total distance   : %.0f km%n", result.totalDistanceKm()));
+                sb.append(String.format("  Estimated flight : %s%n",      result.estimatedDuration()));
+                sb.append(String.format("  Declared fuel    : %.0f kg%n", result.totalDeclaredFuelKg()));
+                sb.append(String.format("  Estimated burn   : %.0f kg%n", result.estimatedFuelBurnKg()));
+                sb.append(String.format("  Remaining fuel   : %.0f kg%n", result.remainingFuelKg()));
+                sb.append(Protocol.END);
+                return sb.toString();
             } else {
                 final StringBuilder sb = new StringBuilder(Protocol.ERROR + " FAIL:\n");
                 result.errors().forEach(e -> sb.append("  • ").append(e).append("\n"));

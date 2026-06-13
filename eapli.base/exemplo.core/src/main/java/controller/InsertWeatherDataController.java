@@ -74,4 +74,23 @@ public class InsertWeatherDataController {
         flightPlan.addWeatherData(weatherDataId);
         flightPlanRepo.save(flightPlan);
     }
+
+    /**
+     * US086 — inserts weather data using the string flight ID (e.g. "TP011")
+     * instead of the numeric database ID.
+     */
+    public void insertWeatherDataByFlightId(final String flightId, final Long weatherDataId) {
+        final FlightPlan flightPlan = flightPlanRepo.findByFlightId(flightId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Flight plan not found: " + flightId));
+
+        if (!flightPlan.isModifiable()) {
+            throw new IllegalArgumentException(
+                    "Flight plan '" + flightId + "' cannot be modified (status: "
+                    + flightPlan.status() + ")");
+        }
+
+        flightPlan.addWeatherData(weatherDataId);
+        flightPlanRepo.save(flightPlan);
+    }
 }

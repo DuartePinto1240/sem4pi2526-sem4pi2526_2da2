@@ -122,17 +122,6 @@ public class PilotClient {
         while ((line = in.readLine()) != null) {
             System.out.println("[SERVER] " + line);
             if (line.equals(Protocol.END) || line.equals(Protocol.BYE)) break;
-            // Single-line OK/ERROR responses don't need END — stop here
-            if ((line.startsWith(Protocol.OK) || line.startsWith(Protocol.ERROR))
-                    && !line.contains("\n")) {
-                // Peek: if next character indicates no more data, stop.
-                // Since we're using readLine(), we read until END or BYE above;
-                // for single-line responses the server doesn't send END so we
-                // can't distinguish easily. The simplest rule: if the line itself
-                // is the response (no END follows), we break after 1 line.
-                // Multi-line responses always end with END — handled above.
-                break;
-            }
         }
     }
 
