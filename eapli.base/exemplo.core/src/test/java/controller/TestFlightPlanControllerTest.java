@@ -20,8 +20,8 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for US085 — TestFlightPlanController.
  *
- * <p>Uses a mocked {@link FlightPlanRepository} and a stub C checker script
- * written to {@code @TempDir} so no real binary or database is needed.</p>
+ * Uses a mocked FlightPlanRepository and a stub C checker script
+ * written to @TempDir so no real binary or database is needed.
  */
 class TestFlightPlanControllerTest {
 
@@ -32,41 +32,78 @@ class TestFlightPlanControllerTest {
 
     // ── DSL helpers ───────────────────────────────────────────────────────────
 
-    /** Minimal valid single-leg DSL matching the actual ANTLR grammar. */
+    /** Minimal valid 3-segment (climb/cruise/descent) DSL — LIS → MAD. */
     private static final String VALID_DSL =
-        "flight F001 {\n"
-        + "    type: regular\n"
-        + "    leg {\n"
-        + "        departure: LIS 2026-06-01 08:00\n"
-        + "        arrival:   MAD 10:30\n"
-        + "        fuel:      1600 kg\n"
-        + "        segment {\n"
-        + "            from: (38.7813, -9.1359)\n"
-        + "            to:   (40.4937, -3.5670)\n"
-        + "            altitude_slots: [28000, 30000]\n"
-        + "            width: 50 m\n"
-        + "            wind:  090 deg 15 m/s\n"
-        + "        }\n"
-        + "    }\n"
-        + "}\n";
+        "flight F001 {\n" +
+        "    type: regular\n" +
+        "    leg {\n" +
+        "        departure: LIS 2026-06-01 08:00\n" +
+        "        arrival:   MAD 10:30\n" +
+        "        fuel:      1600 kg\n" +
+        "        segment {\n" +
+        "            phase: climb\n" +
+        "            from: (38.7813, -9.1359)\n" +
+        "            to:   (39.5000, -7.0000)\n" +
+        "            altitude_range: [0, 30000]\n" +
+        "            width: 50 m\n" +
+        "            wind:  090 deg 15 m/s\n" +
+        "        }\n" +
+        "        segment {\n" +
+        "            phase: cruise\n" +
+        "            from: (39.5000, -7.0000)\n" +
+        "            to:   (40.0000, -5.0000)\n" +
+        "            altitude_range: [28000, 30000]\n" +
+        "            width: 50 m\n" +
+        "            wind:  090 deg 15 m/s\n" +
+        "        }\n" +
+        "        segment {\n" +
+        "            phase: descent\n" +
+        "            from: (40.0000, -5.0000)\n" +
+        "            to:   (40.4937, -3.5670)\n" +
+        "            altitude_range: [0, 30000]\n" +
+        "            width: 50 m\n" +
+        "            wind:  090 deg 10 m/s\n" +
+        "        }\n" +
+        "    }\n" +
+        "}\n";
 
-    /** DSL with insufficient fuel — 100 kg declared, far below what Haversine requires. */
+    /**
+     * DSL with 100 kg fuel — valid syntax/semantics (fuel > 0),
+     * but insufficient for the distance (used with custom FAIL checker in test 5).
+     */
     private static final String LOW_FUEL_DSL =
-        "flight F002 {\n"
-        + "    type: regular\n"
-        + "    leg {\n"
-        + "        departure: LIS 2026-06-01 08:00\n"
-        + "        arrival:   MAD 10:30\n"
-        + "        fuel:      100 kg\n"
-        + "        segment {\n"
-        + "            from: (38.7813, -9.1359)\n"
-        + "            to:   (40.4937, -3.5670)\n"
-        + "            altitude_slots: [28000, 30000]\n"
-        + "            width: 50 m\n"
-        + "            wind:  090 deg 15 m/s\n"
-        + "        }\n"
-        + "    }\n"
-        + "}\n";
+        "flight F002 {\n" +
+        "    type: regular\n" +
+        "    leg {\n" +
+        "        departure: LIS 2026-06-01 08:00\n" +
+        "        arrival:   MAD 10:30\n" +
+        "        fuel:      100 kg\n" +
+        "        segment {\n" +
+        "            phase: climb\n" +
+        "            from: (38.7813, -9.1359)\n" +
+        "            to:   (39.5000, -7.0000)\n" +
+        "            altitude_range: [0, 30000]\n" +
+        "            width: 50 m\n" +
+        "            wind:  090 deg 15 m/s\n" +
+        "        }\n" +
+        "        segment {\n" +
+        "            phase: cruise\n" +
+        "            from: (39.5000, -7.0000)\n" +
+        "            to:   (40.0000, -5.0000)\n" +
+        "            altitude_range: [28000, 30000]\n" +
+        "            width: 50 m\n" +
+        "            wind:  090 deg 15 m/s\n" +
+        "        }\n" +
+        "        segment {\n" +
+        "            phase: descent\n" +
+        "            from: (40.0000, -5.0000)\n" +
+        "            to:   (40.4937, -3.5670)\n" +
+        "            altitude_range: [0, 30000]\n" +
+        "            width: 50 m\n" +
+        "            wind:  090 deg 10 m/s\n" +
+        "        }\n" +
+        "    }\n" +
+        "}\n";
 
     /** DSL with a syntactic error. */
     private static final String INVALID_DSL =
@@ -84,13 +121,17 @@ class TestFlightPlanControllerTest {
     private FlightPlan planWithDsl(final String flightId, final String dsl) {
         final FlightPlan plan = new FlightPlan(
                 flightId, "ifr",
-                List.of(new FlightLeg("LPPT", "2026-06-01", "08:00", "LPFR", "10:30", 1000.0, "litros")));
+                List.of(new FlightLeg("LPPT", "2026-06-01", "08:00",
+                        "LPFR", "10:30", 1000.0, "litros")));
         plan.setDslContent(dsl);
         when(repo.findByFlightId(flightId)).thenReturn(java.util.Optional.of(plan));
         return plan;
     }
 
-    /** Writes a checker stub to tempDir that works on both Windows and Unix. */
+    /**
+     * Writes a checker stub to tempDir.
+     * PASS output must match "PASS <dist> <fuel> <burn>" format.
+     */
     private String makeChecker(final int exitCode, final String output) throws IOException {
         final boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
         final Path script;
@@ -105,7 +146,8 @@ class TestFlightPlanControllerTest {
         } else {
             script = tempDir.resolve("flight_plan_test");
             java.nio.file.Files.writeString(script,
-                    "#!/bin/sh\necho '" + output.replace("'", "'\\''") + "'\nexit " + exitCode + "\n");
+                    "#!/bin/sh\nprintf '%s\\n' '" +
+                    output.replace("'", "'\\''") + "'\nexit " + exitCode + "\n");
             script.toFile().setExecutable(true);
         }
         return script.toString();
@@ -115,88 +157,77 @@ class TestFlightPlanControllerTest {
 
     /**
      * Test 1 — Non-existent flight plan throws IllegalArgumentException.
-     * Refers to: US085.1
      */
     @Test
     void ensureNonExistentPlanThrows() {
         when(repo.findByFlightId("MISSING")).thenReturn(java.util.Optional.empty());
-        final TestFlightPlanController ctrl =
-                new TestFlightPlanController(repo, "unused");
-        assertThrows(IllegalArgumentException.class,
-                () -> ctrl.testFlightPlan("MISSING"));
+        final TestFlightPlanController ctrl = new TestFlightPlanController(repo, "unused");
+        assertThrows(IllegalArgumentException.class, () -> ctrl.testFlightPlan("MISSING"));
     }
 
     /**
      * Test 2 — Non-DRAFT plan throws IllegalArgumentException.
-     * Refers to: US085.1
      */
     @Test
     void ensureNonDraftPlanThrows() throws Exception {
         final FlightPlan plan = planWithDsl("F001", VALID_DSL);
-        // Manually set status to TESTED via markAsTested
         plan.markAsTested("previous result");
 
-        final TestFlightPlanController ctrl =
-                new TestFlightPlanController(repo, "unused");
-        assertThrows(IllegalArgumentException.class,
-                () -> ctrl.testFlightPlan("F001"));
+        final TestFlightPlanController ctrl = new TestFlightPlanController(repo, "unused");
+        assertThrows(IllegalArgumentException.class, () -> ctrl.testFlightPlan("F001"));
     }
 
     /**
-     * Test 3 — Invalid DSL returns FAIL without running the C checker.
-     * Refers to: US085.2
+     * Test 3 — Invalid DSL fails phase 1 without running the C checker.
      */
     @Test
     void ensureInvalidDslReturnsFail() throws Exception {
         planWithDsl("F003", INVALID_DSL);
         final TestFlightPlanController ctrl =
-                new TestFlightPlanController(repo, makeChecker(0, "PASS"));
+                new TestFlightPlanController(repo, makeChecker(0, "PASS 0 0 0"));
 
         final FlightPlanTestResult result = ctrl.testFlightPlan("F003");
 
         assertFalse(result.isPassed(), "Invalid DSL must produce FAIL");
-        assertFalse(result.errors().isEmpty(), "Errors list must not be empty");
+        assertFalse(result.errors().isEmpty());
         verify(repo, never()).save(any());
     }
 
     /**
      * Test 4 — Valid DSL + C checker PASS → plan marked TESTED.
-     * Refers to: US085.2, US085.3
      */
     @Test
     void ensureValidDslAndPassCheckerMarksTested() throws Exception {
         final FlightPlan plan = planWithDsl("F001", VALID_DSL);
         final TestFlightPlanController ctrl =
-                new TestFlightPlanController(repo, makeChecker(0, "PASS"));
+                new TestFlightPlanController(repo, makeChecker(0, "PASS 950.00 1600.00 2375.00"));
 
         final FlightPlanTestResult result = ctrl.testFlightPlan("F001");
 
         assertTrue(result.isPassed(), "Valid DSL + PASS checker must produce PASS");
-        assertEquals(FlightPlanStatus.TESTED, plan.status(), "Plan must be TESTED");
+        assertEquals(FlightPlanStatus.TESTED, plan.status());
         verify(repo, times(1)).save(plan);
     }
 
     /**
      * Test 5 — Valid DSL + C checker FAIL → result is FAIL, plan stays DRAFT.
-     * Refers to: US085.2
      */
     @Test
     void ensureValidDslButFailCheckerReturnsFail() throws Exception {
         final FlightPlan plan = planWithDsl("F002", LOW_FUEL_DSL);
-        final String failOutput = "FAIL\nLeg 1: declared fuel 100 is below minimum 300";
+        final String failOutput = "FAIL\nLeg 1: declared fuel 100 is below minimum 2575";
         final TestFlightPlanController ctrl =
                 new TestFlightPlanController(repo, makeChecker(1, failOutput));
 
         final FlightPlanTestResult result = ctrl.testFlightPlan("F002");
 
         assertFalse(result.isPassed(), "C checker FAIL must produce FAIL");
-        assertEquals(FlightPlanStatus.DRAFT, plan.status(), "Plan must remain DRAFT");
+        assertEquals(FlightPlanStatus.DRAFT, plan.status());
         verify(repo, never()).save(any());
     }
 
     /**
      * Test 6 — listDraftFlightPlans returns only DRAFT plans.
-     * Refers to: US085.1
      */
     @Test
     void ensureListReturnsOnlyDraftPlans() throws Exception {
@@ -207,8 +238,7 @@ class TestFlightPlanControllerTest {
         when(repo.findByPilotAndStatus("pilot@tap.pt", FlightPlanStatus.DRAFT))
                 .thenReturn(List.of(draft));
 
-        final TestFlightPlanController ctrl =
-                new TestFlightPlanController(repo, "unused");
+        final TestFlightPlanController ctrl = new TestFlightPlanController(repo, "unused");
         final List<FlightPlan> plans = ctrl.listDraftFlightPlans("pilot@tap.pt");
 
         assertEquals(1, plans.size());
@@ -217,19 +247,16 @@ class TestFlightPlanControllerTest {
 
     /**
      * Test 7 — Plan with no DSL content throws IllegalArgumentException.
-     * Refers to: US085.2
      */
     @Test
     void ensurePlanWithNoDslThrows() throws Exception {
         final FlightPlan plan = new FlightPlan(
                 "F_NODSL", "ifr",
-                List.of(new FlightLeg("LPPT", "2026-06-01", "08:00", "LPFR", "10:30", 1000.0, "litros")));
-        // no dslContent set
+                List.of(new FlightLeg("LPPT", "2026-06-01", "08:00",
+                        "LPFR", "10:30", 1000.0, "litros")));
         when(repo.findByFlightId("F_NODSL")).thenReturn(java.util.Optional.of(plan));
 
-        final TestFlightPlanController ctrl =
-                new TestFlightPlanController(repo, "unused");
-        assertThrows(IllegalArgumentException.class,
-                () -> ctrl.testFlightPlan("F_NODSL"));
+        final TestFlightPlanController ctrl = new TestFlightPlanController(repo, "unused");
+        assertThrows(IllegalArgumentException.class, () -> ctrl.testFlightPlan("F_NODSL"));
     }
 }

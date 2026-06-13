@@ -133,7 +133,7 @@ class CreateFlightPlanControllerTest {
                 "LIS", "09:00", 5000.0, "kg");
         leg.addSegment(new FlightSegment(
                 41.2481, -8.6814, 38.7813, -9.1359,
-                List.of(9000.0), 50.0, 270.0, 10.0));
+                0.0, 10000.0, "cruise", 50.0, 270.0, 10.0));
         return List.of(leg);
     }
 
@@ -403,7 +403,7 @@ class CreateFlightPlanControllerTest {
         leg.addSegment(new FlightSegment(
                 41.2481, -8.6814,   // from: inside boundary
                 40.4983, -3.5676,   // to: Madrid — outside boundary
-                List.of(9000.0), 50.0, 270.0, 10.0));
+                0.0, 10000.0, "cruise", 50.0, 270.0, 10.0));
 
         assertThrows(IllegalArgumentException.class, () ->
                 ctrl.createFlightPlan(
@@ -437,7 +437,7 @@ class CreateFlightPlanControllerTest {
         leg.addSegment(new FlightSegment(
                 41.2481, -8.6814,
                 38.7813, -9.1359,  // LIS — inside boundary
-                List.of(9000.0), 50.0, 270.0, 10.0));
+                0.0, 10000.0, "cruise", 50.0, 270.0, 10.0));
 
         assertDoesNotThrow(() ->
                 ctrl.createFlightPlan(
@@ -455,7 +455,7 @@ class CreateFlightPlanControllerTest {
                 "LIS", "09:00", 5000.0, "kg");
         leg.addSegment(new FlightSegment(
                 999.0, 999.0, 999.0, 999.0, // absurd coords — skipped
-                List.of(9000.0), 50.0, 270.0, 10.0));
+                0.0, 10000.0, "cruise", 50.0, 270.0, 10.0));
 
         assertDoesNotThrow(() ->
                 ctrl.createFlightPlan(

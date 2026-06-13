@@ -62,13 +62,13 @@ public class InMemoryFlightPlanRepository implements FlightPlanRepository {
     }
 
     /**
-     * US077 — Returns true if any flight plan has a pilotId assigned.
-     * FlightPlan stores pilotId (Long) not pilotEmail — see note in FlightPlan.isOwnedBy().
+     * US077 — Returns true if any flight plan belongs to the given pilot.
      */
     @Override
     public boolean existsAssignedFlightPlansForPilot(final String pilotEmail) {
+        if (pilotEmail == null) return false;
         return store.stream()
-                .anyMatch(f -> f.pilotId() != null);
+                .anyMatch(f -> pilotEmail.equalsIgnoreCase(f.pilotEmail()));
     }
 
     /**
@@ -97,24 +97,26 @@ public class InMemoryFlightPlanRepository implements FlightPlanRepository {
     }
 
     /**
-     * US082 — Returns all flight plans with a non-null pilotId.
-     * Replace with email-based filtering once pilotEmail is stored on FlightPlan.
+     * US082 — Returns all flight plans belonging to the given pilot.
      */
     @Override
     public Iterable<FlightPlan> findByPilot(final String pilotEmail) {
+        if (pilotEmail == null) return new ArrayList<>();
         return store.stream()
-                .filter(f -> f.pilotId() != null)
+                .filter(f -> pilotEmail.equalsIgnoreCase(f.pilotEmail()))
                 .collect(Collectors.toList());
     }
 
     /**
-     * US085 — Returns all flight plans for a pilot with the given status.
+     * US085 — Returns flight plans for the given pilot that are in the given status.
      */
     @Override
     public Iterable<FlightPlan> findByPilotAndStatus(final String pilotEmail,
                                                       final FlightPlanStatus status) {
+        if (pilotEmail == null) return new ArrayList<>();
         return store.stream()
-                .filter(f -> f.status() == status)
+                .filter(f -> pilotEmail.equalsIgnoreCase(f.pilotEmail())
+                          && f.status() == status)
                 .collect(Collectors.toList());
     }
 }

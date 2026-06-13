@@ -1,6 +1,8 @@
 package ui;
 
 import controller.ImportFlightPlanController;
+import domain.aircraft.Aircraft;
+import eapli.framework.infrastructure.authz.application.AuthzRegistry;
 import lprog.ErrorCollector.ValidationError;
 import lprog.FlightPlanBuilderListener.FlightData;
 import lprog.FlightPlanBuilderListener.LegData;
@@ -39,15 +41,43 @@ public class ImportFlightPlanUI extends AbstractUI {
             System.out.println(">> Invalid option. Operation cancelled.");
             return false;
         }
-
         final File selected = files.get(choice - 1);
+
+        // ── select aircraft ───────────────────────────────────────────────────
+        final String pilotEmail = AuthzRegistry.authorizationService()
+                .session()
+                .map(s -> s.authenticatedUser().username().toString())
+                .orElseThrow(() -> new IllegalStateException("No authenticated user"));
+
+        final List<Aircraft> aircraft = ctrl.availableAircraftForPilot(pilotEmail);
+        String aircraftRegistration = null;
+
+        if (aircraft.isEmpty()) {
+            System.out.println("\n>> Warning: no active aircraft found for your company.");
+            System.out.println("   The flight plan will be imported without an assigned aircraft.");
+            System.out.println("   You must assign one before testing (US085).");
+        } else {
+            System.out.println("\nSelect aircraft for this flight plan:");
+            for (int i = 0; i < aircraft.size(); i++) {
+                final Aircraft a = aircraft.get(i);
+                System.out.printf("  %d. %s%n", i + 1, a.registration());
+            }
+            final int ac = Console.readInteger("Aircraft:") - 1;
+            if (ac < 0 || ac >= aircraft.size()) {
+                System.out.println(">> Invalid selection. Operation cancelled.");
+                return false;
+            }
+            aircraftRegistration = aircraft.get(ac).registration();
+        }
+
         System.out.printf("%nImporting '%s'...%n", selected.getName());
 
         // ── import ────────────────────────────────────────────────────────────
-        final FlightPlanImportResult result = ctrl.importFromFile(selected);
+        final FlightPlanImportResult result =
+                ctrl.importFromFile(selected, aircraftRegistration, pilotEmail);
 
         if (result.isSuccess()) {
-            printSuccess(result, ctrl);
+            printSuccess(result, ctrl, aircraftRegistration);
         } else {
             printErrors(result);
         }
@@ -56,7 +86,8 @@ public class ImportFlightPlanUI extends AbstractUI {
     }
 
     private void printSuccess(final FlightPlanImportResult result,
-                              final ImportFlightPlanController ctrl) {
+                              final ImportFlightPlanController ctrl,
+                              final String aircraftRegistration) {
         final java.util.List<String> skipped = ctrl.lastSkippedIds();
         final java.util.List<FlightData> newFlights = result.getFlights().stream()
                 .filter(f -> !skipped.contains(f.id))
@@ -78,6 +109,9 @@ public class ImportFlightPlanUI extends AbstractUI {
                             leg.fuelUnit);
                 }
                 System.out.println("   Status    : DRAFT");
+                if (aircraftRegistration != null) {
+                    System.out.printf("   Aircraft  : %s%n", aircraftRegistration);
+                }
             }
         }
 

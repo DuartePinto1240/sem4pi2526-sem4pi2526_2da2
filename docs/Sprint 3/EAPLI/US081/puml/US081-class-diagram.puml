@@ -4,7 +4,7 @@ skinparam classAttributeIconSize 0
 package "UI" {
   class ImportFlightPlanUI <<boundary>> {
     +doShow(): boolean
-    -printSuccess(result): void
+    -printSuccess(result, ctrl, aircraftReg): void
     -printErrors(result): void
   }
 }
@@ -12,8 +12,11 @@ package "UI" {
 package "Application" {
   class ImportFlightPlanController <<control>> {
     +availableFlightPlanFiles(): List<File>
-    +importFromFile(file: File): FlightPlanImportResult
-    -persistFlightPlans(flights, rawSource): void
+    +availableAircraftForPilot(pilotEmail: String): List<Aircraft>
+    +importFromFile(file: File, aircraftReg: String, pilotEmail: String): FlightPlanImportResult
+    +importFromDsl(dsl: String, pilotEmail: String): FlightPlanImportResult
+    +lastSkippedIds(): List<String>
+    -persistFlightPlans(flights, rawSource, aircraftReg, pilotEmail): void
     -resolveFlightPlansDir(): File
     -unsupportedFormatResult(fileName): FlightPlanImportResult
   }
@@ -72,11 +75,13 @@ package "LPROG" {
     +segments: List<SegmentData>
   }
   class SegmentData <<dto>> {
+    +phase: String
     +fromLat: double
     +fromLon: double
     +toLat: double
     +toLon: double
-    +altitudeSlots: List<Double>
+    +altitudeMin: double
+    +altitudeMax: double
     +width: double
     +windAngle: double
     +windSpeed: double
@@ -90,7 +95,11 @@ package "Domain" {
     -status: FlightPlanStatus
     -legs: List<FlightLeg>
     -dslContent: String
+    -aircraftRegistration: String
+    -pilotEmail: String
     +setDslContent(String): void
+    +setAircraftRegistration(String): void
+    +setPilotEmail(String): void
     +dslContent(): String
   }
   class FlightLeg <<entity>> {
@@ -103,11 +112,13 @@ package "Domain" {
     +segments(): List<FlightSegment>
   }
   class FlightSegment <<entity>> {
+    -phase: String
     -fromLat: double
     -fromLon: double
     -toLat: double
     -toLon: double
-    -altitudeSlots: List<Double>
+    -altitudeMin: double
+    -altitudeMax: double
     -widthMeters: double
     -windAngleDeg: double
     -windSpeedMs: double
@@ -139,17 +150,23 @@ FlightLeg "1" *-- "0..*" FlightSegment
 
 note right of FlightPlanBuilderListener
   enterSegment parses:
-  - coords via ctx.coordinates(0/1)
-  - altSlots: ctx.NUMBER(0..total-4)
-  - width: ctx.NUMBER(total-3)
-  - windAngle: ctx.NUMBER(total-2)
-  - windSpeed: ctx.NUMBER(total-1)
+  - phase: ctx.phaseType().getText().toLowerCase()
+  - from coords: ctx.coordinates(0).NUMBER(0/1)
+  - to coords:   ctx.coordinates(1).NUMBER(0/1)
+  - altitude_range: ctx.NUMBER(0)=altMin, ctx.NUMBER(1)=altMax
+  - width: ctx.NUMBER(2)
+  - windAngle: ctx.NUMBER(3), windSpeed: ctx.NUMBER(4)
 end note
 
 note bottom of ImportFlightPlanController
   SegmentData → FlightSegment mapping:
-  fromLat/Lon, toLat/Lon, altitudeSlots,
+  phase, fromLat/Lon, toLat/Lon,
+  altitudeMin, altitudeMax,
   width→widthMeters, windAngle→windAngleDeg,
   windSpeed→windSpeedMs
+
+  importFromDsl() used by TCP server (US086).
+  pilotEmail set for isolation in US085.
+  Duplicate flight IDs silently skipped (tracked in lastSkippedIds).
 end note
 @enduml

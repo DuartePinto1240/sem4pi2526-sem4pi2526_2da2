@@ -47,6 +47,10 @@ public class FlightPlan implements AggregateRoot<Long> {
     @Column(name = "pilot_id")
     private Long pilotId;
 
+    /** Email of the pilot who imported/created this plan; used for pilot isolation (US082/US085). */
+    @Column(name = "pilot_email")
+    private String pilotEmail;
+
     /**
      * Raw DSL content of this flight plan.
      * Set by US081 (validated DSL from file) or US080 (unvalidated DSL string/file).
@@ -93,7 +97,7 @@ public class FlightPlan implements AggregateRoot<Long> {
                       final List<FlightLeg> legs,
                       final String routeDesignator,
                       final String aircraftRegistration,
-                      final Long pilotId) {     // <-- add this parameter
+                      final Long pilotId) {
         this(flightId, flightType, legs);
         Preconditions.nonEmpty(routeDesignator,      "Route designator cannot be empty");
         Preconditions.nonEmpty(aircraftRegistration, "Aircraft registration cannot be empty");
@@ -124,10 +128,22 @@ public class FlightPlan implements AggregateRoot<Long> {
     public Long             pilotId()              { return pilotId;              }
     public String           dslContent()           { return dslContent;           }
     public Long             weatherDataId()        { return weatherDataId;        }
+    public String           pilotEmail()           { return pilotEmail;           }
 
     /** Stores the DSL content. Called by US080 (no validation) and US081 (post-validation). */
     public void setDslContent(final String dslContent) {
         this.dslContent = dslContent;
+    }
+
+    /** Associates an aircraft with this flight plan (US081 import). */
+    public void setAircraftRegistration(final String registration) {
+        this.aircraftRegistration = registration == null ? null
+                : registration.toUpperCase().trim();
+    }
+
+    /** Sets the pilot email — called by import (US081) and manual creation (US080). */
+    public void setPilotEmail(final String email) {
+        this.pilotEmail = email == null ? null : email.trim().toLowerCase();
     }
 
     // ── US085 methods ────────────────────────────────────────────────────────
@@ -164,19 +180,9 @@ public class FlightPlan implements AggregateRoot<Long> {
      * @param pilotEmail the email of the authenticated pilot
      * @return true if this plan's pilot matches the given email
      */
-    public boolean isOwnedBy(final String pilotEmail) {
-        // Since we store pilotId not pilotEmail, the controller must resolve
-        // the email to an id before calling this, or we store pilot email directly.
-        // For now: the controller passes the pilot's email and we compare via
-        // the PilotRepository. But since FlightPlan should not call a repository,
-        // the cleaner solution is to store the pilot email on the flight plan.
-        // This is implemented by checking the pilotEmail field if present,
-        // or always returning true and letting the controller handle ownership.
-        // See InsertWeatherDataController for the ownership check logic.
-        throw new UnsupportedOperationException(
-                "Implement: compare pilotEmail against this plan's pilot reference. "
-                        + "Options: (1) add a pilotEmail column to this entity, "
-                        + "(2) have the controller resolve pilotId to email before calling this.");
+    public boolean isOwnedBy(final String email) {
+        if (this.pilotEmail == null || email == null) return false;
+        return this.pilotEmail.equalsIgnoreCase(email.trim());
     }
 
     /**

@@ -49,6 +49,15 @@
         <class>domain.GeographicBoundary</class>
         <class>domain.Collaborator</class>
         <class>domain.pilot.Pilot</class>
+        <class>domain.Airport</class>
+        <class>domain.WeatherData</class>
+        <class>domain.aircraft.Aircraft</class>
+        <class>domain.aircraftmodel.AircraftModel</class>
+        <class>domain.flightroute.FlightRoute</class>
+        <class>domain.simulationreport.SimulationReport</class>
+        <class>lprog.FlightPlan</class>
+        <class>lprog.FlightLeg</class>
+        <class>lprog.FlightSegment</class>
         <properties>
             <property name="jakarta.persistence.jdbc.driver"   value="org.postgresql.Driver"/>
             <property name="jakarta.persistence.jdbc.url"      value="jdbc:postgresql://vsgate-s1.dei.isep.ipp.pt:10466/alsafe"/>

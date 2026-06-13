@@ -27,40 +27,66 @@ Pilot -> UI : selects aircraft
 UI --> Pilot : shows flightId, departure date/time prompt
 Pilot -> UI : enters flightId, departure date/time
 
-note over UI
-  For each leg:
-  - departure airport pre-filled (route.originIata or previous arrival)
-  - departure date/time pre-filled
-  - pilot enters arrival airport (or Enter for destination)
-  - pilot enters arrival time, fuel quantity (kg)
-  - pilot enters segments: from/to coords,
-    altitude slots, width, wind
-end note
+loop for each leg
+    note over UI
+      Departure airport and date/time pre-filled
+      (route.originIata for leg 1, previous arrival for subsequent legs)
+    end note
 
-Pilot -> UI : enters leg(s) with segments
+    UI --> Pilot : arrival airport prompt (Enter = route destination)
+    Pilot -> UI : enters arrival airport, arrival time, fuel (kg)
+
+    UI -> CTRL : boundaryForAirport(leg.departureAirport)
+    activate CTRL
+    CTRL -> AREPO : findByIataCode(iataCode)
+    AREPO --> CTRL : Optional<Airport>
+    alt airport found
+        CTRL -> ACREPO : ofIdentity(airport.airControlAreaCode)
+        ACREPO --> CTRL : Optional<AirControlArea>
+    end
+    CTRL --> UI : Optional<GeographicBoundary>
+    deactivate CTRL
+
+    note over UI
+      If boundary found: displays lat/lon range hint to pilot
+      before each segment prompt.
+      Minimum 3 segments required: climb, cruise, descent.
+      For each segment: phase (climb/cruise/descent),
+        from/to coords, altitude min/max (ft), width (m), wind.
+    end note
+
+    Pilot -> UI : enters segments for this leg
+
+    UI -> CTRL : validateLegCoordinates(leg)
+    activate CTRL
+    loop for each segment in leg
+        CTRL -> CTRL : check from/to coords within boundary
+        alt coord outside boundary
+            CTRL --> UI : throws IllegalArgumentException
+            note over UI: Leg discarded — pilot re-enters
+        end
+    end
+    CTRL --> UI : OK
+    deactivate CTRL
+
+    note over UI
+      Leg added. If arrival == destination: done.
+      Otherwise: prompt for next leg departure date/time.
+    end note
+end
 
 UI -> CTRL : createFlightPlan(flightId, route, aircraft, pilot, departureDateTime, legs)
 activate CTRL
 
+CTRL -> CTRL : check existsByFlightId → reject if duplicate
 CTRL -> CTRL : validate route is active
 CTRL -> CTRL : validate aircraft.companyIata == route.companyIata
 CTRL -> CTRL : validate pilot.companyIata == route.companyIata
 CTRL -> CTRL : validate departureDateTime is in the future
-
-loop for each leg
-    loop for each segment
-        CTRL -> AREPO : findByIataCode(leg.departureAirport)
-        AREPO --> CTRL : Optional<Airport>
-        alt airport found
-            CTRL -> ACREPO : ofIdentity(airport.airControlAreaCode)
-            ACREPO --> CTRL : Optional<AirControlArea>
-            CTRL -> CTRL : validate from/to coords within boundary
-        end
-    end
-end
+CTRL -> CTRL : validateSegmentCoordinates(legs) [double-check all legs]
 
 CTRL -> DSL : generate(flightId, flightType, legs)
-DSL --> CTRL : dslContent (with segment blocks)
+DSL --> CTRL : dslContent (phase + altitude_range + from/to per segment)
 
 CTRL -> PLAN : new FlightPlan(flightId, flightType, legs,\n  routeDesignator, aircraftReg, pilotId)
 activate PLAN
@@ -70,6 +96,7 @@ PLAN --> CTRL : plan
 deactivate PLAN
 
 CTRL -> PLAN : setDslContent(dsl)
+CTRL -> PLAN : setPilotEmail(pilot.email)
 CTRL -> REPO : save(plan)
 CTRL --> UI : plan
 deactivate CTRL

@@ -60,10 +60,14 @@ public class JpaFlightPlanRepository
         return super.save(flightPlan);
     }
 
+    /**
+     * US077 — Returns true if any flight plan exists for the given pilot email.
+     */
     @Override
     public boolean existsAssignedFlightPlansForPilot(final String pilotEmail) {
-        return match("e.pilotId IS NOT NULL", new HashMap<>())
-                .iterator().hasNext();
+        final Map<String, Object> params = new HashMap<>();
+        params.put("pilotEmail", pilotEmail == null ? "" : pilotEmail.trim().toLowerCase());
+        return matchOne("LOWER(e.pilotEmail) = :pilotEmail", params).isPresent();
     }
 
     /**
@@ -93,16 +97,25 @@ public class JpaFlightPlanRepository
         return count != null && count > 0;
     }
 
+    /**
+     * US082 — Returns all DRAFT/TESTED flight plans belonging to the given pilot.
+     */
     @Override
     public Iterable<FlightPlan> findByPilot(final String pilotEmail) {
-        return match("1=1", new HashMap<>());
+        final Map<String, Object> params = new HashMap<>();
+        params.put("pilotEmail", pilotEmail == null ? "" : pilotEmail.trim().toLowerCase());
+        return match("LOWER(e.pilotEmail) = :pilotEmail", params);
     }
 
+    /**
+     * US085 — Returns flight plans for the given pilot that are in the given status.
+     */
     @Override
     public Iterable<FlightPlan> findByPilotAndStatus(final String pilotEmail,
                                                      final FlightPlanStatus status) {
         final Map<String, Object> params = new HashMap<>();
+        params.put("pilotEmail", pilotEmail == null ? "" : pilotEmail.trim().toLowerCase());
         params.put("status", status);
-        return match("e.status = :status", params);
+        return match("LOWER(e.pilotEmail) = :pilotEmail AND e.status = :status", params);
     }
 }

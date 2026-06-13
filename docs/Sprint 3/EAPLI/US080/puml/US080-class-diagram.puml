@@ -4,8 +4,9 @@ skinparam classAttributeIconSize 0
 package "UI" {
   class CreateFlightPlanUI <<boundary>> {
     +doShow(): boolean
-    -readLegs(route, departure): List<FlightLeg>
-    -readSegments(leg, legNum): void
+    -readLegs(ctrl, route, departure): List<FlightLeg>
+    -readSegments(ctrl, leg, legNum): void
+    -readPhase(): String
   }
 }
 
@@ -15,8 +16,10 @@ package "Application" {
     +aircraftForRoute(route): Iterable<Aircraft>
     +currentPilot(): Optional<Pilot>
     +boundaryForAirport(iataCode): Optional<GeographicBoundary>
+    +validateLegCoordinates(leg): void
     +createFlightPlan(flightId, route, aircraft, pilot,\n  departureDateTime, legs): FlightPlan
     -validateSegmentCoordinates(legs): void
+    -isWithin(lat, lon, boundary): boolean
   }
 }
 
@@ -30,12 +33,14 @@ package "Domain" {
     -routeDesignator: String
     -aircraftRegistration: String
     -pilotId: Long
+    -pilotEmail: String
     -dslContent: String
     +status(): FlightPlanStatus
     +flightId(): String
     +legs(): List<FlightLeg>
     +dslContent(): String
     +setDslContent(String): void
+    +setPilotEmail(String): void
   }
   class FlightLeg <<entity>> {
     -departureAirport: String
@@ -50,14 +55,19 @@ package "Domain" {
     +segments(): List<FlightSegment>
   }
   class FlightSegment <<entity>> {
+    -phase: String
     -fromLat: double
     -fromLon: double
     -toLat: double
     -toLon: double
-    -altitudeSlots: List<Double>
+    -altitudeMin: double
+    -altitudeMax: double
     -widthMeters: double
     -windAngleDeg: double
     -windSpeedMs: double
+    +phase(): String
+    +altitudeMin(): double
+    +altitudeMax(): double
   }
   enum FlightPlanStatus <<enum>> {
     DRAFT
@@ -77,6 +87,9 @@ package "Service" {
 package "Infrastructure.Persistence" {
   class PersistenceContext <<singleton>> {
     +flightPlanRepository(): FlightPlanRepository
+    +flightRouteRepository(): FlightRouteRepository
+    +aircraftRepository(): AircraftRepository
+    +pilotRepository(): PilotRepository
     +airportRepository(): AirportRepository
     +airControlAreaRepository(): AirControlAreaRepository
   }
@@ -84,6 +97,15 @@ package "Infrastructure.Persistence" {
     +save(FlightPlan): FlightPlan
     +findAll(): Iterable<FlightPlan>
     +existsByFlightId(String): boolean
+  }
+  interface FlightRouteRepository <<repository>> {
+    +findAll(): Iterable<FlightRoute>
+  }
+  interface AircraftRepository <<repository>> {
+    +findByCompanyIata(iata: String): Iterable<Aircraft>
+  }
+  interface PilotRepository <<repository>> {
+    +findByEmail(email: String): Optional<Pilot>
   }
   interface AirportRepository <<repository>> {
     +findByIataCode(IATACode): Optional<Airport>
@@ -101,11 +123,15 @@ FlightPlan "1" *-- "1..*" FlightLeg
 FlightLeg "1" *-- "0..*" FlightSegment
 FlightPlan --> FlightPlanStatus
 PersistenceContext ..> FlightPlanRepository
+PersistenceContext ..> FlightRouteRepository
+PersistenceContext ..> AircraftRepository
+PersistenceContext ..> PilotRepository
 PersistenceContext ..> AirportRepository
 PersistenceContext ..> AirControlAreaRepository
 
 note right of FlightPlan
   status = DRAFT on creation.
+  pilotEmail used for isolation (US082/US085).
   dslContent auto-generated from legs/segments.
   Used by US085 for simulation.
 end note
@@ -113,6 +139,8 @@ end note
 note bottom of CreateFlightPlanController
   Pilot resolved from logged-in session.
   Routes filtered by pilot's company.
+  validateLegCoordinates() called per-leg in UI
+  (immediate feedback, not deferred to end).
   DSL generated before FlightPlan entity creation.
 end note
 @enduml

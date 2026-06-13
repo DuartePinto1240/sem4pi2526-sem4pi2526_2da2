@@ -11,11 +11,30 @@ package "Application" {
   class TestFlightPlanController <<control>> {
     -checkerBinary: String
     -repo: FlightPlanRepository
+    -aircraftRepo: AircraftRepository
+    -modelRepo: AircraftModelRepository
+    -weatherRepo: WeatherDataRepository
     +TestFlightPlanController()
     +listDraftFlightPlans(pilotEmail: String): List<FlightPlan>
     +testFlightPlan(flightPlanId: String): FlightPlanTestResult
-    -runFeasibilityCheck(flights: List<FlightData>): FlightPlanTestResult
+    -resolveCharacteristics(plan): FlightCharacteristics
+    -resolveWeatherData(plan): WeatherData
+    -applyWeatherToSegments(legs, weather): void
+    -runFeasibilityCheck(flights, chars, weather): FlightPlanTestResult
     -resolveCheckerBinary(): String
+  }
+}
+
+package "Domain" {
+  class FlightCharacteristics <<value object>> {
+    +maxFuelCapacity(): double
+    +serviceCeiling(): double
+    +cruiseSpeed(): double
+  }
+
+  class WeatherData <<entity>> {
+    +subArea(): WeatherSubArea
+    +wind(): Wind
   }
 }
 
@@ -27,21 +46,36 @@ package "LPROG" {
   class FlightPlanTestResult <<value>> {
     -passed: boolean
     -errors: List<String>
+    -totalDistanceKm: double
+    -totalDeclaredFuelKg: double
+    -estimatedFuelBurnKg: double
+    -remainingFuelKg: double
+    -estimatedDuration: String
+    +{static} pass(distKm, fuelKg, burnKg, cruiseSpeedKmh): FlightPlanTestResult
     +{static} pass(): FlightPlanTestResult
     +{static} fail(errors: List<String>): FlightPlanTestResult
     +isPassed(): boolean
     +errors(): List<String>
-    +summary(): String
+    +totalDistanceKm(): double
+    +totalDeclaredFuelKg(): double
+    +estimatedFuelBurnKg(): double
+    +remainingFuelKg(): double
+    +estimatedDuration(): String
   }
 
   class FlightPlan <<entity>> {
     -status: FlightPlanStatus
     -dslContent: String
     -testResult: String
+    -aircraftRegistration: String
+    -pilotEmail: String
+    -weatherDataId: Long
     +markAsTested(summary: String): void
-    +addWeatherData(id: Long): void
     +status(): FlightPlanStatus
     +dslContent(): String
+    +aircraftRegistration(): String
+    +pilotEmail(): String
+    +weatherDataId(): Long
   }
 
   enum FlightPlanStatus {
@@ -51,34 +85,48 @@ package "LPROG" {
   }
 }
 
-package "Domain" {
+package "Infrastructure.Persistence" {
   interface FlightPlanRepository <<repository>> {
     +findByFlightId(id: String): Optional<FlightPlan>
     +findByPilotAndStatus(email: String, status: FlightPlanStatus): Iterable<FlightPlan>
     +save(plan: FlightPlan): FlightPlan
   }
+  interface AircraftRepository <<repository>> {
+    +ofIdentity(registration: String): Optional<Aircraft>
+  }
+  interface AircraftModelRepository <<repository>> {
+    +ofIdentity(modelId): Optional<AircraftModel>
+  }
+  interface WeatherDataRepository <<repository>> {
+    +ofIdentity(id: Long): Optional<WeatherData>
+  }
 }
 
 package "C Component" {
   class flight_plan_test <<external C program>> {
-    .. args ..
-    num_legs
-    [leg_fuel  leg_num_segs
-      fromLat fromLon toLat toLon
-      minAlt  maxAlt  windSpeed
-      ...] per leg
+    .. global args ..
+    num_legs maxFuelCapacity serviceCeiling(ft) cruiseSpeedKmh
+    .. per leg ..
+    leg_fuel leg_num_segs
+    .. per segment ..
+    fromLat fromLon toLat toLon
+    minAlt(ft) maxAlt(ft)
+    windAngle(deg) windSpeed(m/s) phase
     .. output ..
-    PASS (exit 0)
+    PASS <totalDistKm> <totalFuelKg> <burnKg> (exit 0)
     FAIL + error lines (exit 1)
     .. validations ..
-    1. fuel >= dist*2.5 + 200 reserve
-    2. alt in [500, 45000] ft
-    3. wind <= 50 m/s
+    1. total fuel <= maxFuelCapacity
+    2. leg fuel >= Haversine*2.5 + 200 reserve
+    3. segment altitudeMax <= serviceCeiling
   }
 }
 
 TestFlightPlanUI ..> TestFlightPlanController : uses
 TestFlightPlanController --> FlightPlanRepository : queries
+TestFlightPlanController --> AircraftRepository : resolves aircraft
+TestFlightPlanController --> AircraftModelRepository : resolves characteristics
+TestFlightPlanController --> WeatherDataRepository : resolves weather
 TestFlightPlanController ..> FlightPlanImporter : Phase 1: DSL re-validation
 TestFlightPlanController ..> FlightPlanTestResult : creates
 TestFlightPlanController ..> flight_plan_test : Phase 2: ProcessBuilder
@@ -90,15 +138,19 @@ note right of TestFlightPlanController
   Phase 1 — ANTLR (Java):
     lexical + syntactic + semantic
   Phase 2 — C program:
-    Haversine fuel, altitude range,
-    wind speed limit
-  FAIL at any phase → plan stays DRAFT
-  PASS both → plan → TESTED
+    fuel capacity, Haversine fuel, service ceiling
+  Weather data (US082) applied to segment wind
+  values before Phase 2 if associated.
+  FAIL at any phase → plan stays DRAFT.
+  PASS both → plan → TESTED.
 end note
 
-note bottom of FlightPlan
-  addWeatherData() reverts TESTED → DRAFT
-  because test result is void with
-  new weather conditions (US082).
+note right of flight_plan_test
+  serviceCeiling passed in feet
+  (converted from metres stored in AircraftModel).
+  Defaults used if no aircraft assigned:
+    maxFuelCapacity = 999999 kg
+    serviceCeiling  = 45000 ft
+    cruiseSpeed     = 800 km/h
 end note
 @enduml

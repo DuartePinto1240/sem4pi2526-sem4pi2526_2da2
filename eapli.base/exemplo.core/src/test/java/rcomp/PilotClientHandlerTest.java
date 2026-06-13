@@ -184,7 +184,7 @@ class PilotClientHandlerTest {
         fd.id = "TP010";
 
         final FlightPlanImportResult result = FlightPlanImportResult.success(List.of(fd), "dsl");
-        when(importCtrl.importFromDsl(anyString())).thenReturn(result);
+        when(importCtrl.importFromDsl(anyString(), any())).thenReturn(result);
 
         startAuthenticated();
 
@@ -211,7 +211,7 @@ class PilotClientHandlerTest {
         final FlightPlanImportResult result =
                 FlightPlanImportResult.failure(List.of(
                         new ValidationError(ErrorCollector.ErrorType.SYNTACTIC, 1, 0, "Unexpected token")));
-        when(importCtrl.importFromDsl(anyString())).thenReturn(result);
+        when(importCtrl.importFromDsl(anyString(), any())).thenReturn(result);
 
         startAuthenticated();
 

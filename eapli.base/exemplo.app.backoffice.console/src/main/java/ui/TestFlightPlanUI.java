@@ -56,9 +56,9 @@ public class TestFlightPlanUI extends AbstractUI {
 
             // Compute box width from the longest line
             final List<String> errors = result.errors();
-            int contentWidth = 40; // minimum
+            int contentWidth = 44; // minimum (covers stat lines like "  Remaining fuel   : 99999 kg")
             for (final String err : errors) {
-                contentWidth = Math.max(contentWidth, err.length() + 6); // "║  • " + err + "  ║"
+                contentWidth = Math.max(contentWidth, err.length() + 6);
             }
             final String hr    = "═".repeat(contentWidth);
             final String top   = "╔" + hr + "╗";
@@ -68,7 +68,15 @@ public class TestFlightPlanUI extends AbstractUI {
             System.out.println("\n" + top);
             if (result.isPassed()) {
                 System.out.println("║  Result : PASS ✓" + " ".repeat(contentWidth - 17) + "║");
-                System.out.println("║  Flight plan is valid and feasible." + " ".repeat(contentWidth - 36) + "║");
+                System.out.println(mid);
+                final String distLine   = String.format("  Total distance   : %.0f km", result.totalDistanceKm());
+                final String durLine    = String.format("  Estimated flight : %s", result.estimatedDuration());
+                final String fuelLine   = String.format("  Declared fuel    : %.0f kg", result.totalDeclaredFuelKg());
+                final String burnLine   = String.format("  Estimated burn   : %.0f kg", result.estimatedFuelBurnKg());
+                final String remLine    = String.format("  Remaining fuel   : %.0f kg", result.remainingFuelKg());
+                for (final String statLine : new String[]{distLine, durLine, fuelLine, burnLine, remLine}) {
+                    System.out.println("║" + statLine + " ".repeat(contentWidth - statLine.length()) + "║");
+                }
             } else {
                 System.out.println("║  Result : FAIL ✗" + " ".repeat(contentWidth - 17) + "║");
                 System.out.println(mid);

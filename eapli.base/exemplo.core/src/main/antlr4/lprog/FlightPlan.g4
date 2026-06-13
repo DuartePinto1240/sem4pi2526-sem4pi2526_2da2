@@ -43,12 +43,19 @@ fuel
 
 segment
     : SEGMENT LBRACE
+        PHASE COLON phaseType
         FROM COLON coordinates
         TO COLON coordinates
-        ALTITUDE_SLOTS COLON LBRACKET NUMBER (COMMA NUMBER)* RBRACKET
+        ALTITUDE_RANGE COLON LBRACKET NUMBER COMMA NUMBER RBRACKET
         WIDTH COLON NUMBER METER
         WIND COLON NUMBER DEG NUMBER MS
       RBRACE
+    ;
+
+phaseType
+    : CLIMB
+    | CRUISE
+    | DESCENT
     ;
 
 coordinates
@@ -92,7 +99,11 @@ WIDTH          : [Ww][Ii][Dd][Tt][Hh] ;
 WIND           : [Ww][Ii][Nn][Dd] ;
 REGULAR        : [Rr][Ee][Gg][Uu][Ll][Aa][Rr] ;
 CHARTER        : [Cc][Hh][Aa][Rr][Tt][Ee][Rr] ;
-ALTITUDE_SLOTS : [Aa][Ll][Tt][Ii][Tt][Uu][Dd][Ee]'_'[Ss][Ll][Oo][Tt][Ss] ;
+ALTITUDE_RANGE : [Aa][Ll][Tt][Ii][Tt][Uu][Dd][Ee]'_'[Rr][Aa][Nn][Gg][Ee] ;
+PHASE          : [Pp][Hh][Aa][Ss][Ee] ;
+CLIMB          : [Cc][Ll][Ii][Mm][Bb] ;
+CRUISE         : [Cc][Rr][Uu][Ii][Ss][Ee] ;
+DESCENT        : [Dd][Ee][Ss][Cc][Ee][Nn][Tt] ;
 
 // Units
 DEG   : [Dd][Ee][Gg] ;

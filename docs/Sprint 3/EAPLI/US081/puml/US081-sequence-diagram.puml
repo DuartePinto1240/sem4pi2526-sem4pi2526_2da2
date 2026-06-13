@@ -14,7 +14,13 @@ CTRL --> UI : List<File> (.fp files from flightplans/)
 UI --> Pilot : shows numbered file list
 
 Pilot -> UI : selects file number
-UI -> CTRL : importFromFile(file)
+
+note over UI
+  UI also calls availableAircraftForPilot(pilotEmail)
+  and lets pilot optionally select aircraft registration.
+end note
+
+UI -> CTRL : importFromFile(file, aircraftRegistration, pilotEmail)
 activate CTRL
 
 CTRL -> CTRL : check file.getName().endsWith(".fp")
@@ -40,7 +46,7 @@ else .fp file
             IMP --> CTRL : FlightPlanImportResult.failure(errors)
         else all valid
             IMP -> BLD : ParseTreeWalker.walk(builder, tree)
-            BLD -> BLD : builds FlightData + LegData + SegmentData
+            BLD -> BLD : builds FlightData + LegData + SegmentData\n(phase, altitudeMin, altitudeMax, from/to, width, wind)
             IMP --> CTRL : FlightPlanImportResult.success(flights, rawSource)
         end
     end
@@ -49,20 +55,22 @@ else .fp file
 
     alt success
         loop for each FlightData fd
-            CTRL -> CTRL : check existsByFlightId(fd.id) → skip if duplicate
+            CTRL -> CTRL : check existsByFlightId(fd.id) → skip if duplicate\n(adds to lastSkippedIds)
             loop for each LegData ld
                 CTRL -> CTRL : new FlightLeg(dep, date, time, arr, time, fuel, unit)
                 loop for each SegmentData sd
-                    CTRL -> CTRL : new FlightSegment(fromLat, fromLon, toLat, toLon,\n  altitudeSlots, width, windAngle, windSpeed)
+                    CTRL -> CTRL : new FlightSegment(fromLat, fromLon, toLat, toLon,\n  altitudeMin, altitudeMax, phase, width, windAngle, windSpeed)
                     CTRL -> CTRL : leg.addSegment(segment)
                 end
             end
             CTRL -> CTRL : new FlightPlan(fd.id, fd.type, legs)
             CTRL -> CTRL : plan.setDslContent(rawSource)
+            CTRL -> CTRL : plan.setAircraftRegistration(aircraftRegistration)
+            CTRL -> CTRL : plan.setPilotEmail(pilotEmail)
             CTRL -> REPO : save(plan)
         end
-        CTRL --> UI : result (success)
-        UI --> Pilot : displays summary\n(flightId, type, legs with airports, status=DRAFT)
+        CTRL --> UI : result (success, lastSkippedIds)
+        UI --> Pilot : displays summary\n(flightId, type, legs with airports and segment count,\nstatus=DRAFT, skipped IDs if any)
     else failure
         CTRL --> UI : result (errors)
         UI --> Pilot : displays all errors\n(type, line, column, message)

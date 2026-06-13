@@ -15,7 +15,9 @@ public class FlightPlanBuilderListener extends FlightPlanBaseListener {
     public static class SegmentData {
         public double fromLat, fromLon;
         public double toLat, toLon;
-        public List<Double> altitudeSlots = new ArrayList<>();
+        public String phase;           // "climb", "cruise", "descent"
+        public double altitudeMin;
+        public double altitudeMax;
         public double width;
         public double windAngle;
         public double windSpeed;
@@ -118,6 +120,9 @@ public class FlightPlanBuilderListener extends FlightPlanBaseListener {
     public void enterSegment(FlightPlanParser.SegmentContext ctx) {
         currentSegment = new SegmentData();
 
+        // phase
+        currentSegment.phase = ctx.phaseType().getText().toLowerCase();
+
         // from coordinates
         FlightPlanParser.CoordinatesContext from = ctx.coordinates(0);
         currentSegment.fromLat = Double.parseDouble(from.NUMBER(0).getText());
@@ -128,22 +133,19 @@ public class FlightPlanBuilderListener extends FlightPlanBaseListener {
         currentSegment.toLat = Double.parseDouble(to.NUMBER(0).getText());
         currentSegment.toLon = Double.parseDouble(to.NUMBER(1).getText());
 
-        // ctx.NUMBER() contains ONLY the direct NUMBER tokens of the segment rule:
-        //   [alt1, alt2, ..., width, windAngle, windSpeed]
-        // The coordinates NUMBERs live inside coordinates sub-rules and are
-        // accessed via ctx.coordinates(n).NUMBER(n), NOT via ctx.NUMBER().
-        //
-        // Layout: indices 0..(total-4) → altitude slots
-        //         index  total-3       → width
-        //         index  total-2       → wind angle
-        //         index  total-1       → wind speed
-        int total = ctx.NUMBER().size();
-        for (int i = 0; i < total - 3; i++) {
-            currentSegment.altitudeSlots.add(Double.parseDouble(ctx.NUMBER(i).getText()));
-        }
-        currentSegment.width     = Double.parseDouble(ctx.NUMBER(total - 3).getText());
-        currentSegment.windAngle = Double.parseDouble(ctx.NUMBER(total - 2).getText());
-        currentSegment.windSpeed = Double.parseDouble(ctx.NUMBER(total - 1).getText());
+        // ctx.NUMBER() contains ONLY the direct NUMBER tokens of the segment rule
+        // (coordinates are in sub-rules and not included here).
+        // Layout with altitude_range [min, max]:
+        //   index 0 → altitudeMin
+        //   index 1 → altitudeMax
+        //   index 2 → width
+        //   index 3 → windAngle
+        //   index 4 → windSpeed
+        currentSegment.altitudeMin = Double.parseDouble(ctx.NUMBER(0).getText());
+        currentSegment.altitudeMax = Double.parseDouble(ctx.NUMBER(1).getText());
+        currentSegment.width       = Double.parseDouble(ctx.NUMBER(2).getText());
+        currentSegment.windAngle   = Double.parseDouble(ctx.NUMBER(3).getText());
+        currentSegment.windSpeed   = Double.parseDouble(ctx.NUMBER(4).getText());
     }
 
     @Override

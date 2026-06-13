@@ -108,18 +108,6 @@ public class CreateFlightPlanController {
                 });
     }
 
-    public Iterable<Pilot> pilotsForRoute(final FlightRoute route) {
-        final Iterable<Pilot> all = pilotRepo.findAll();
-        final List<Pilot> result = new ArrayList<>();
-        for (final Pilot p : all) {
-            if (p.isActive()
-                    && p.company().companyCode().iata().equalsIgnoreCase(route.companyIata())) {
-                result.add(p);
-            }
-        }
-        return result;
-    }
-
     /**
      * Resolves the AirControlArea boundary for a given airport IATA code.
      * Returns empty if the airport or its area is not found.
@@ -128,6 +116,33 @@ public class CreateFlightPlanController {
         return airportRepo.findByIataCode(new IATACode(iataCode))
                 .flatMap(airport -> areaRepo.ofIdentity(airport.airControlAreaCode()))
                 .map(AirControlArea::boundary);
+    }
+
+    /**
+     * Validates that all segment coordinates in a single leg lie within the
+     * AirControlArea boundary of the leg's departure airport.
+     * Throws {@link IllegalArgumentException} with a descriptive message on the
+     * first out-of-bounds coordinate found.
+     * Does nothing if the airport / its area is not registered.
+     */
+    public void validateLegCoordinates(final FlightLeg leg) {
+        final Optional<GeographicBoundary> boundaryOpt = boundaryForAirport(leg.departureAirport());
+        if (boundaryOpt.isEmpty()) return;
+        final GeographicBoundary boundary = boundaryOpt.get();
+        int segIdx = 1;
+        for (final lprog.FlightSegment seg : leg.segments()) {
+            if (!isWithin(seg.fromLat(), seg.fromLon(), boundary)) {
+                throw new IllegalArgumentException(String.format(
+                        "Segment %d: 'from' (%.4f, %.4f) fora do limite da área de controlo %s.",
+                        segIdx, seg.fromLat(), seg.fromLon(), boundary));
+            }
+            if (!isWithin(seg.toLat(), seg.toLon(), boundary)) {
+                throw new IllegalArgumentException(String.format(
+                        "Segment %d: 'to' (%.4f, %.4f) fora do limite da área de controlo %s.",
+                        segIdx, seg.toLat(), seg.toLon(), boundary));
+            }
+            segIdx++;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -197,6 +212,7 @@ public class CreateFlightPlanController {
                 pilot.identity());
 
         plan.setDslContent(dsl);
+        plan.setPilotEmail(pilot.email());
         return flightPlanRepo.save(plan);
     }
 

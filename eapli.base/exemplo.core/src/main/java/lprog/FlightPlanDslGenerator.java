@@ -1,7 +1,6 @@
 package lprog;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Generates a Core Flight DSL string from a FlightPlan domain object
@@ -13,9 +12,6 @@ public class FlightPlanDslGenerator {
 
     /**
      * Generates DSL directly from raw legs.
-     *
-     * Use this in the controller BEFORE wrapping legs inside a FlightPlan
-     * entity to avoid any JPA collection lifecycle interference.
      */
     public String generate(final String flightId,
                            final String flightType,
@@ -52,14 +48,17 @@ public class FlightPlanDslGenerator {
 
         for (final FlightSegment seg : leg.segments()) {
             sb.append("        segment {\n");
+            sb.append("            phase: ")
+              .append(seg.phase()).append("\n");
             sb.append("            from: (")
               .append(formatCoord(seg.fromLat())).append(", ")
               .append(formatCoord(seg.fromLon())).append(")\n");
             sb.append("            to:   (")
               .append(formatCoord(seg.toLat())).append(", ")
               .append(formatCoord(seg.toLon())).append(")\n");
-            sb.append("            altitude_slots: [")
-              .append(formatAltitudeSlots(seg.altitudeSlots())).append("]\n");
+            sb.append("            altitude_range: [")
+              .append(formatAlt(seg.altitudeMin())).append(", ")
+              .append(formatAlt(seg.altitudeMax())).append("]\n");
             sb.append("            width: ")
               .append((int) seg.widthMeters()).append(" m\n");
             sb.append("            wind:  ")
@@ -76,18 +75,14 @@ public class FlightPlanDslGenerator {
     }
 
     private String formatFuel(final double v) {
-        if (v == Math.floor(v)) return String.valueOf((int) v);
-        return String.valueOf(v);
+        return v == Math.floor(v) ? String.valueOf((int) v) : String.valueOf(v);
     }
 
     private String formatSpeed(final double v) {
-        if (v == Math.floor(v)) return String.valueOf((int) v);
-        return String.valueOf(v);
+        return v == Math.floor(v) ? String.valueOf((int) v) : String.valueOf(v);
     }
 
-    private String formatAltitudeSlots(final List<Double> slots) {
-        return slots.stream()
-                .map(a -> a == Math.floor(a) ? String.valueOf(a.intValue()) : String.valueOf(a))
-                .collect(Collectors.joining(", "));
+    private String formatAlt(final double v) {
+        return v == Math.floor(v) ? String.valueOf((int) v) : String.valueOf(v);
     }
 }

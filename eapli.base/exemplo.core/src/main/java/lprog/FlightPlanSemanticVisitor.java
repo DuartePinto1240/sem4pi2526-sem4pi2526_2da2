@@ -54,7 +54,6 @@ public class FlightPlanSemanticVisitor extends FlightPlanBaseVisitor<Void> {
         String departureTime    = ctx.departure().time().getText();
 
         if (lastArrivalAirport != null) {
-            // arrival of leg n must match departure of leg n+1
             if (!lastArrivalAirport.equals(departureAirport)) {
                 errorCollector.addSemanticError(
                         ctx.departure().getStart().getLine(),
@@ -63,8 +62,6 @@ public class FlightPlanSemanticVisitor extends FlightPlanBaseVisitor<Void> {
                                 "') does not match arrival airport of previous leg ('" +
                                 lastArrivalAirport + "')");
             }
-
-            // arrival time of leg n must precede departure time of leg n+1
             if (lastArrivalTime != null &&
                     lastArrivalTime.compareTo(departureTime) >= 0) {
                 errorCollector.addSemanticError(
@@ -76,10 +73,41 @@ public class FlightPlanSemanticVisitor extends FlightPlanBaseVisitor<Void> {
             }
         }
 
-        // Visit children to process segments and fuel
+        // Validate segment count and phase sequence: climb → cruise(s) → descent
+        List<FlightPlanParser.SegmentContext> segs = ctx.segment();
+        if (segs.size() < 3) {
+            errorCollector.addSemanticError(
+                    ctx.getStart().getLine(),
+                    ctx.getStart().getCharPositionInLine(),
+                    "Each leg must have at least 3 segments (climb, cruise, descent); found " + segs.size());
+        } else {
+            String firstPhase = segs.get(0).phaseType().getText().toLowerCase();
+            String lastPhase  = segs.get(segs.size() - 1).phaseType().getText().toLowerCase();
+            if (!firstPhase.equals("climb")) {
+                errorCollector.addSemanticError(
+                        segs.get(0).getStart().getLine(),
+                        segs.get(0).getStart().getCharPositionInLine(),
+                        "First segment of a leg must have phase 'climb' (got '" + firstPhase + "')");
+            }
+            if (!lastPhase.equals("descent")) {
+                errorCollector.addSemanticError(
+                        segs.get(segs.size() - 1).getStart().getLine(),
+                        segs.get(segs.size() - 1).getStart().getCharPositionInLine(),
+                        "Last segment of a leg must have phase 'descent' (got '" + lastPhase + "')");
+            }
+            for (int i = 1; i < segs.size() - 1; i++) {
+                String midPhase = segs.get(i).phaseType().getText().toLowerCase();
+                if (!midPhase.equals("cruise")) {
+                    errorCollector.addSemanticError(
+                            segs.get(i).getStart().getLine(),
+                            segs.get(i).getStart().getCharPositionInLine(),
+                            "Middle segments must have phase 'cruise' (segment " + (i + 1) + " has '" + midPhase + "')");
+                }
+            }
+        }
+
         visitChildren(ctx);
 
-        // Update last arrival for next leg check
         lastArrivalAirport = ctx.arrival().airportCode().getText();
         lastArrivalTime    = ctx.arrival().time().getText();
 
@@ -110,13 +138,11 @@ public class FlightPlanSemanticVisitor extends FlightPlanBaseVisitor<Void> {
 
     @Override
     public Void visitSegment(FlightPlanParser.SegmentContext ctx) {
+        // Coordinates must be different
         List<FlightPlanParser.CoordinatesContext> coords = ctx.coordinates();
-
         if (coords.size() == 2) {
             String from = coords.get(0).getText();
             String to   = coords.get(1).getText();
-
-            // start and end coordinates must be different
             if (from.equals(to)) {
                 errorCollector.addSemanticError(
                         ctx.getStart().getLine(),
@@ -125,20 +151,30 @@ public class FlightPlanSemanticVisitor extends FlightPlanBaseVisitor<Void> {
             }
         }
 
-        // width must be positive
-        double width = Double.parseDouble(ctx.NUMBER(0).getText());
+        // Direct NUMBER tokens in segment rule:
+        //   [0]=altitudeMin  [1]=altitudeMax  [2]=width  [3]=windAngle  [4]=windSpeed
+        double altMin    = Double.parseDouble(ctx.NUMBER(0).getText());
+        double altMax    = Double.parseDouble(ctx.NUMBER(1).getText());
+        double width     = Double.parseDouble(ctx.NUMBER(2).getText());
+        double windSpeed = Double.parseDouble(ctx.NUMBER(4).getText());
+
+        if (altMin < 0) {
+            errorCollector.addSemanticError(ctx.getStart().getLine(),
+                    ctx.getStart().getCharPositionInLine(),
+                    "Altitude range minimum must be non-negative (got: " + altMin + ")");
+        }
+        if (altMax <= altMin) {
+            errorCollector.addSemanticError(ctx.getStart().getLine(),
+                    ctx.getStart().getCharPositionInLine(),
+                    "Altitude range maximum (" + altMax + ") must be greater than minimum (" + altMin + ")");
+        }
         if (width <= 0) {
-            errorCollector.addSemanticError(
-                    ctx.getStart().getLine(),
+            errorCollector.addSemanticError(ctx.getStart().getLine(),
                     ctx.getStart().getCharPositionInLine(),
                     "Segment width must be positive (got: " + width + ")");
         }
-
-        // wind speed must be positive
-        double windSpeed = Double.parseDouble(ctx.NUMBER(1).getText());
         if (windSpeed < 0) {
-            errorCollector.addSemanticError(
-                    ctx.getStart().getLine(),
+            errorCollector.addSemanticError(ctx.getStart().getLine(),
                     ctx.getStart().getCharPositionInLine(),
                     "Wind speed must be non-negative (got: " + windSpeed + ")");
         }

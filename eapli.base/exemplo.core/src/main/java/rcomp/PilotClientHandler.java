@@ -246,7 +246,7 @@ public class PilotClientHandler implements Runnable {
 
         try {
             final lprog.FlightPlanImporter.FlightPlanImportResult result =
-                    importCtrl.importFromDsl(dsl.toString());
+                    importCtrl.importFromDsl(dsl.toString(), authenticatedEmail);
 
             if (result.isSuccess()) {
                 final String ids = result.getFlights().stream()
@@ -346,7 +346,8 @@ public class PilotClientHandler implements Runnable {
             } else {
                 final StringBuilder sb = new StringBuilder(Protocol.ERROR + " FAIL:\n");
                 result.errors().forEach(e -> sb.append("  • ").append(e).append("\n"));
-                return sb.toString().trim();
+                sb.append(Protocol.END);
+                return sb.toString();
             }
 
         } catch (final IllegalArgumentException e) {
