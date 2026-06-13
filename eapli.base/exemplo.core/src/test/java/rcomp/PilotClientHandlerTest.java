@@ -199,9 +199,15 @@ class PilotClientHandlerTest {
         sendLine("flight TP010 { type: regular }");
         sendLine(Protocol.END_FILE);
 
-        final String response = readLine();
+        // The import response is multi-line; read until END
+        final StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = readLine()) != null && !line.equals(Protocol.END)) {
+            sb.append(line).append("\n");
+        }
+        final String response = sb.toString();
         assertTrue(response.startsWith(Protocol.OK), "Expected OK imported, got: " + response);
-        assertTrue(response.contains("TP010"));
+        assertTrue(response.contains("TP010"), "Expected TP010 in response, got: " + response);
     }
 
     /**
