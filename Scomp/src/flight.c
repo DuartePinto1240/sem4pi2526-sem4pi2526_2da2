@@ -534,9 +534,14 @@ void execute_flight(int flight_id,
 
     sem_wait(sem_nproc);
     shm->num_active_flights--;
-    if (shm->num_active_flights > 0 &&
-        shm->nproc_at_barrier >= shm->num_active_flights) {
+    if (shm->num_active_flights > 0) {
+        /* se os restantes já estão todos em Fase 1 */
+        if (shm->nproc_at_barrier >= shm->num_active_flights)
+            sem_post(sem_b1);
+    } else {
+        /* era o último voo activo — liberta ambas as fases */
         sem_post(sem_b1);
+        sem_post(sem_b2);
     }
     sem_post(sem_nproc);
 

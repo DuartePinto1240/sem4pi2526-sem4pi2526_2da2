@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <errno.h>
+#include <limits.h>
 
 /* -----------------------------------------
  * Mutexes and condition variables (US106)
@@ -483,32 +484,41 @@ static void *environment_thread(void *arg) {
         }
     }
 
-    int step = 0;
+    int last_step = -1;
 
     while (!is_sim_done()) {
         if (args->shm->abort_flag) break;
 
-        pthread_mutex_lock(&g_shm_mutex);
-
+        /* lê o step actual da simulação */
+        int current_step = INT_MAX;
         for (int i = 0; i < args->config->num_flights; i++) {
-            if (!args->shm->active[i]) continue;
-            const double lat    = args->shm->positions[i].latitude;
-            const double lon    = args->shm->positions[i].longitude;
-            const double alt_ft = args->shm->positions[i].altitude * 3.28084;
-            WindData wind = {0};
-            if (weather_lookup(lat, lon, alt_ft, &wind)) {
-                args->shm->wind[i] = wind;
-                printf("[ENV] Step %d Flight %d -- wind %.1f m/s @ %.0f deg\n",
-                       step, i, wind.speed_ms, wind.direction_deg);
-            } else {
-                WindData calm = {0};
-                args->shm->wind[i] = calm;
-                printf("[ENV] Step %d Flight %d -- calm\n", step, i);
-            }
+            if (args->shm->active[i] && args->shm->steps_completed[i] < current_step)
+                current_step = args->shm->steps_completed[i];
         }
+        if (current_step == INT_MAX) current_step = 0;
 
-        pthread_mutex_unlock(&g_shm_mutex);
-        step++;
+        /* só processa se o step avançou */
+        if (current_step > last_step) {
+            last_step = current_step;
+
+            pthread_mutex_lock(&g_shm_mutex);
+            for (int i = 0; i < args->config->num_flights; i++) {
+                if (!args->shm->active[i]) continue;
+                const double lat    = args->shm->positions[i].latitude;
+                const double lon    = args->shm->positions[i].longitude;
+                const double alt_ft = args->shm->positions[i].altitude * 3.28084;
+                WindData wind = {0};
+                if (weather_lookup(lat, lon, alt_ft, &wind)) {
+                    args->shm->wind[i] = wind;
+                    printf("[ENV] Step %d Flight %d -- wind %.1f m/s @ %.0f deg\n", current_step, i, wind.speed_ms, wind.direction_deg);
+                } else {
+                    WindData calm = {0};
+                    args->shm->wind[i] = calm;
+                    printf("[ENV] Step %d Flight %d -- calm\n", current_step, i);
+                }
+            }
+            pthread_mutex_unlock(&g_shm_mutex);
+        }
 
         sleep(args->config->time_step_seconds > 0
               ? args->config->time_step_seconds : 1);

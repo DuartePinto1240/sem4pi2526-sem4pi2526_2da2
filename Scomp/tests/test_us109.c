@@ -5,8 +5,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include "src/simulation.h"
-#include "src/report.h"
+#include "../src/simulation.h"
+#include "../src/report.h"
 
 /* Helper — returns 1 if the file contains the substring, 0 otherwise. */
 static int file_contains(const char *filename, const char *needle) {
