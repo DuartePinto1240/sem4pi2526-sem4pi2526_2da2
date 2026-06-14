@@ -1,4 +1,4 @@
-# SCOMP — Sprint 2: Flight Simulation
+# SCOMP — Sprint 3: Flight Simulation
 
 ## How to Build and Run
 
@@ -6,19 +6,20 @@
 # Compile
 make
 
-# Run the simulation
+# Run the simulation (legacy mode — no flight plan file)
 ./simulation <num_flights> <total_steps> <time_step_sec> <safety_threshold_m> <max_violations>
 
 # Example — 3 flights, 10 steps, 1 s per step, 50 km threshold, abort after 5 violations
 ./simulation 3 10 1 50000 5
 
-# Example — force violations (high threshold catches nearby flights)
+# Example — force violations (flights close enough to trigger threshold)
 ./simulation 2 10 1 999999 5
 
 # Run tests
-make test        # US100/US101 tests
-make test102     # US102 tests
-make test103     # US103 tests
+make test        # US105 tests
+make test107     # US107 tests
+make test108     # US108 tests
+make test109     # US109 tests
 make test-all    # all tests at once
 ```
 
@@ -28,28 +29,31 @@ The simulation writes a timestamped report file (`simulation_report_YYYYMMDD_HHM
 
 ## Component Diagram
 
-The diagram below shows all processes, pipes, files and signals involved in the simulation.
+The diagram below shows all processes, threads, shared memory segments, semaphores, signals and files involved in the simulation.
 
-![Sprint 2 Component Diagram](component_diagram.svg)
+![Sprint 3 Component Diagram](component_diagram.svg)
 
 ---
 
 ## Approach per User Story
 
-### US100 — Simulate Flights in a Given Area
-The entry point is `start_simulation()` in `simulation.c`. After validating all parameters, it creates **two pipes per flight** (one for position updates, one for step tokens) and calls `fork()` once per flight. The parent enters a step loop; each step it synchronises all flights, checks for violations, and advances. Child processes are cleaned up with `waitpid()` at the end. Implemented in `simulation.c` and `main.c`.
+### US105 — Initialise Hybrid Simulation Environment with Shared Memory
+`start_simulation()` in `simulation.c` allocates a shared memory segment (`/aisafe_sim`) via `shm_open` + `ftruncate` + `mmap`. The segment holds the `SharedSimulationData` struct with per-flight positions, step counters, active flags, wind data and barrier state. Named semaphores are created for each flight (`/flight_i`, initialised to 0) and for the barrier (`/aisafe_nproc`, `/aisafe_barrier1`, `/aisafe_barrier2`). Flights are forked **before** threads are created so that `states[i].active` is populated when the SimulationController starts.
 
-### US101 — Capture and Process Flight Movements
-Inside `synchronize_step()`, before overwriting `FlightState.current` with the new position, the old value is pushed into `FlightState.history[]`. This history is then used by `check_predicted_violations()` to extrapolate each flight's next position one step ahead using a linear delta (`next = current + (current − previous)`). If two predicted positions are within 2× the safety threshold, a warning is logged. Prediction is skipped on step 0 (no history yet). Implemented in `simulation.c`.
+### US106 — Function-Specific Threads in the Parent Process
+Four threads are created with `pthread_create`: `SimulationController`, `ViolationDetector`, `ReportGenerator` and `Environment`. Each operates independently on the shared memory. Thread synchronisation uses `pthread_mutex_t` and `pthread_cond_t`: `g_shm_mutex` protects shared memory writes, `g_report_mutex`/`g_report_cond` is the channel between ViolationDetector and ReportGenerator (US107), `g_done_mutex` protects the `g_sim_done` flag, and `g_vd_mutex`/`g_vd_cond` replaces `usleep` in the ViolationDetector with `pthread_cond_timedwait` (10 ms timeout).
 
-### US102 — Detect Aircraft Safety Violations in Real Time
-`check_safety_violations()` iterates over all pairs of active flights and computes the Euclidean distance between their current positions (degrees converted to metres at ~111 km/degree). If the distance is below `safety_threshold_m`, the event is recorded in the report with timestamp, positions and velocity vectors estimated from history, and `SIGUSR1` is sent to both involved child processes. The signal handler in `flight.c` blocks further signals while processing (`sigprocmask`). Implemented in `simulation.c` and `flight.c`.
+### US107 — Notify Report Thread via Condition Variables
+When the ViolationDetector detects a safety violation it calls `pthread_cond_signal(&g_report_cond)` while holding `g_report_mutex`. The ReportGenerator is blocked in `pthread_cond_wait` on the same condition variable and wakes immediately to log the event. When the simulation ends, the SimulationController calls `pthread_cond_broadcast` to unblock the ReportGenerator and trigger the final report write.
 
-### US103 — Synchronize Flight Execution with a Time Step
-Synchronisation is achieved with a second pipe per flight (the "step pipe"). At the start of each step the parent writes a 1-byte token to every active flight; each child blocks on `read()` from that pipe and only proceeds after receiving the token. The parent then blocks on `read()` from the position pipe of each flight in order. This guarantees that all position updates for step N are fully processed before the parent advances to step N+1. Implemented in `synchronize_step()` in `simulation.c` and `execute_flight()` in `flight.c`.
+### US108 — Enforce Step-by-Step Simulation Synchronisation
+A **two-phase turnstile barrier** (Little Book of Semaphores, §3.6) synchronises the N flight child processes at the end of each step. The three named semaphores (`/aisafe_nproc` as mutex, `/aisafe_barrier1` as Phase 1 gate, `/aisafe_barrier2` as Phase 2 gate) and the `nproc_at_barrier` counter in shared memory implement the pattern. The SimulationController does **not** participate in the barrier — it posts per-flight semaphores to start each step and polls `steps_completed[i]` with `sleep(1)` until all active flights finish. The fork-before-threads ordering ensures `states[i].active` is set before the SC starts iterating.
 
 ### US109 — Generate and Store Final Simulation Report
-After the simulation loop ends and all children have exited, `write_report()` in `report.c` writes a structured text file containing: generation timestamp, total flights, total violations, per-flight status (OK / VIOLATED / ABORTED), and full detail for each violation event (timestamp, both flight IDs, positions, velocity vectors). The filename is generated by `make_report_filename()` with a `YYYYMMDD_HHMMSS` suffix. A summary is also printed to stdout. Implemented in `report.c`.
+After all child processes exit and the simulation loop ends, the ReportGenerator thread calls `write_report()` in `report.c`. The file contains: generation timestamp, total flights, total violations, per-flight status (OK / VIOLATED / ABORTED), and full detail for each violation event (timestamp, both flight IDs, positions, velocity vectors computed from position history). A stdout summary is printed by `print_report_summary()`.
+
+### US110 — Integrate Environmental Influences into Simulation
+An `Environment` thread loads weather data from `CW_wind.csv` (falling back to `HP_wind.csv`) via `weather_load_csv()` in `weather.c`. At each step it reads `steps_completed[i]` from shared memory to determine the current simulation step, then calls `weather_lookup(lat, lon, alt_ft)` for each active flight's current position and writes the result into `shm->wind[flight_id]`. Each flight process reads `shm->wind[flight_id]` inside `advance_physics()` and applies the wind displacement to its latitude and longitude. Wind is per-flight — different flights in different geographic zones receive different wind vectors.
 
 ---
 
@@ -57,17 +61,20 @@ After the simulation loop ends and all children have exited, `write_report()` in
 
 | US | Status | Notes |
 |---|---|---|
-| US100 | ✅ Implemented | Fork, pipes, parameter validation, main simulation loop |
-| US101 | ✅ Implemented | Position history stored per flight; linear extrapolation for predicted violations |
-| US102 | ✅ Implemented | Pairwise distance check; SIGUSR1 notification; signal blocked during handler |
-| US103 | ✅ Implemented | Step-token pipe barrier; parent waits for all children before advancing |
-| US109 | ✅ Implemented | Full report written to timestamped file; stdout summary |
+| US105 | ✅ Implemented | `shm_open`, `mmap`, named semaphores, forks before threads |
+| US106 | ✅ Implemented | 4 threads: SC, VD, RG, ENV; mutex + condition variables throughout |
+| US107 | ✅ Implemented | `pthread_cond_signal` VD→RG on violation; `pthread_cond_broadcast` on sim done |
+| US108 | ✅ Implemented | Two-phase turnstile barrier among N child processes; SC polls externally |
+| US109 | ✅ Implemented | Timestamped report file with violations, positions, velocity vectors, PASS/FAIL |
+| US110 | ✅ Implemented | Per-flight wind lookup each step from CSV; applied in `advance_physics()` |
 
 **Known limitations:**
-- Flight paths are **simulated** (linear interpolation between hardcoded coordinates offset per flight ID) rather than read from real flight plan files — integration with the Java/ANTLR layer is out of scope for this sprint.
-- Distance uses a simplified Euclidean approximation (1° ≈ 111 km); accuracy degrades at high latitudes and over long distances, but is sufficient for proximity detection.
-- The `history[]` array is fixed at `MAX_HISTORY = 100` entries per flight. For simulations with more than 100 steps, older positions are silently dropped. A circular buffer would be a natural improvement.
-- `synchronize_step()` reads positions from children **in order** (flight 0, then 1, then 2…). If a child is slow, the parent waits. True lock-step with a barrier semaphore is introduced in US108 (Sprint 3).
+
+- The weather CSV (`CW_wind.csv`) covers altitudes up to 15 000 ft. Flights in cruise phase (~35 000 ft) operate above this ceiling and receive calm conditions. The lookup mechanism is correct and would work with higher-altitude data.
+- The ENV thread and the SC are not barrier-synchronised with each other — wind data may be written slightly before or after the exact step boundary. This does not affect correctness since wind changes are gradual.
+- `nproc_at_barrier` is reset naturally by Phase 2 of the barrier; no manual reset is needed between steps.
+- The early-exit path in `execute_flight()` decrements `num_active_flights` inside `sem_nproc` and posts `sem_barrier1` (and `sem_barrier2` if it was the last active flight) to prevent deadlock when a flight terminates before completing the barrier.
+
 ---
 
 ## Group Contribution

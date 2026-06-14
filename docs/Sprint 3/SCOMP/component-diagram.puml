@@ -1,61 +1,106 @@
-@startuml scomp-component-diagram
+@startuml scomp-component-diagram-sprint3
 skinparam componentStyle rectangle
 skinparam defaultFontSize 12
 skinparam ArrowFontSize 11
 
-title AISafe SCOMP — Component Diagram (Sprint 2)
+title AISafe SCOMP — Component Diagram (Sprint 3)
 
-node "Main Process\n(parent)" as MAIN {
+node "Main Process (parent)" as MAIN {
+
   component "main.c\n(entry point)" as MAIN_C
-  component "simulation.c\n(orchestration)" as SIM
-  component "report.c\n(US109)" as REPORT
+  component "simulation.c\nstart_simulation()" as SIM
+
+  node "Parent Threads (US106)" as THREADS {
+    component "SimulationController\n(US106 / US108)" as SC
+    component "ViolationDetector\n(US106 / US102)" as VD
+    component "ReportGenerator\n(US106 / US109 / US111)" as RG
+    component "Environment\n(US110)" as ENV
+  }
+
+  component "report.c\n(US109 / US111 / US112)" as REPORT_C
+  component "weather.c\n(US110)" as WEATHER_C
+  component "flight.c\ninitialisation only" as FLIGHT_INIT
 
   MAIN_C --> SIM : start_simulation()
-  SIM --> REPORT : write_report()
+  SIM --> THREADS : pthread_create() × 4
+  SIM --> FLIGHT_INIT : init_flight_physics()
+  RG --> REPORT_C : write_report()
+  ENV --> WEATHER_C : weather_load_csv()\nweather_lookup()
 }
 
-node "Flight Process i\n(child, one per flight)" as CHILD {
-  component "flight.c\n(execute_flight)" as FLIGHT
-  component "SIGUSR1 handler\n(violation notify)" as SIG1
+node "Flight Process i\n(child, one per flight)\n(US105)" as CHILD {
+  component "flight.c\nexecute_flight()" as FLIGHT
+  component "advance_physics()\n(US110: reads wind from shm)" as PHYSICS
+  component "Two-Phase Turnstile\nBarrier (US108)" as BARRIER_CHILD
+  component "SIGUSR1 handler\n(violation warning)" as SIG1
   component "SIGTERM handler\n(abort cleanup)" as SIGT
 
+  FLIGHT --> PHYSICS : per step
+  FLIGHT --> BARRIER_CHILD : after writing position
   FLIGHT --> SIG1 : signal()
   FLIGHT --> SIGT : signal()
 }
 
-database "simulation_report_\n<timestamp>.txt" as REPORT_FILE
+database "SharedMemory\n/aisafe_sim\n(US105)" as SHM {
+  component "positions[MAX_FLIGHTS]" as SHM_POS
+  component "steps_completed[MAX_FLIGHTS]" as SHM_STEPS
+  component "active[MAX_FLIGHTS]" as SHM_ACTIVE
+  component "wind[MAX_FLIGHTS]\n(US110)" as SHM_WIND
+  component "nproc_at_barrier\nnum_active_flights\n(US108)" as SHM_BARRIER
+  component "total_violations\nabort_flag" as SHM_VIOL
+}
 
-queue "Position Pipe\n(child → parent)\nbinary Position struct" as PIPE_POS
-queue "Step Token Pipe\n(parent → child)\n1-byte token" as PIPE_STEP
+database "simulation_report_\n<timestamp>.txt\n(US109 / US111)" as REPORT_FILE
 
-SIM --> PIPE_STEP : write token\n(synchronize_step)
-PIPE_STEP --> FLIGHT : read token\n(blocks until parent ready)
+package "Named Semaphores\n(US105 / US108)" as SEMS {
+  component "/flight_i  (×N, init=0)\nstep token per flight" as SEM_FLIGHT
+  component "/aisafe_nproc  (init=1)\nmutex for barrier counter" as SEM_NPROC
+  component "/aisafe_barrier1  (init=0)\nPhase 1 gate" as SEM_B1
+  component "/aisafe_barrier2  (init=0)\nPhase 2 gate" as SEM_B2
+}
 
-FLIGHT --> PIPE_POS : write Position\n(position update sent)
-PIPE_POS --> SIM : read Position\n(synchronize_step)
+database "CW_wind.csv\n(US110)" as CSV
 
-SIM --> CHILD : fork() × num_flights
-SIM -right-> CHILD : kill(SIGUSR1)\nviolation detected
-SIM -right-> CHILD : kill(SIGTERM)\nmax violations reached
+' Shared memory access
+SIM --> SHM : shm_open / mmap\n(US105)
+SC --> SHM_STEPS : polling\nsteps_completed[i]
+SC --> SHM_ACTIVE : read active[i]
+VD --> SHM_POS : read positions[]\n(g_shm_mutex)
+VD --> SHM_VIOL : write total_violations\nabort_flag
+ENV --> SHM_WIND : write wind[i]\n(g_shm_mutex)
+ENV --> SHM_STEPS : read steps_completed[i]\n(current step detection)
+RG --> SHM_VIOL : read on cond_signal
 
-REPORT --> REPORT_FILE : fwrite
+' Child shared memory access
+PHYSICS --> SHM_WIND : read wind[flight_id]
+FLIGHT --> SHM_POS : write positions[i]
+FLIGHT --> SHM_STEPS : write steps_completed[i]
+FLIGHT --> SHM_ACTIVE : write active[i]=0\n(on exit)
+FLIGHT --> SHM_BARRIER : read/write\nnproc_at_barrier\n(sem_nproc protected)
 
-note right of SIM
-  **US100** — fork + pipes + validate params
-  **US101** — store history + predict violations
-  **US102** — check current distances + SIGUSR1
-  **US103** — step token barrier (parent waits
-             for all children before advancing)
-  **US109** — aggregate data → write report file
-end note
+' Semaphore usage
+SIM --> SEMS : sem_open / init\n(US105)
+SC --> SEM_FLIGHT : sem_post()\n(unlock flight i)
+FLIGHT --> SEM_FLIGHT : sem_wait()\n(blocks until SC posts)
+BARRIER_CHILD --> SEM_NPROC : sem_wait/post\n(mutual exclusion)
+BARRIER_CHILD --> SEM_B1 : Phase 1\nsem_wait/post
+BARRIER_CHILD --> SEM_B2 : Phase 2\nsem_wait/post
 
-note right of CHILD
-  Each child:
-  1. Waits for step token
-  2. Computes next position
-  3. Writes Position to pipe
-  4. Sleeps time_step_seconds
-  Repeats for total_steps
-end note
+' Signals
+VD -right-> CHILD : kill(SIGUSR1)\nviolation detected
+VD -right-> CHILD : kill(SIGTERM)\nmax violations reached
+
+' Thread sync (US107)
+VD --> RG : pthread_cond_signal()\n(g_report_cond)\n(US107)
+SC --> RG : pthread_cond_broadcast()\n(simulation done)
+
+' Weather CSV
+CSV --> WEATHER_C : weather_load_csv()
+
+' Report file
+REPORT_C --> REPORT_FILE : fwrite
+
+' Fork
+SIM --> CHILD : fork() × num_flights\n(before threads — US108 fix)
 
 @enduml
